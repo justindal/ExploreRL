@@ -1,6 +1,6 @@
 //
 //  ContentView.swift
-//  ExploreRL
+//  ExploreRL-iOS
 //
 //  Created by Justin Daludado on 2025-11-16.
 //
