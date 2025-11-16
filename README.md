@@ -12,7 +12,7 @@ This project aims to:
 
 - `ExploreRL-iOS/` — iOS app target and UI.
 - `ExploreRL-macOS/` — macOS app target and UI.
-- `Shared/` — shared Swift code: Gymnasium-style environments, spaces, and RL utilities.
+- `ExploreRLCore/` — Swift Package containing Gymnasium-style environments, spaces, and RL utilities.
 
 **Features**
 
@@ -41,7 +41,7 @@ open ExploreRL.xcodeproj
 
 ## Using the app
 
-- Choose an environment to run. Environments live in `Shared/Gymnasium/Environments`.
+- Choose an environment to run. Environments live as part of the `ExploreRLCore` Swift package.
 - Select an algorithm and configure hyperparameters via the UI controls.
 - Start training or run in evaluation mode to visualize agent interaction and metrics.
 
@@ -52,7 +52,7 @@ open ExploreRL.xcodeproj
 ## Structure
 
 - **Device targets (`ExploreRL-iOS`, `ExploreRL-macOS`)**: Platform-specific views wired to shared logic.
-- **Shared**: Environment definitions, Spaces (`Space.swift`), and RL utilities.
+- **ExploreRLCore**: Environment definitions, Spaces definitions, and RL utilities.
 - **Trainer layer**: Integrates MLX Swift to implement algorithms, training loops, and logging.
 
 ## Planned Features
