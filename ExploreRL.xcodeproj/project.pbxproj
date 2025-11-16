@@ -23,11 +23,6 @@
 			path = "ExploreRL-macOS";
 			sourceTree = "<group>";
 		};
-		B954BCF42ECA7A420081CE3F /* Shared */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = Shared;
-			sourceTree = "<group>";
-		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -55,7 +50,6 @@
 				B954BCD72ECA7A260081CE3F /* ExploreRL-iOS */,
 				B954BCE62ECA7A380081CE3F /* ExploreRL-macOS */,
 				B954BC9B2ECA6A9B0081CE3F /* Products */,
-				B954BCF42ECA7A420081CE3F /* Shared */,
 			);
 			sourceTree = "<group>";
 		};
