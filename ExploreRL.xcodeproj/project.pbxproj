@@ -9,6 +9,7 @@
 /* Begin PBXFileReference section */
 		B954BCD62ECA7A260081CE3F /* ExploreRL-iOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "ExploreRL-iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		B954BCE52ECA7A380081CE3F /* ExploreRL-macOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "ExploreRL-macOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		B954BCFA2ECA97F50081CE3F /* ExploreRLCore */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = ExploreRLCore; path = ../ExploreRLCore; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -50,6 +51,7 @@
 		B954BC912ECA6A9B0081CE3F = {
 			isa = PBXGroup;
 			children = (
+				B954BCFA2ECA97F50081CE3F /* ExploreRLCore */,
 				B954BCD72ECA7A260081CE3F /* ExploreRL-iOS */,
 				B954BCE62ECA7A380081CE3F /* ExploreRL-macOS */,
 				B954BC9B2ECA6A9B0081CE3F /* Products */,
