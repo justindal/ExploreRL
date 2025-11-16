@@ -12,7 +12,7 @@ This project aims to:
 
 - `ExploreRL-iOS/` — iOS app target and UI.
 - `ExploreRL-macOS/` — macOS app target and UI.
-- `ExploreRLCore/` — Swift Package containing Gymnasium-style environments, spaces, and RL utilities.
+- [`ExploreRLCore/`](https://github.com/justindal/ExploreRLCore/) — Swift Package containing Gymnasium-style environments, spaces, and RL utilities.
 
 **Features**
 
@@ -28,6 +28,7 @@ Prerequisites
 - macOS with Xcode
 - Metal Toolchain installed
 - Swift MLX Package
+- [ExploreRLCore](https://github.com/justindal/ExploreRLCore/) Swift Package
 
 Open and run
 
