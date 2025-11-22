@@ -6,10 +6,14 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		B9F2BB482ED1361E005CF444 /* ExploreRLCore in Frameworks */ = {isa = PBXBuildFile; productRef = B9F2BB472ED1361E005CF444 /* ExploreRLCore */; };
+		B9F2BB4A2ED1362D005CF444 /* ExploreRLCore in Frameworks */ = {isa = PBXBuildFile; productRef = B9F2BB492ED1362D005CF444 /* ExploreRLCore */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		B954BCD62ECA7A260081CE3F /* ExploreRL-iOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "ExploreRL-iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		B954BCE52ECA7A380081CE3F /* ExploreRL-macOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "ExploreRL-macOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
-		B954BCFA2ECA97F50081CE3F /* ExploreRLCore */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = ExploreRLCore; path = ../ExploreRLCore; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -23,6 +27,11 @@
 			path = "ExploreRL-macOS";
 			sourceTree = "<group>";
 		};
+		B9F2BB562ED13B17005CF444 /* ExploreRL-AppShared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "ExploreRL-AppShared";
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -30,6 +39,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B9F2BB482ED1361E005CF444 /* ExploreRLCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -37,6 +47,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B9F2BB4A2ED1362D005CF444 /* ExploreRLCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -46,7 +57,7 @@
 		B954BC912ECA6A9B0081CE3F = {
 			isa = PBXGroup;
 			children = (
-				B954BCFA2ECA97F50081CE3F /* ExploreRLCore */,
+				B9F2BB562ED13B17005CF444 /* ExploreRL-AppShared */,
 				B954BCD72ECA7A260081CE3F /* ExploreRL-iOS */,
 				B954BCE62ECA7A380081CE3F /* ExploreRL-macOS */,
 				B954BC9B2ECA6A9B0081CE3F /* Products */,
@@ -79,9 +90,11 @@
 			);
 			fileSystemSynchronizedGroups = (
 				B954BCD72ECA7A260081CE3F /* ExploreRL-iOS */,
+				B9F2BB562ED13B17005CF444 /* ExploreRL-AppShared */,
 			);
 			name = "ExploreRL-iOS";
 			packageProductDependencies = (
+				B9F2BB472ED1361E005CF444 /* ExploreRLCore */,
 			);
 			productName = "ExploreRL-iOS";
 			productReference = B954BCD62ECA7A260081CE3F /* ExploreRL-iOS.app */;
@@ -101,9 +114,11 @@
 			);
 			fileSystemSynchronizedGroups = (
 				B954BCE62ECA7A380081CE3F /* ExploreRL-macOS */,
+				B9F2BB562ED13B17005CF444 /* ExploreRL-AppShared */,
 			);
 			name = "ExploreRL-macOS";
 			packageProductDependencies = (
+				B9F2BB492ED1362D005CF444 /* ExploreRLCore */,
 			);
 			productName = "ExploreRL-macOS";
 			productReference = B954BCE52ECA7A380081CE3F /* ExploreRL-macOS.app */;
@@ -138,6 +153,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				B954BCA82ECA72670081CE3F /* XCRemoteSwiftPackageReference "mlx-swift" */,
+				B9F2BB462ED1361E005CF444 /* XCLocalSwiftPackageReference "../ExploreRLCore" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = B954BC9B2ECA6A9B0081CE3F /* Products */;
@@ -470,6 +486,13 @@
 		};
 /* End XCConfigurationList section */
 
+/* Begin XCLocalSwiftPackageReference section */
+		B9F2BB462ED1361E005CF444 /* XCLocalSwiftPackageReference "../ExploreRLCore" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../ExploreRLCore;
+		};
+/* End XCLocalSwiftPackageReference section */
+
 /* Begin XCRemoteSwiftPackageReference section */
 		B954BCA82ECA72670081CE3F /* XCRemoteSwiftPackageReference "mlx-swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
@@ -480,6 +503,17 @@
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		B9F2BB472ED1361E005CF444 /* ExploreRLCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ExploreRLCore;
+		};
+		B9F2BB492ED1362D005CF444 /* ExploreRLCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ExploreRLCore;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = B954BC922ECA6A9B0081CE3F /* Project object */;
 }
