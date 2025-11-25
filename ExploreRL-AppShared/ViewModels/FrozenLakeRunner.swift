@@ -5,7 +5,6 @@
 import SwiftUI
 import ExploreRLCore
 import MLX
-import MLXRandom
 
 @MainActor
 @Observable class FrozenLakeRunner {
@@ -17,6 +16,26 @@ import MLXRandom
     var totalReward = 0.0
     var isTraining = false
     
+    var loadedAgentId: UUID?
+    var loadedAgentName: String?
+    var hasTrainedSinceLoad = false
+    
+    private var loadedEpisodeCount: Int = 0
+    private var loadedBestReward: Double = 0
+    
+    var canResume: Bool {
+        return agent != nil && episodeCount > 1
+    }
+    
+    var totalEpisodesTrained: Int {
+        return loadedEpisodeCount + episodeMetrics.count
+    }
+    
+    var combinedBestReward: Double {
+        let newBest = episodeMetrics.map { $0.reward }.max() ?? 0
+        return max(loadedBestReward, newBest)
+    }
+    
     var currentMap: [String] = []
     
     var targetFPS: Double = 60.0
@@ -24,6 +43,12 @@ import MLXRandom
     var mapName: String = "4x4"
     var customMapSize: Int = 8
     var isSlippery: Bool = false
+    var selectedAlgorithm: RLAlgorithm = .qLearning {
+        didSet {
+            resetToDefaults()
+            reset()
+        }
+    }
     var showPolicy: Bool = false {
         didSet {
             updateSnapshot()
@@ -43,7 +68,7 @@ import MLXRandom
     var movingAverageWindow = 100
     
     private var env: (any Env<Int, Int>)?
-    private var agent: QLearningAgent?
+    private var agent: DiscreteAgent?
     private var rngKey: MLXArray
     
     var successRate: Double {
@@ -78,7 +103,7 @@ import MLXRandom
     }
     
     init() {
-        self.rngKey = MLXRandom.key(0)
+        self.rngKey = MLX.key(0)
         setupEnvironment()
     }
     
@@ -101,7 +126,8 @@ import MLXRandom
         kwargs["desc"] = desc
         self.currentMap = desc
         
-        self.rngKey = MLXRandom.key(0)
+        // use current time as seed, might update later
+        self.rngKey = MLX.key(UInt64(Date().timeIntervalSince1970))
         
         guard let madeEnv = Gymnasium.make(
             "FrozenLake-v1",
@@ -119,15 +145,28 @@ import MLXRandom
             return
         }
         
-        self.agent = QLearningAgent(
-            learningRate: learningRate,
-            gamma: gamma,
-            stateSize: obsSpace.n,
-            actionSize: actSpace.n,
-            epsilon: epsilon
-        )
+        switch selectedAlgorithm {
+        case .qLearning:
+            let qAgent = QLearningAgent(
+                learningRate: learningRate,
+                gamma: gamma,
+                stateSize: obsSpace.n,
+                actionSize: actSpace.n,
+                epsilon: epsilon
+            )
+            self.agent = DiscreteAgent(qAgent)
+        case .sarsa:
+            let sarsaAgent = SARSAAgent(
+                learningRate: learningRate,
+                gamma: gamma,
+                stateSize: obsSpace.n,
+                actionSize: actSpace.n,
+                epsilon: epsilon
+            )
+            self.agent = DiscreteAgent(sarsaAgent)
+        }
         
-        _ = self.env?.reset(seed: 42)
+        _ = self.env?.reset()
         updateSnapshot()
         
         episodeMetrics.removeAll()
@@ -152,11 +191,13 @@ import MLXRandom
     func startTraining() {
         guard !isTraining else { return }
         isTraining = true
+        hasTrainedSinceLoad = true
+        TrainingState.shared.startTraining(environment: "Frozen Lake")
         
         Task.detached { [weak self] in
             guard let self = self else { return }
             
-            // TODO use Sendable in future
+            // TODO use Sendable in future (safer?)
             
             await self.runTrainingLoop()
         }
@@ -164,13 +205,185 @@ import MLXRandom
     
     func stopTraining() {
         isTraining = false
+        TrainingState.shared.stopTraining()
     }
     
     func reset() {
         stopTraining()
+        self.epsilon = 1.0
+        
+        loadedAgentId = nil
+        loadedAgentName = nil
+        hasTrainedSinceLoad = false
+        loadedEpisodeCount = 0
+        loadedBestReward = 0
+        
         Task {
             setupEnvironment()
         }
+    }
+    
+    func resetToDefaults() {
+        let defaults = selectedAlgorithm.defaults
+        self.learningRate = defaults.learningRate
+        self.gamma = defaults.gamma
+        self.epsilon = defaults.epsilon
+        self.epsilonDecay = defaults.epsilonDecay
+    }
+    
+    func saveAgent(name: String) throws -> SavedAgent {
+        guard let agent = self.agent else {
+            throw AgentStorageError.agentNotFound
+        }
+        
+        let saved = try AgentStorage.shared.saveFrozenLakeAgent(
+            name: name,
+            qTable: agent.qTable,
+            algorithm: selectedAlgorithm.rawValue,
+            episodesTrained: totalEpisodesTrained,
+            epsilon: Double(epsilon),
+            bestReward: combinedBestReward,
+            averageReward: averageReward,
+            successRate: successRate,
+            hyperparameters: [
+                "learningRate": Double(learningRate),
+                "gamma": Double(gamma),
+                "epsilon": Double(epsilon),
+                "epsilonDecay": Double(epsilonDecay),
+                "minEpsilon": Double(minEpsilon)
+            ],
+            environmentConfig: [
+                "mapName": mapName,
+                "mapSize": mapName == "Custom" ? "\(customMapSize)" : mapName,
+                "isSlippery": isSlippery ? "true" : "false"
+            ]
+        )
+        
+        loadedAgentId = saved.id
+        loadedAgentName = saved.name
+        hasTrainedSinceLoad = false
+        
+        loadedEpisodeCount = totalEpisodesTrained
+        loadedBestReward = combinedBestReward
+        
+        return saved
+    }
+    
+    func updateAgent(id: UUID, name: String) throws {
+        guard let agent = self.agent else {
+            throw AgentStorageError.agentNotFound
+        }
+        
+        try AgentStorage.shared.updateFrozenLakeAgent(
+            id: id,
+            newName: name,
+            qTable: agent.qTable,
+            episodesTrained: totalEpisodesTrained,
+            epsilon: Double(epsilon),
+            bestReward: combinedBestReward,
+            averageReward: averageReward,
+            successRate: successRate,
+            hyperparameters: [
+                "learningRate": Double(learningRate),
+                "gamma": Double(gamma),
+                "epsilon": Double(epsilon),
+                "epsilonDecay": Double(epsilonDecay),
+                "minEpsilon": Double(minEpsilon)
+            ]
+        )
+        
+        loadedAgentName = name
+        hasTrainedSinceLoad = false
+    }
+    
+    func loadAgent(from savedAgent: SavedAgent) throws {
+        guard savedAgent.environmentType == .frozenLake else {
+            throw AgentStorageError.wrongEnvironmentType
+        }
+        
+        stopTraining()
+        
+        if let algorithm = RLAlgorithm(rawValue: savedAgent.algorithmType) {
+            selectedAlgorithm = algorithm
+        }
+        
+        if let lr = savedAgent.hyperparameters["learningRate"] {
+            learningRate = Float(lr)
+        }
+        if let g = savedAgent.hyperparameters["gamma"] {
+            gamma = Float(g)
+        }
+        if let eps = savedAgent.hyperparameters["epsilon"] {
+            epsilon = Float(eps)
+        }
+        if let decay = savedAgent.hyperparameters["epsilonDecay"] {
+            epsilonDecay = Float(decay)
+        }
+        if let minEps = savedAgent.hyperparameters["minEpsilon"] {
+            minEpsilon = Float(minEps)
+        }
+        
+        if let mapNameConfig = savedAgent.environmentConfig["mapName"] {
+            mapName = mapNameConfig
+        }
+        if let slippery = savedAgent.environmentConfig["isSlippery"] {
+            isSlippery = slippery == "true"
+        }
+        if mapName == "Custom", let sizeStr = savedAgent.environmentConfig["mapSize"],
+           let size = Int(sizeStr) {
+            customMapSize = size
+        }
+        
+        setupEnvironment()
+        
+        let qTable = try AgentStorage.shared.loadQTable(for: savedAgent)
+        
+
+        guard let obsSpace = env?.observation_space as? Discrete,
+              let actSpace = env?.action_space as? Discrete else {
+            throw AgentStorageError.dataCorrupted
+        }
+        
+        switch savedAgent.algorithmType {
+        case "Q-Learning":
+            let qAgent = QLearningAgent(
+                learningRate: learningRate,
+                gamma: gamma,
+                stateSize: obsSpace.n,
+                actionSize: actSpace.n,
+                epsilon: epsilon
+            )
+            qAgent.loadQTable(qTable)
+            self.agent = DiscreteAgent(qAgent)
+            
+        case "SARSA":
+            let sarsaAgent = SARSAAgent(
+                learningRate: learningRate,
+                gamma: gamma,
+                stateSize: obsSpace.n,
+                actionSize: actSpace.n,
+                epsilon: epsilon
+            )
+            sarsaAgent.loadQTable(qTable)
+            self.agent = DiscreteAgent(sarsaAgent)
+            
+        default:
+            throw AgentStorageError.dataCorrupted
+        }
+        
+        episodeMetrics = []
+        episodeCount = savedAgent.episodesTrained
+        
+        loadedAgentId = savedAgent.id
+        loadedAgentName = savedAgent.name
+        hasTrainedSinceLoad = false
+        
+        loadedEpisodeCount = savedAgent.episodesTrained
+        loadedBestReward = savedAgent.bestReward
+        
+        // print("Loaded FrozenLake agent '\(savedAgent.name)' with \(savedAgent.episodesTrained) episodes trained")
+        
+        updateSnapshot()
     }
     
     private func runTrainingLoop() async {
@@ -179,10 +392,19 @@ import MLXRandom
         for episode in episodeCount..<targetEpisodes {
             if !isTraining { break }
             
-            guard var env = self.env, var agent = self.agent else { break }
+            guard var env = self.env, let agent = self.agent else { break }
             
             let resetResult = env.reset()
             var currentState = resetResult.obs
+
+            guard let actionSpace = env.action_space as? Discrete else { break }
+            var key = self.rngKey
+            var action = agent.chooseAction(
+                actionSpace: actionSpace,
+                state: currentState,
+                key: &key
+            )
+            self.rngKey = key
             
             var terminated = false
             var truncated = false
@@ -203,35 +425,36 @@ import MLXRandom
                     break
                 }
                 
-                guard let actionSpace = env.action_space as? Discrete else { break }
-                var key = self.rngKey
-                let action = agent.chooseAction(
-                    actionSpace: actionSpace,
-                    state: currentState,
-                    key: &key
-                )
-                self.rngKey = key
-                
                 let result = env.step(action)
                 let nextState = result.obs
                 let reward = Float(result.reward)
+                
+                var currentKey = self.rngKey
+                let nextAction = agent.chooseAction(
+                    actionSpace: actionSpace,
+                    state: nextState,
+                    key: &currentKey
+                )
+                self.rngKey = currentKey
                 
                 let updateResult = agent.update(
                     state: currentState,
                     action: action,
                     reward: reward,
-                    nextState: nextState
+                    nextState: nextState,
+                    nextAction: nextAction,
+                    terminated: result.terminated
                 )
                 
                 totalTDError += Double(abs(updateResult.tdError))
                 
                 currentState = nextState
+                action = nextAction
                 terminated = result.terminated
                 truncated = result.truncated
                 steps += 1
                 episodeReward += result.reward
                 
-                self.agent = agent
                 
                 let shouldUpdateUI = !turboMode || (terminated || truncated)
                 
@@ -270,8 +493,11 @@ import MLXRandom
                 steps: steps,
                 success: success,
                 averageTDError: avgTDError,
+                averageLoss: nil,
                 averageMaxQ: Double(avgMaxQ),
-                epsilon: Double(epsilon)
+                epsilon: Double(epsilon),
+                averageGradNorm: nil,
+                rewardMovingAverage: nil
             )
             
             self.episodeMetrics.append(metric)
@@ -281,10 +507,7 @@ import MLXRandom
             
             if epsilon > minEpsilon {
                 epsilon = max(minEpsilon, epsilon * epsilonDecay)
-                if var agent = self.agent {
-                    agent.epsilon = epsilon
-                    self.agent = agent
-                }
+                self.agent?.epsilon = epsilon
             }
             
             if turboMode {

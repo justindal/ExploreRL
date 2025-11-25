@@ -14,12 +14,40 @@ struct FrozenLakeConfigurationView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 15) {
-            Text("Configuration")
-                .font(.headline)
+            HStack {
+                Text("Configuration")
+                    .font(.title3)
+                    .bold()
+                Spacer()
+                Button("Reset to Defaults") {
+                    runner.resetToDefaults()
+                    runner.reset()
+                }
+                .font(.caption)
+                .buttonStyle(.bordered)
+            }
+            
+            VStack(alignment: .leading) {
+                Text("Algorithm")
+                    .font(.headline)
+                
+                Picker("Algorithm", selection: $runner.selectedAlgorithm) {
+                    ForEach(RLAlgorithm.allCases) { algo in
+                        Text(algo.rawValue).tag(algo)
+                    }
+                }
+                .pickerStyle(.segmented)
+                
+                Text(runner.selectedAlgorithm.description)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .disabled(runner.isTraining)
             
             VStack(alignment: .leading) {
                 Text("Speed Control")
-                    .font(.subheadline)
+                    .font(.headline)
                 Toggle("Turbo Mode", isOn: $runner.turboMode)
                 if !runner.turboMode {
                     let fpsBinding = clampedDoubleBinding($runner.targetFPS, range: 1...120, step: 1)
@@ -30,14 +58,14 @@ struct FrozenLakeConfigurationView: View {
                     }
                     Slider(value: fpsBinding, in: 1...120)
                 }
-                
-                Toggle("Show Policy Arrows", isOn: $runner.showPolicy)
             }
             
             Group {
                 VStack(alignment: .leading) {
                     Text("Environment")
-                        .font(.subheadline)
+                        .font(.headline)
+                    
+                    Toggle("Show Policy Arrows", isOn: $runner.showPolicy)
                     
                     Picker("Map Size", selection: $runner.mapName) {
                         Text("4x4").tag("4x4")
@@ -74,7 +102,7 @@ struct FrozenLakeConfigurationView: View {
                 
                 VStack(alignment: .leading) {
                     Text("Hyperparameters")
-                        .font(.subheadline)
+                        .font(.headline)
                     
                     let lrBinding = doubleBinding(for: $runner.learningRate, range: 0.01...1.0, step: 0.01)
                     HStack {
@@ -115,7 +143,7 @@ struct FrozenLakeConfigurationView: View {
                 
                 VStack(alignment: .leading) {
                     Text("Training Limits")
-                        .font(.subheadline)
+                        .font(.headline)
                     
                     let episodeBinding = clampedIntBinding($runner.episodesPerRun, range: 100...10000)
                     HStack(spacing: 12) {
