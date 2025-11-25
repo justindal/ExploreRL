@@ -6,9 +6,10 @@ import SwiftUI
 
 struct FrozenLakeChartsView: View {
     var runner: FrozenLakeRunner
+    var columns: [GridItem] = []
     
     var body: some View {
-        VStack(spacing: 15) {
+        LazyVGrid(columns: columns.isEmpty ? [GridItem(.flexible())] : columns, spacing: 10) {
             MetricChart(
                 title: "Success Rate",
                 data: Array(runner.episodeMetrics.suffix(500)),
@@ -37,29 +38,29 @@ struct FrozenLakeChartsView: View {
             )
             
             MetricChart(
-                title: "Avg TD Error (Convergence)",
+                title: "TD Error",
                 data: Array(runner.episodeMetrics.suffix(500)),
                 xValue: { $0.episode },
                 yValue: { $0.averageTDError },
                 color: .purple,
-                averageValue: runner.averageTDError
+                averageValue: nil
             )
             
             MetricChart(
-                title: "Avg Max Q-Value (Optimism)",
+                title: "Max Q-Value",
                 data: Array(runner.episodeMetrics.suffix(500)),
                 xValue: { $0.episode },
                 yValue: { $0.averageMaxQ },
                 color: .pink,
-                averageValue: runner.averageMaxQ
+                averageValue: nil
             )
             
             MetricChart(
-                title: "Epsilon (Exploration Rate)",
+                title: "Epsilon",
                 data: Array(runner.episodeMetrics.suffix(500)),
                 xValue: { $0.episode },
                 yValue: { $0.epsilon },
-                color: .gray,
+                color: .cyan,
                 averageValue: nil
             )
         }
