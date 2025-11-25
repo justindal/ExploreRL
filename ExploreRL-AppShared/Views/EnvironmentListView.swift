@@ -5,20 +5,72 @@
 import SwiftUI
 
 struct EnvironmentListView: View {
+    private var trainingState = TrainingState.shared
+    @State private var showTrainingAlert = false
+    
     var body: some View {
         NavigationSplitView {
             List {
-                Section("Toy Text") {
+                Section("Training") {
                     NavigationLink {
                         FrozenLakeView()
                     } label: {
-                        Label("Frozen Lake", systemImage: "snowflake")
+                        HStack {
+                            Label("Frozen Lake", systemImage: "snowflake")
+                            if trainingState.activeEnvironment == "Frozen Lake" {
+                                Spacer()
+                                ProgressView()
+                                    .controlSize(.small)
+                            }
+                        }
+                    }
+                    .disabled(trainingState.isTraining && trainingState.activeEnvironment != "Frozen Lake")
+                    
+                    NavigationLink {
+                        CartPoleView()
+                    } label: {
+                        HStack {
+                            Label("Cart Pole", systemImage: "cart")
+                            if trainingState.activeEnvironment == "Cart Pole" {
+                                Spacer()
+                                ProgressView()
+                                    .controlSize(.small)
+                            }
+                        }
+                    }
+                    .disabled(trainingState.isTraining && trainingState.activeEnvironment != "Cart Pole")
+                }
+                
+                if trainingState.isTraining, let env = trainingState.activeEnvironment {
+                    Section {
+                        HStack {
+                            Image(systemName: "bolt.fill")
+                                .foregroundStyle(.orange)
+                            Text("Training \(env)...")
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            ProgressView()
+                                .controlSize(.small)
+                        }
                     }
                 }
                 
-                Section("Classic Control") {
-                    Label("Cart Pole (Coming Soon)", systemImage: "cart")
-                        .foregroundStyle(.secondary)
+                Section("Evaluate") {
+                    NavigationLink {
+                        EvaluationView()
+                    } label: {
+                        Label("Evaluation Mode", systemImage: "play.circle")
+                    }
+                    .disabled(trainingState.isTraining)
+                }
+                
+                Section("Library") {
+                    NavigationLink {
+                        SavedAgentsView()
+                    } label: {
+                        Label("Saved Agents", systemImage: "tray.full")
+                    }
+                    .disabled(trainingState.isTraining)
                 }
             }
             .navigationTitle("ExploreRL")
