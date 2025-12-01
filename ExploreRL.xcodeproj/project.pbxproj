@@ -7,8 +7,14 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		B9F2BB482ED1361E005CF444 /* ExploreRLCore in Frameworks */ = {isa = PBXBuildFile; productRef = B9F2BB472ED1361E005CF444 /* ExploreRLCore */; };
-		B9F2BB4A2ED1362D005CF444 /* ExploreRLCore in Frameworks */ = {isa = PBXBuildFile; productRef = B9F2BB492ED1362D005CF444 /* ExploreRLCore */; };
+		B900B5DB2ED926C2004D94B4 /* Gymnazo in Frameworks */ = {isa = PBXBuildFile; productRef = B900B5DA2ED926C2004D94B4 /* Gymnazo */; };
+		B900B5DE2ED926E6004D94B4 /* Gymnazo in Frameworks */ = {isa = PBXBuildFile; productRef = B900B5DD2ED926E6004D94B4 /* Gymnazo */; };
+		B900B5E02ED92B7C004D94B4 /* MLX in Frameworks */ = {isa = PBXBuildFile; productRef = B900B5DF2ED92B7C004D94B4 /* MLX */; };
+		B900B5E22ED92B7C004D94B4 /* MLXNN in Frameworks */ = {isa = PBXBuildFile; productRef = B900B5E12ED92B7C004D94B4 /* MLXNN */; };
+		B900B5E42ED92B7C004D94B4 /* MLXOptimizers in Frameworks */ = {isa = PBXBuildFile; productRef = B900B5E32ED92B7C004D94B4 /* MLXOptimizers */; };
+		B900B5E62ED92B88004D94B4 /* MLX in Frameworks */ = {isa = PBXBuildFile; productRef = B900B5E52ED92B88004D94B4 /* MLX */; };
+		B900B5E82ED92B88004D94B4 /* MLXNN in Frameworks */ = {isa = PBXBuildFile; productRef = B900B5E72ED92B88004D94B4 /* MLXNN */; };
+		B900B5EA2ED92B88004D94B4 /* MLXOptimizers in Frameworks */ = {isa = PBXBuildFile; productRef = B900B5E92ED92B88004D94B4 /* MLXOptimizers */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -39,7 +45,10 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				B9F2BB482ED1361E005CF444 /* ExploreRLCore in Frameworks */,
+				B900B5EA2ED92B88004D94B4 /* MLXOptimizers in Frameworks */,
+				B900B5E82ED92B88004D94B4 /* MLXNN in Frameworks */,
+				B900B5E62ED92B88004D94B4 /* MLX in Frameworks */,
+				B900B5DB2ED926C2004D94B4 /* Gymnazo in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -47,19 +56,30 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				B9F2BB4A2ED1362D005CF444 /* ExploreRLCore in Frameworks */,
+				B900B5E42ED92B7C004D94B4 /* MLXOptimizers in Frameworks */,
+				B900B5E22ED92B7C004D94B4 /* MLXNN in Frameworks */,
+				B900B5E02ED92B7C004D94B4 /* MLX in Frameworks */,
+				B900B5DE2ED926E6004D94B4 /* Gymnazo in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		B900B5DC2ED926E6004D94B4 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		B954BC912ECA6A9B0081CE3F = {
 			isa = PBXGroup;
 			children = (
 				B9F2BB562ED13B17005CF444 /* ExploreRL-AppShared */,
 				B954BCD72ECA7A260081CE3F /* ExploreRL-iOS */,
 				B954BCE62ECA7A380081CE3F /* ExploreRL-macOS */,
+				B900B5DC2ED926E6004D94B4 /* Frameworks */,
 				B954BC9B2ECA6A9B0081CE3F /* Products */,
 			);
 			sourceTree = "<group>";
@@ -94,7 +114,10 @@
 			);
 			name = "ExploreRL-iOS";
 			packageProductDependencies = (
-				B9F2BB472ED1361E005CF444 /* ExploreRLCore */,
+				B900B5DA2ED926C2004D94B4 /* Gymnazo */,
+				B900B5E52ED92B88004D94B4 /* MLX */,
+				B900B5E72ED92B88004D94B4 /* MLXNN */,
+				B900B5E92ED92B88004D94B4 /* MLXOptimizers */,
 			);
 			productName = "ExploreRL-iOS";
 			productReference = B954BCD62ECA7A260081CE3F /* ExploreRL-iOS.app */;
@@ -118,7 +141,10 @@
 			);
 			name = "ExploreRL-macOS";
 			packageProductDependencies = (
-				B9F2BB492ED1362D005CF444 /* ExploreRLCore */,
+				B900B5DD2ED926E6004D94B4 /* Gymnazo */,
+				B900B5DF2ED92B7C004D94B4 /* MLX */,
+				B900B5E12ED92B7C004D94B4 /* MLXNN */,
+				B900B5E32ED92B7C004D94B4 /* MLXOptimizers */,
 			);
 			productName = "ExploreRL-macOS";
 			productReference = B954BCE52ECA7A380081CE3F /* ExploreRL-macOS.app */;
@@ -153,7 +179,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				B954BCA82ECA72670081CE3F /* XCRemoteSwiftPackageReference "mlx-swift" */,
-				B9F2BB462ED1361E005CF444 /* XCLocalSwiftPackageReference "../ExploreRLCore" */,
+				B900B5D92ED926C2004D94B4 /* XCLocalSwiftPackageReference "../Gymnazo" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = B954BC9B2ECA6A9B0081CE3F /* Products */;
@@ -260,6 +286,7 @@
 				ONLY_ACTIVE_ARCH = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
 			};
 			name = Debug;
 		};
@@ -314,6 +341,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_VERSION = 6.0;
 			};
 			name = Release;
 		};
@@ -327,6 +355,7 @@
 				DEVELOPMENT_TEAM = T7HWJDJCX8;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = ExploreRL;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -361,6 +390,7 @@
 				DEVELOPMENT_TEAM = T7HWJDJCX8;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = ExploreRL;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -400,6 +430,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = ExploreRL;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -434,6 +465,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = ExploreRL;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -487,9 +519,9 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		B9F2BB462ED1361E005CF444 /* XCLocalSwiftPackageReference "../ExploreRLCore" */ = {
+		B900B5D92ED926C2004D94B4 /* XCLocalSwiftPackageReference "../Gymnazo" */ = {
 			isa = XCLocalSwiftPackageReference;
-			relativePath = ../ExploreRLCore;
+			relativePath = ../Gymnazo;
 		};
 /* End XCLocalSwiftPackageReference section */
 
@@ -505,13 +537,44 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		B9F2BB472ED1361E005CF444 /* ExploreRLCore */ = {
+		B900B5DA2ED926C2004D94B4 /* Gymnazo */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = ExploreRLCore;
+			productName = Gymnazo;
 		};
-		B9F2BB492ED1362D005CF444 /* ExploreRLCore */ = {
+		B900B5DD2ED926E6004D94B4 /* Gymnazo */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = ExploreRLCore;
+			package = B900B5D92ED926C2004D94B4 /* XCLocalSwiftPackageReference "../Gymnazo" */;
+			productName = Gymnazo;
+		};
+		B900B5DF2ED92B7C004D94B4 /* MLX */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B954BCA82ECA72670081CE3F /* XCRemoteSwiftPackageReference "mlx-swift" */;
+			productName = MLX;
+		};
+		B900B5E12ED92B7C004D94B4 /* MLXNN */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B954BCA82ECA72670081CE3F /* XCRemoteSwiftPackageReference "mlx-swift" */;
+			productName = MLXNN;
+		};
+		B900B5E32ED92B7C004D94B4 /* MLXOptimizers */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B954BCA82ECA72670081CE3F /* XCRemoteSwiftPackageReference "mlx-swift" */;
+			productName = MLXOptimizers;
+		};
+		B900B5E52ED92B88004D94B4 /* MLX */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B954BCA82ECA72670081CE3F /* XCRemoteSwiftPackageReference "mlx-swift" */;
+			productName = MLX;
+		};
+		B900B5E72ED92B88004D94B4 /* MLXNN */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B954BCA82ECA72670081CE3F /* XCRemoteSwiftPackageReference "mlx-swift" */;
+			productName = MLXNN;
+		};
+		B900B5E92ED92B88004D94B4 /* MLXOptimizers */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B954BCA82ECA72670081CE3F /* XCRemoteSwiftPackageReference "mlx-swift" */;
+			productName = MLXOptimizers;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
