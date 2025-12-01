@@ -3,18 +3,20 @@
 //
 
 import SwiftUI
-import ExploreRLCore
+import Gymnazo
 import MLX
 
 @MainActor
-@Observable class FrozenLakeRunner {
-    // current env
+@Observable class FrozenLakeRunner: SavableEnvironmentRunner {
     var snapshot: FrozenLakeRenderSnapshot?
-    var currentPolicy: [Int]?
     var episodeCount = 1
     var currentStep = 0
-    var totalReward = 0.0
+    var episodeReward: Double = 0.0
     var isTraining = false
+    var renderEnabled: Bool = true
+    var episodeMetrics: [EpisodeMetrics] = []
+    var episodesPerRun: Int = 2000
+    var targetFPS: Double = 60.0
     
     var loadedAgentId: UUID?
     var loadedAgentName: String?
@@ -22,13 +24,20 @@ import MLX
     
     private var loadedEpisodeCount: Int = 0
     private var loadedBestReward: Double = 0
+    private var trainingCompletedNormally = false
     
     var canResume: Bool {
-        return agent != nil && episodeCount > 1
+        return agent != nil && episodeCount > 1 && !trainingCompletedNormally
     }
     
     var totalEpisodesTrained: Int {
         return loadedEpisodeCount + episodeMetrics.count
+    }
+    
+    var averageReward: Double {
+        guard !episodeMetrics.isEmpty else { return 0 }
+        let recentEpisodes = episodeMetrics.suffix(movingAverageWindow)
+        return recentEpisodes.map { $0.reward }.reduce(0, +) / Double(recentEpisodes.count)
     }
     
     var combinedBestReward: Double {
@@ -36,52 +45,57 @@ import MLX
         return max(loadedBestReward, newBest)
     }
     
-    var currentMap: [String] = []
+    static var environmentType: EnvironmentType { .frozenLake }
+    static var displayName: String { "Frozen Lake" }
+    static var algorithmName: String { "Q-Learning / SARSA" }
+    static var icon: String { "snowflake" }
+    static var accentColor: Color { .cyan }
+    static var category: EnvironmentCategory { .toyText }
     
-    var targetFPS: Double = 60.0
+    var currentPolicy: [Int]?
+    var totalReward = 0.0
+    var currentMap: [String] = []
     var turboMode: Bool = false
     var mapName: String = "4x4"
     var customMapSize: Int = 8
     var isSlippery: Bool = false
+    var isLoadingAgent: Bool = false
+    var maxStepsPerEpisode: Int = 100
+    var movingAverageWindow = 100
+    
     var selectedAlgorithm: RLAlgorithm = .qLearning {
         didSet {
+            guard !isLoadingAgent else { return }
             resetToDefaults()
             reset()
         }
     }
+    
     var showPolicy: Bool = false {
         didSet {
             updateSnapshot()
         }
     }
     
-    // hyperparameters and settings
+    // Hyperparameters
     var learningRate: Float = 0.8
     var gamma: Float = 0.95
     var epsilon: Float = 1.0
     var minEpsilon: Float = 0.01
     var epsilonDecay: Float = 0.995
-    var episodesPerRun: Int = 2000
-    var maxStepsPerEpisode: Int = 100
     
-    var episodeMetrics: [EpisodeMetrics] = []
-    var movingAverageWindow = 100
+    private var episodesCompletedInRun: Int = 0
     
     private var env: (any Env<Int, Int>)?
     private var agent: DiscreteAgent?
     private var rngKey: MLXArray
+    
     
     var successRate: Double {
         guard !episodeMetrics.isEmpty else { return 0 }
         let recentEpisodes = episodeMetrics.suffix(movingAverageWindow)
         let successes = recentEpisodes.filter { $0.success }.count
         return Double(successes) / Double(recentEpisodes.count)
-    }
-    
-    var averageReward: Double {
-        guard !episodeMetrics.isEmpty else { return 0 }
-        let recentEpisodes = episodeMetrics.suffix(movingAverageWindow)
-        return recentEpisodes.map { $0.reward }.reduce(0, +) / Double(recentEpisodes.count)
     }
     
     var averageSteps: Double {
@@ -102,22 +116,34 @@ import MLX
         return recentEpisodes.map { $0.averageMaxQ }.reduce(0, +) / Double(recentEpisodes.count)
     }
     
+    var currentMapSize: Int {
+        if mapName == "Custom" {
+            return customMapSize
+        }
+        return mapName == "8x8" ? 8 : 4
+    }
+    
+    
     init() {
         self.rngKey = MLX.key(0)
         setupEnvironment()
     }
     
-    func setupEnvironment() {
-        Gymnasium.start()
-        
+    
+    func setupEnvironment(withMap savedMap: [String]? = nil) {
         var kwargs: [String: Any] = [
-            "render_mode": "rgb_array",
             "is_slippery": isSlippery,
             "map_name": mapName
         ]
         
+        if renderEnabled {
+            kwargs["render_mode"] = "rgb_array"
+        }
+        
         var desc: [String]
-        if mapName == "Custom" {
+        if let savedMap = savedMap, !savedMap.isEmpty {
+            desc = savedMap
+        } else if mapName == "Custom" {
             desc = FrozenLake.generateRandomMap(size: customMapSize)
         } else {
             desc = FrozenLake.MAPS[mapName] ?? FrozenLake.MAPS["4x4"]!
@@ -126,10 +152,9 @@ import MLX
         kwargs["desc"] = desc
         self.currentMap = desc
         
-        // use current time as seed, might update later
         self.rngKey = MLX.key(UInt64(Date().timeIntervalSince1970))
         
-        guard let madeEnv = Gymnasium.make(
+        guard let madeEnv = Gymnazo.make(
             "FrozenLake-v1",
             kwargs: kwargs
         ) as? any Env<Int, Int> else {
@@ -173,6 +198,11 @@ import MLX
         totalReward = 0
         episodeCount = 1
         currentStep = 0
+        episodeReward = 0
+    }
+    
+    func setupEnvironment() {
+        setupEnvironment(withMap: nil)
     }
     
     private func updateSnapshot() {
@@ -190,16 +220,16 @@ import MLX
     
     func startTraining() {
         guard !isTraining else { return }
+        guard !TrainingState.shared.isTraining else { return }
+        
         isTraining = true
         hasTrainedSinceLoad = true
-        TrainingState.shared.startTraining(environment: "Frozen Lake")
+        trainingCompletedNormally = false
+        episodesCompletedInRun = 0
+        TrainingState.shared.startTraining(environment: Self.displayName)
         
         Task.detached { [weak self] in
-            guard let self = self else { return }
-            
-            // TODO use Sendable in future (safer?)
-            
-            await self.runTrainingLoop()
+            await self?.runTrainingLoop()
         }
     }
     
@@ -217,10 +247,9 @@ import MLX
         hasTrainedSinceLoad = false
         loadedEpisodeCount = 0
         loadedBestReward = 0
+        trainingCompletedNormally = false
         
-        Task {
-            setupEnvironment()
-        }
+        setupEnvironment()
     }
     
     func resetToDefaults() {
@@ -231,9 +260,18 @@ import MLX
         self.epsilonDecay = defaults.epsilonDecay
     }
     
-    func saveAgent(name: String) throws -> SavedAgent {
+    
+    func saveAgent(name: String) throws {
         guard let agent = self.agent else {
             throw AgentStorageError.agentNotFound
+        }
+        
+        let mapDataString: String
+        if let mapData = try? JSONEncoder().encode(currentMap),
+           let mapString = String(data: mapData, encoding: .utf8) {
+            mapDataString = mapString
+        } else {
+            mapDataString = "[]"
         }
         
         let saved = try AgentStorage.shared.saveFrozenLakeAgent(
@@ -255,18 +293,16 @@ import MLX
             environmentConfig: [
                 "mapName": mapName,
                 "mapSize": mapName == "Custom" ? "\(customMapSize)" : mapName,
-                "isSlippery": isSlippery ? "true" : "false"
+                "isSlippery": isSlippery ? "true" : "false",
+                "mapData": mapDataString
             ]
         )
         
         loadedAgentId = saved.id
         loadedAgentName = saved.name
         hasTrainedSinceLoad = false
-        
         loadedEpisodeCount = totalEpisodesTrained
         loadedBestReward = combinedBestReward
-        
-        return saved
     }
     
     func updateAgent(id: UUID, name: String) throws {
@@ -303,42 +339,38 @@ import MLX
         
         stopTraining()
         
+        isLoadingAgent = true
+        defer { isLoadingAgent = false }
+        
         if let algorithm = RLAlgorithm(rawValue: savedAgent.algorithmType) {
             selectedAlgorithm = algorithm
         }
         
-        if let lr = savedAgent.hyperparameters["learningRate"] {
-            learningRate = Float(lr)
-        }
-        if let g = savedAgent.hyperparameters["gamma"] {
-            gamma = Float(g)
-        }
-        if let eps = savedAgent.hyperparameters["epsilon"] {
-            epsilon = Float(eps)
-        }
-        if let decay = savedAgent.hyperparameters["epsilonDecay"] {
-            epsilonDecay = Float(decay)
-        }
-        if let minEps = savedAgent.hyperparameters["minEpsilon"] {
-            minEpsilon = Float(minEps)
-        }
+        if let lr = savedAgent.hyperparameters["learningRate"] { learningRate = Float(lr) }
+        if let g = savedAgent.hyperparameters["gamma"] { gamma = Float(g) }
+        if let eps = savedAgent.hyperparameters["epsilon"] { epsilon = Float(eps) }
+        if let decay = savedAgent.hyperparameters["epsilonDecay"] { epsilonDecay = Float(decay) }
+        if let minEps = savedAgent.hyperparameters["minEpsilon"] { minEpsilon = Float(minEps) }
         
-        if let mapNameConfig = savedAgent.environmentConfig["mapName"] {
-            mapName = mapNameConfig
-        }
-        if let slippery = savedAgent.environmentConfig["isSlippery"] {
-            isSlippery = slippery == "true"
-        }
+        if let mapNameConfig = savedAgent.environmentConfig["mapName"] { mapName = mapNameConfig }
+        if let slippery = savedAgent.environmentConfig["isSlippery"] { isSlippery = slippery == "true" }
         if mapName == "Custom", let sizeStr = savedAgent.environmentConfig["mapSize"],
            let size = Int(sizeStr) {
             customMapSize = size
         }
         
-        setupEnvironment()
+        var savedMap: [String]? = nil
+        if let mapDataString = savedAgent.environmentConfig["mapData"],
+           let mapData = mapDataString.data(using: .utf8),
+           let decodedMap = try? JSONDecoder().decode([String].self, from: mapData),
+           !decodedMap.isEmpty {
+            savedMap = decodedMap
+        }
+        
+        setupEnvironment(withMap: savedMap)
         
         let qTable = try AgentStorage.shared.loadQTable(for: savedAgent)
         
-
         guard let obsSpace = env?.observation_space as? Discrete,
               let actSpace = env?.action_space as? Discrete else {
             throw AgentStorageError.dataCorrupted
@@ -372,22 +404,23 @@ import MLX
         }
         
         episodeMetrics = []
-        episodeCount = savedAgent.episodesTrained
+        episodeCount = savedAgent.episodesTrained + 1
         
         loadedAgentId = savedAgent.id
         loadedAgentName = savedAgent.name
         hasTrainedSinceLoad = false
-        
         loadedEpisodeCount = savedAgent.episodesTrained
         loadedBestReward = savedAgent.bestReward
-        
-        // print("Loaded FrozenLake agent '\(savedAgent.name)' with \(savedAgent.episodesTrained) episodes trained")
         
         updateSnapshot()
     }
     
+    
     private func runTrainingLoop() async {
         let targetEpisodes = episodeCount + episodesPerRun
+        
+        var lastUIUpdate = Date()
+        let uiUpdateInterval: TimeInterval = 1.0 / 30.0
         
         for episode in episodeCount..<targetEpisodes {
             if !isTraining { break }
@@ -409,7 +442,7 @@ import MLX
             var terminated = false
             var truncated = false
             var steps = 0
-            var episodeReward = 0.0
+            var episodeRewardLocal = 0.0
             var totalTDError = 0.0
             
             if !turboMode || episode % 10 == 0 {
@@ -453,31 +486,47 @@ import MLX
                 terminated = result.terminated
                 truncated = result.truncated
                 steps += 1
-                episodeReward += result.reward
+                episodeRewardLocal += result.reward
                 
-                
-                let shouldUpdateUI = !turboMode || (terminated || truncated)
-                
-                if shouldUpdateUI {
-                    if let frozenLake = env.unwrapped as? FrozenLake {
-                        self.snapshot = frozenLake.currentSnapshot
-                        
-                        if self.showPolicy {
-                            let qTable = agent.qTable
-                            let policyArray = MLX.argMax(qTable, axis: 1).asArray(Int32.self)
-                            self.currentPolicy = policyArray.map { Int($0) }
-                        } else {
-                            self.currentPolicy = nil
+                if !turboMode {
+                    if renderEnabled {
+                        if let frozenLake = env.unwrapped as? FrozenLake {
+                            self.snapshot = frozenLake.currentSnapshot
+                            
+                            if self.showPolicy {
+                                let qTable = agent.qTable
+                                let policyArray = MLX.argMax(qTable, axis: 1).asArray(Int32.self)
+                                self.currentPolicy = policyArray.map { Int($0) }
+                            } else {
+                                self.currentPolicy = nil
+                            }
+                            
+                            self.currentStep = steps
+                            self.episodeReward = episodeRewardLocal
                         }
                         
-                        self.currentStep = steps
-                    }
-                    
-                    if !turboMode {
                         let delayNs = UInt64(1_000_000_000 / self.targetFPS)
                         try? await Task.sleep(nanoseconds: delayNs)
+                    } else {
+                        let now = Date()
+                        if now.timeIntervalSince(lastUIUpdate) >= uiUpdateInterval {
+                            self.currentStep = steps
+                            self.episodeReward = episodeRewardLocal
+                            lastUIUpdate = now
+                            await Task.yield()
+                        }
                     }
+                } else if terminated || truncated {
+                    self.currentStep = steps
+                    self.episodeReward = episodeRewardLocal
                 }
+            }
+            
+            let episodeCompleted = terminated || truncated
+            if !episodeCompleted {
+                self.currentStep = 0
+                self.episodeReward = 0
+                break
             }
             
             let avgTDError = totalTDError / Double(max(1, steps))
@@ -486,10 +535,11 @@ import MLX
             let maxQPerState = qTable.max(axis: 1)
             let avgMaxQ = (maxQPerState.mean().item() as Float)
             
-            let success = episodeReward > 0
+            let success = episodeRewardLocal > 0
+            let completedEpisodeNumber = loadedEpisodeCount + episodeMetrics.count + 1
             let metric = EpisodeMetrics(
-                episode: episode + 1,
-                reward: episodeReward,
+                episode: completedEpisodeNumber,
+                reward: episodeRewardLocal,
                 steps: steps,
                 success: success,
                 averageTDError: avgTDError,
@@ -501,8 +551,9 @@ import MLX
             )
             
             self.episodeMetrics.append(metric)
+            self.episodesCompletedInRun += 1
             if success {
-                self.totalReward += episodeReward
+                self.totalReward += episodeRewardLocal
             }
             
             if epsilon > minEpsilon {
@@ -515,8 +566,13 @@ import MLX
             }
         }
         
+        if self.isTraining {
+            self.trainingCompletedNormally = true
+        }
         self.isTraining = false
+        TrainingState.shared.stopTraining()
     }
+    
     
     func calculateMovingAverage(for metric: EpisodeMetrics, getValue: (EpisodeMetrics) -> Double) -> Double {
         let episodeIndex = metric.episode

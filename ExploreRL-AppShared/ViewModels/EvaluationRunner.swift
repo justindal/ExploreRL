@@ -4,7 +4,7 @@
 
 import Foundation
 import SwiftUI
-import ExploreRLCore
+import Gymnazo
 import MLX
 import MLXNN
 
@@ -26,15 +26,27 @@ import MLXNN
     
     private(set) var loadedAgent: SavedAgent?
     
+    // FrozenLake
     var frozenLakeSnapshot: FrozenLakeRenderSnapshot?
     var frozenLakePolicy: [Int]?
     var frozenLakeMap: [String] = []
     private var frozenLakeEnv: (any Env<Int, Int>)?
     private var frozenLakeAgent: DiscreteAgent?
     
+    // CartPole
     var cartPoleSnapshot: CartPoleSnapshot?
     private var cartPoleEnv: (any Env<MLXArray, Int>)?
     private var cartPoleAgent: DQNAgent?
+    
+    // MountainCar
+    var mountainCarSnapshot: MountainCarSnapshot?
+    private var mountainCarEnv: (any Env<MLXArray, Int>)?
+    private var mountainCarAgent: DQNAgent?
+    
+    // MountainCarContinuous
+    var mountainCarContinuousSnapshot: MountainCarSnapshot?
+    private var mountainCarContinuousEnv: (any Env<MLXArray, MLXArray>)?
+    private var mountainCarContinuousAgent: SACAgentVmap?
     
     private var rngKey: MLXArray = MLX.key(0)
     
@@ -66,12 +78,14 @@ import MLXNN
             try setupFrozenLake(agent)
         case .cartPole:
             try setupCartPole(agent)
+        case .mountainCar:
+            try setupMountainCar(agent)
+        case .mountainCarContinuous:
+            try setupMountainCarContinuous(agent)
         }
     }
     
     private func setupFrozenLake(_ agent: SavedAgent) throws {
-        Gymnasium.start()
-        
         let mapName = agent.environmentConfig["mapName"] ?? "4x4"
         let isSlippery = agent.environmentConfig["isSlippery"] == "true"
         
@@ -82,7 +96,12 @@ import MLXNN
         ]
         
         let desc: [String]
-        if mapName == "Custom", let sizeStr = agent.environmentConfig["mapSize"],
+        if let mapDataString = agent.environmentConfig["mapData"],
+           let mapData = mapDataString.data(using: .utf8),
+           let decodedMap = try? JSONDecoder().decode([String].self, from: mapData),
+           !decodedMap.isEmpty {
+            desc = decodedMap
+        } else if mapName == "Custom", let sizeStr = agent.environmentConfig["mapSize"],
            let size = Int(sizeStr) {
             desc = FrozenLake.generateRandomMap(size: size)
         } else {
@@ -91,7 +110,7 @@ import MLXNN
         kwargs["desc"] = desc
         frozenLakeMap = desc
         
-        guard let env = Gymnasium.make("FrozenLake-v1", kwargs: kwargs) as? any Env<Int, Int> else {
+        guard let env = Gymnazo.make("FrozenLake-v1", kwargs: kwargs) as? any Env<Int, Int> else {
             throw AgentStorageError.dataCorrupted
         }
         frozenLakeEnv = env
@@ -124,14 +143,13 @@ import MLXNN
     }
     
     private func setupCartPole(_ agent: SavedAgent) throws {
-        Gymnasium.start()
-        
         let maxSteps = Int(agent.environmentConfig["maxStepsPerEpisode"] ?? "500") ?? 500
         
-        guard var env = Gymnasium.make(
+        let renderMode: String? = showVisualization ? "human" : nil
+        guard var env = Gymnazo.make(
             "CartPole-v1",
             maxEpisodeSteps: maxSteps,
-            kwargs: ["render_mode": showVisualization ? "human" : nil]
+            kwargs: ["render_mode": renderMode as Any]
         ) as? any Env<MLXArray, Int> else {
             throw AgentStorageError.dataCorrupted
         }
@@ -161,15 +179,136 @@ import MLXNN
         
         let weightsDict = try AgentStorage.shared.loadNetworkWeights(for: agent)
         let weightsTuples = weightsDict.map { ($0.key, $0.value) }
-        if let newParams = try? NestedDictionary<String, MLXArray>.unflattened(weightsTuples) {
-            dqnAgent.policyNetwork.update(parameters: newParams)
-            eval(dqnAgent.policyNetwork)
-        }
+        let newParams = NestedDictionary<String, MLXArray>.unflattened(weightsTuples)
+        dqnAgent.policyNetwork.update(parameters: newParams)
+        eval(dqnAgent.policyNetwork)
         
         cartPoleAgent = dqnAgent
         
         if let cp = env.unwrapped as? CartPole {
             cartPoleSnapshot = cp.currentSnapshot
+        }
+    }
+    
+    private func setupMountainCar(_ agent: SavedAgent) throws {
+        let maxSteps = Int(agent.environmentConfig["maxStepsPerEpisode"] ?? "200") ?? 200
+        
+        var kwargs: [String: Any] = [:]
+        if showVisualization {
+            kwargs["render_mode"] = "human"
+        }
+        
+        guard var env = Gymnazo.make(
+            "MountainCar-v0",
+            maxEpisodeSteps: maxSteps,
+            kwargs: kwargs
+        ) as? any Env<MLXArray, Int> else {
+            throw AgentStorageError.dataCorrupted
+        }
+        
+        _ = env.reset()
+        mountainCarEnv = env
+        
+        guard let obsSpace = env.observation_space as? Box,
+              let actSpace = env.action_space as? Discrete else {
+            throw AgentStorageError.dataCorrupted
+        }
+        
+        let dqnAgent = DQNAgent(
+            observationSpace: obsSpace,
+            actionSpace: actSpace,
+            hiddenDimensions: 128,
+            learningRate: 0,
+            gamma: 0.99,
+            epsilon: 0,
+            epsilonEnd: 0,
+            epsilonDecaySteps: 1,
+            tau: 0,
+            batchSize: 64,
+            bufferSize: 1000,
+            gradClipNorm: 100
+        )
+        
+        let weightsDict = try AgentStorage.shared.loadNetworkWeights(for: agent)
+        let weightsTuples = weightsDict.map { ($0.key, $0.value) }
+        let newParams = NestedDictionary<String, MLXArray>.unflattened(weightsTuples)
+        dqnAgent.policyNetwork.update(parameters: newParams)
+        eval(dqnAgent.policyNetwork)
+        
+        mountainCarAgent = dqnAgent
+        
+        if let mc = env.unwrapped as? MountainCar {
+            mountainCarSnapshot = mc.currentSnapshot
+        }
+    }
+    
+    private func setupMountainCarContinuous(_ agent: SavedAgent) throws {
+        let maxSteps = Int(agent.environmentConfig["maxStepsPerEpisode"] ?? "999") ?? 999
+        
+        var kwargs: [String: Any] = [:]
+        if showVisualization {
+            kwargs["render_mode"] = "human"
+        }
+        
+        guard var env = Gymnazo.make(
+            "MountainCarContinuous-v0",
+            maxEpisodeSteps: maxSteps,
+            kwargs: kwargs
+        ) as? any Env<MLXArray, MLXArray> else {
+            throw AgentStorageError.dataCorrupted
+        }
+        
+        _ = env.reset()
+        mountainCarContinuousEnv = env
+        
+        guard let obsSpace = env.observation_space as? Box,
+              let actSpace = env.action_space as? Box else {
+            throw AgentStorageError.dataCorrupted
+        }
+        
+        let sacAgent = SACAgentVmap(
+            observationSpace: obsSpace,
+            actionSpace: actSpace,
+            hiddenSize: 256,
+            learningRate: 0,
+            gamma: 0.99,
+            tau: 0.005,
+            alpha: Float(agent.finalEpsilon),
+            autotune: false,
+            batchSize: 256,
+            bufferSize: 1000
+        )
+        
+        if agent.algorithmType == "SAC-Vmap" || agent.agentDataPath.contains("vmap") {
+            let weightsDict = try AgentStorage.shared.loadSACVmapWeights(for: agent)
+            
+            if let actorWeights = weightsDict["actor"] {
+                let actorTuples = actorWeights.map { ($0.key, $0.value) }
+                let actorParams = NestedDictionary<String, MLXArray>.unflattened(actorTuples)
+                sacAgent.actor.update(parameters: actorParams)
+            }
+            
+            if let qEnsembleWeights = weightsDict["qEnsemble"] {
+                let qTuples = qEnsembleWeights.map { ($0.key, $0.value) }
+                let qParams = NestedDictionary<String, MLXArray>.unflattened(qTuples)
+                sacAgent.qEnsemble.update(parameters: qParams)
+            }
+        } else {
+            let weightsDict = try AgentStorage.shared.loadSACWeights(for: agent)
+            
+            if let actorWeights = weightsDict["actor"] {
+                let actorTuples = actorWeights.map { ($0.key, $0.value) }
+                let actorParams = NestedDictionary<String, MLXArray>.unflattened(actorTuples)
+                sacAgent.actor.update(parameters: actorParams)
+            }
+        }
+        
+        eval(sacAgent.actor, sacAgent.qEnsemble)
+        
+        mountainCarContinuousAgent = sacAgent
+        
+        if let mc = env.unwrapped as? MountainCarContinuous {
+            mountainCarContinuousSnapshot = mc.currentSnapshot
         }
     }
     
@@ -191,6 +330,40 @@ import MLXNN
         isRunning = false
     }
     
+    func reset() {
+        stopEvaluation()
+        loadedAgent = nil
+        episodeRewards = []
+        episodeSteps = []
+        currentEpisode = 0
+        currentStep = 0
+        episodeReward = 0
+        totalReward = 0
+        successCount = 0
+        
+        // FrozenLake
+        frozenLakeSnapshot = nil
+        frozenLakePolicy = nil
+        frozenLakeMap = []
+        frozenLakeEnv = nil
+        frozenLakeAgent = nil
+        
+        // CartPole
+        cartPoleSnapshot = nil
+        cartPoleEnv = nil
+        cartPoleAgent = nil
+        
+        // MountainCar
+        mountainCarSnapshot = nil
+        mountainCarEnv = nil
+        mountainCarAgent = nil
+        
+        // MountainCarContinuous
+        mountainCarContinuousSnapshot = nil
+        mountainCarContinuousEnv = nil
+        mountainCarContinuousAgent = nil
+    }
+    
     private func runEvaluationLoop() async {
         guard let agent = loadedAgent else { return }
         
@@ -206,6 +379,10 @@ import MLXNN
                 await runFrozenLakeEpisode()
             case .cartPole:
                 await runCartPoleEpisode()
+            case .mountainCar:
+                await runMountainCarEpisode()
+            case .mountainCarContinuous:
+                await runMountainCarContinuousEpisode()
             }
         }
         
@@ -306,5 +483,108 @@ import MLXNN
             successCount += 1
         }
     }
+    
+    private func runMountainCarEpisode() async {
+        guard var env = mountainCarEnv, let agent = mountainCarAgent else { return }
+        
+        let resetResult = env.reset()
+        var state = resetResult.obs
+        var terminated = false
+        var truncated = false
+        var steps = 0
+        var reward = 0.0
+        
+        guard let actionSpace = env.action_space as? Discrete else { return }
+        
+        while !terminated && !truncated && isRunning {
+            var key = rngKey
+            let actionArray = agent.chooseAction(state: state, actionSpace: actionSpace, key: &key)
+            rngKey = key
+            let action = actionArray[0, 0].item(Int.self)
+            
+            let result = env.step(action)
+            state = result.obs
+            terminated = result.terminated
+            truncated = result.truncated
+            reward += result.reward
+            steps += 1
+            
+            currentStep = steps
+            episodeReward = reward
+            
+            if showVisualization {
+                if let mc = env.unwrapped as? MountainCar {
+                    mountainCarSnapshot = mc.currentSnapshot
+                }
+                
+                let delayNs = UInt64(1_000_000_000 / targetFPS)
+                try? await Task.sleep(nanoseconds: delayNs)
+            }
+        }
+        
+        mountainCarEnv = env
+        episodeRewards.append(reward)
+        episodeSteps.append(steps)
+        totalReward += reward
+        
+        if terminated {
+            successCount += 1
+        }
+    }
+    
+    private func runMountainCarContinuousEpisode() async {
+        guard var env = mountainCarContinuousEnv, let agent = mountainCarContinuousAgent else { return }
+        
+        let resetResult = env.reset()
+        var state = resetResult.obs
+        var terminated = false
+        var truncated = false
+        var steps = 0
+        var reward = 0.0
+        
+        let maxSteps = 1000
+        
+        while !terminated && !truncated && isRunning && steps < maxSteps {
+            var key = rngKey
+            let action = agent.chooseAction(state: state, key: &key, deterministic: true)
+            rngKey = key
+            
+            eval(action)
+            
+            let result = env.step(action)
+            state = result.obs
+            terminated = result.terminated
+            truncated = result.truncated
+            reward += result.reward
+            steps += 1
+            
+            await MainActor.run {
+                self.currentStep = steps
+                self.episodeReward = reward
+            }
+            
+            if showVisualization {
+                if let mc = env.unwrapped as? MountainCarContinuous {
+                    await MainActor.run {
+                        self.mountainCarContinuousSnapshot = mc.currentSnapshot
+                    }
+                }
+                
+                let delayNs = UInt64(1_000_000_000 / targetFPS)
+                try? await Task.sleep(nanoseconds: delayNs)
+            }
+        }
+        
+        mountainCarContinuousEnv = env
+        
+        await MainActor.run {
+            self.episodeRewards.append(reward)
+            self.episodeSteps.append(steps)
+            self.totalReward += reward
+            
+            if terminated {
+                self.successCount += 1
+            }
+        }
+    }
 }
-
