@@ -3,16 +3,22 @@
 //
 
 import SwiftUI
-import ExploreRLCore
+import Gymnazo
 
 struct CartPoleView: View {
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
-    @State private var runner = CartPoleRunner()
+    @Environment(\.dismiss) private var dismiss
+    
+    @Bindable var runner: CartPoleRunner
+    
     @State private var showInspector = true
     @State private var selectedTab: InspectorTab = .settings
     @State private var showSaveSheet = false
     @State private var showLoadSheet = false
     @State private var showUnsavedChangesAlert = false
+    @State private var showLeaveUnsavedAlert = false
+    @State private var showResetConfirmation = false
+    @State private var showTrainingCompleteBanner = false
     
     /// Agent's unsaved changes
     private var hasUnsavedChanges: Bool {
@@ -32,6 +38,7 @@ struct CartPoleView: View {
                 ScrollView {
                     VStack(spacing: 20) {
                         EnvironmentHeader()
+                            .padding(.horizontal, 4)
                         
                         EnvironmentCanvas()
                         
@@ -128,8 +135,62 @@ struct CartPoleView: View {
         } message: {
             Text("You have unsaved training progress. Loading a new agent will discard your current progress.")
         }
-        .navigationBarBackButtonHidden(runner.isTraining)
-        .interactiveDismissDisabled(runner.isTraining)
+        .alert("Unsaved Changes", isPresented: $showLeaveUnsavedAlert) {
+            Button("Cancel", role: .cancel) { }
+            Button("Save & Leave") {
+                showSaveSheet = true
+            }
+            Button("Leave Without Saving", role: .destructive) {
+                dismiss()
+            }
+        } message: {
+            Text("You have unsaved training progress. Do you want to save before leaving?")
+        }
+        .alert("Reset Agent?", isPresented: $showResetConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Reset", role: .destructive) {
+                runner.reset()
+            }
+        } message: {
+            Text("This will reset the agent and clear all training progress. This cannot be undone.")
+        }
+        .onChange(of: runner.isTraining) { wasTraining, isTraining in
+            if wasTraining && !isTraining && runner.runProgress >= 1.0 {
+                withAnimation {
+                    showTrainingCompleteBanner = true
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                    withAnimation {
+                        showTrainingCompleteBanner = false
+                    }
+                }
+            }
+        }
+        .overlay(alignment: .top) {
+            if showTrainingCompleteBanner {
+                TrainingCompleteBanner()
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .padding(.top, 8)
+            }
+        }
+        #if os(iOS)
+        .navigationBarBackButtonHidden(runner.isTraining || hasUnsavedChanges)
+        .toolbar {
+            if hasUnsavedChanges && !runner.isTraining {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button {
+                        showLeaveUnsavedAlert = true
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "chevron.left")
+                            Text("Back")
+                        }
+                    }
+                }
+            }
+        }
+        #endif
+        .interactiveDismissDisabled(runner.isTraining || hasUnsavedChanges)
     }
     
     @ViewBuilder
@@ -167,7 +228,7 @@ struct CartPoleView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .center) {
                 Text("Cart Pole")
-                    .font(.largeTitle)
+                    .font(horizontalSizeClass == .compact ? .title : .largeTitle)
                     .bold()
                 
                 if hasUnsavedChanges {
@@ -195,7 +256,7 @@ struct CartPoleView: View {
             
             ViewThatFits(in: .horizontal) {
                 HStack {
-                    Label("\(max(1, runner.episodeCount)) Episodes", systemImage: "number")
+                    Label("\(runner.totalEpisodesTrained) Completed", systemImage: "checkmark.circle")
                     Spacer()
                     Label("Step \(runner.currentStep)", systemImage: "figure.walk")
                     Spacer()
@@ -207,7 +268,7 @@ struct CartPoleView: View {
                 }
                 
                 VStack(alignment: .leading) {
-                    Label("\(max(1, runner.episodeCount)) Episodes", systemImage: "number")
+                    Label("\(runner.totalEpisodesTrained) Completed", systemImage: "checkmark.circle")
                     Label("Step \(runner.currentStep)", systemImage: "figure.walk")
                     if let lastMetric = runner.episodeMetrics.last {
                         Label(String(format: "Reward: %.0f", lastMetric.reward), systemImage: "trophy")
@@ -246,8 +307,11 @@ struct CartPoleView: View {
                         columns: [GridItem(.flexible(), spacing: 12),
                                   GridItem(.flexible(), spacing: 12)]
                     )
-                    .frame(maxWidth: 900)
+                    .frame(maxWidth: 700)
                 }
+                .frame(maxWidth: .infinity)
+                .background(Color.gray.opacity(0.1))
+                .cornerRadius(12)
             }
         }
         .padding(.horizontal)
@@ -293,6 +357,8 @@ struct CartPoleView: View {
                             .frame(minWidth: 120)
                     }
                     .buttonStyle(TrainingButtonStyle(color: .red))
+                    .accessibilityLabel("Stop Training")
+                    .accessibilityHint("Stops the current training session")
                 } else {
                     Button(action: { runner.startTraining() }) {
                         Label(runner.canResume ? "Resume Training" : "Start Training", systemImage: "play.fill")
@@ -300,13 +366,23 @@ struct CartPoleView: View {
                             .frame(minWidth: 140)
                     }
                     .buttonStyle(TrainingButtonStyle(color: .blue))
+                    .accessibilityLabel(runner.canResume ? "Resume Training" : "Start Training")
+                    .accessibilityHint("Begins training the Cart Pole agent")
                     
-                    Button(action: { runner.reset() }) {
+                    Button(action: {
+                        if hasUnsavedChanges {
+                            showResetConfirmation = true
+                        } else {
+                            runner.reset()
+                        }
+                    }) {
                         Label("Reset", systemImage: "arrow.counterclockwise")
                             .font(.headline)
                             .frame(minWidth: 100)
                     }
                     .buttonStyle(TrainingButtonStyle(color: Color(.systemGray)))
+                    .accessibilityLabel("Reset Agent")
+                    .accessibilityHint("Resets the agent to initial state")
                 }
             }
         }
@@ -315,6 +391,7 @@ struct CartPoleView: View {
 
 struct TrainingButtonStyle: ButtonStyle {
     let color: Color
+    @Environment(\.isEnabled) private var isEnabled
     
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -323,11 +400,27 @@ struct TrainingButtonStyle: ButtonStyle {
             .background(
                 RoundedRectangle(cornerRadius: 10)
                     .fill(color)
-                    .opacity(configuration.isPressed ? 0.8 : 1.0)
+                    .opacity(isEnabled ? (configuration.isPressed ? 0.8 : 1.0) : 0.4)
             )
             .foregroundColor(.white)
             .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
-            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
+            .animation(.easeInOut(duration: 0.15), value: configuration.isPressed)
+    }
+}
+
+struct TrainingCompleteBanner: View {
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundStyle(.green)
+            Text("Training Complete!")
+                .fontWeight(.medium)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(.ultraThinMaterial)
+        .cornerRadius(20)
+        .shadow(radius: 5)
     }
 }
 
@@ -336,7 +429,7 @@ struct CartPoleViewAdapter: View {
     
     var body: some View {
         #if canImport(SpriteKit)
-        ExploreRLCore.CartPoleView(snapshot: snapshot)
+        Gymnazo.CartPoleView(snapshot: snapshot)
         #else
         Text("SpriteKit not available")
         #endif
@@ -344,5 +437,5 @@ struct CartPoleViewAdapter: View {
 }
 
 #Preview {
-    CartPoleView()
+    CartPoleView(runner: CartPoleRunner())
 }

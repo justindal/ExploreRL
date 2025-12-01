@@ -183,6 +183,21 @@ struct CartPoleConfigurationView: View {
                 }
             }
             
+            Divider()
+            
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Environment Info")
+                    .font(.headline)
+                
+                EnvironmentInfoRow(label: "State Space", value: "Box(4,)")
+                EnvironmentInfoRow(label: "Observation", value: "[x, ẋ, θ, θ̇]")
+                EnvironmentInfoRow(label: "Action Space", value: "Discrete(2)")
+                EnvironmentInfoRow(label: "Actions", value: "Left (0), Right (1)")
+                EnvironmentInfoRow(label: "Reward", value: "+1 per step alive")
+                EnvironmentInfoRow(label: "Termination", value: "|θ| > 12° or |x| > 2.4")
+                EnvironmentInfoRow(label: "Max Steps", value: "500 (CartPole-v1)")
+            }
+            
             DisclosureGroup("Advanced") {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack { Text("Use Seed"); InfoButton(isPresented: $showSeedInfo, title: "Seed", description: "Enable deterministic initialization for reproducible runs.", icon: "info.circle"); Spacer(); Toggle("", isOn: $runner.useSeed).labelsHidden().disabled(runner.isTraining) }
@@ -281,5 +296,21 @@ struct CartPoleConfigurationView: View {
                 binding.wrappedValue = min(max(newValue, range.lowerBound), range.upperBound)
             }
         )
+    }
+}
+
+private struct EnvironmentInfoRow: View {
+    let label: String
+    let value: String
+    
+    var body: some View {
+        HStack {
+            Text(label)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Text(value)
+                .font(.system(.body, design: .monospaced))
+        }
+        .font(.caption)
     }
 }

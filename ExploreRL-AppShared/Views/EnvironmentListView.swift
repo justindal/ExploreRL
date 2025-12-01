@@ -8,49 +8,29 @@ struct EnvironmentListView: View {
     private var trainingState = TrainingState.shared
     @State private var showTrainingAlert = false
     
+    @State private var frozenLakeRunner = FrozenLakeRunner()
+    @State private var cartPoleRunner = CartPoleRunner()
+    @State private var mountainCarRunner = MountainCarRunner()
+    @State private var mountainCarContinuousRunner = MountainCarContinuousRunner()
+    
     var body: some View {
         NavigationSplitView {
             List {
-                Section("Training") {
-                    NavigationLink {
-                        FrozenLakeView()
-                    } label: {
-                        HStack {
-                            Label("Frozen Lake", systemImage: "snowflake")
-                            if trainingState.activeEnvironment == "Frozen Lake" {
-                                Spacer()
-                                ProgressView()
-                                    .controlSize(.small)
-                            }
+                ForEach(EnvironmentRegistry.groupedEnvironments, id: \.category) { group in
+                    Section(group.category.rawValue) {
+                        ForEach(group.environments) { envInfo in
+                            environmentLink(for: envInfo)
                         }
                     }
-                    .disabled(trainingState.isTraining && trainingState.activeEnvironment != "Frozen Lake")
-                    
-                    NavigationLink {
-                        CartPoleView()
-                    } label: {
-                        HStack {
-                            Label("Cart Pole", systemImage: "cart")
-                            if trainingState.activeEnvironment == "Cart Pole" {
-                                Spacer()
-                                ProgressView()
-                                    .controlSize(.small)
-                            }
-                        }
-                    }
-                    .disabled(trainingState.isTraining && trainingState.activeEnvironment != "Cart Pole")
                 }
                 
                 if trainingState.isTraining, let env = trainingState.activeEnvironment {
                     Section {
                         HStack {
-                            Image(systemName: "bolt.fill")
-                                .foregroundStyle(.orange)
-                            Text("Training \(env)...")
-                                .foregroundStyle(.secondary)
+                            Image(systemName: "bolt.fill").foregroundStyle(.orange)
+                            Text("Training \(env)...").foregroundStyle(.secondary)
                             Spacer()
-                            ProgressView()
-                                .controlSize(.small)
+                            ProgressView().controlSize(.small)
                         }
                     }
                 }
@@ -68,7 +48,7 @@ struct EnvironmentListView: View {
                     NavigationLink {
                         SavedAgentsView()
                     } label: {
-                        Label("Saved Agents", systemImage: "tray.full")
+                        Label("Saved Agents", systemImage: "books.vertical")
                     }
                     .disabled(trainingState.isTraining)
                 }
@@ -83,9 +63,58 @@ struct EnvironmentListView: View {
                 .foregroundStyle(.secondary)
         }
     }
+    
+    @ViewBuilder
+    private func environmentLink(for envInfo: EnvironmentInfo) -> some View {
+        let isActive = trainingState.activeEnvironment == envInfo.displayName
+        let isDisabled = trainingState.isTraining && !isActive
+        
+        NavigationLink {
+            destinationView(for: envInfo.type)
+        } label: {
+            EnvironmentRow(
+                name: envInfo.displayName,
+                icon: envInfo.icon,
+                color: envInfo.accentColor,
+                isActive: isActive
+            )
+        }
+        .disabled(isDisabled)
+    }
+    
+    @ViewBuilder
+    private func destinationView(for type: EnvironmentType) -> some View {
+        switch type {
+        case .frozenLake:
+            FrozenLakeView(runner: frozenLakeRunner)
+        case .cartPole:
+            CartPoleView(runner: cartPoleRunner)
+        case .mountainCar:
+            MountainCarView(runner: mountainCarRunner)
+        case .mountainCarContinuous:
+            MountainCarContinuousView(runner: mountainCarContinuousRunner)
+        }
+    }
+}
+
+private struct EnvironmentRow: View {
+    let name: String
+    let icon: String
+    let color: Color
+    let isActive: Bool
+    
+    var body: some View {
+        HStack {
+            Label(name, systemImage: icon)
+                .foregroundStyle(color)
+            if isActive {
+                Spacer()
+                ProgressView().controlSize(.small)
+            }
+        }
+    }
 }
 
 #Preview {
     EnvironmentListView()
 }
-

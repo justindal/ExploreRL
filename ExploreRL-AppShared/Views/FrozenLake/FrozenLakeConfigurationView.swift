@@ -11,6 +11,25 @@ struct FrozenLakeConfigurationView: View {
     @State private var showGammaInfo = false
     @State private var showEpsilonInfo = false
     @State private var showDecayInfo = false
+    @State private var showRenderConfirm = false
+    @State private var proposedRenderEnabled = true
+    
+    private var renderBinding: Binding<Bool> {
+        Binding(
+            get: { runner.renderEnabled },
+            set: { newVal in
+                guard newVal != runner.renderEnabled else { return }
+                
+                if runner.isTraining {
+                    proposedRenderEnabled = newVal
+                    showRenderConfirm = true
+                } else {
+                    runner.renderEnabled = newVal
+                    runner.reset()
+                }
+            }
+        )
+    }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 15) {
@@ -48,8 +67,13 @@ struct FrozenLakeConfigurationView: View {
             VStack(alignment: .leading) {
                 Text("Speed Control")
                     .font(.headline)
+                
+                Toggle("Render Environment", isOn: renderBinding)
+                
                 Toggle("Turbo Mode", isOn: $runner.turboMode)
-                if !runner.turboMode {
+                    .disabled(!runner.renderEnabled)
+                
+                if !runner.turboMode && runner.renderEnabled {
                     let fpsBinding = clampedDoubleBinding($runner.targetFPS, range: 1...120, step: 1)
                     HStack {
                         Text("Target FPS")
@@ -58,6 +82,22 @@ struct FrozenLakeConfigurationView: View {
                     }
                     Slider(value: fpsBinding, in: 1...120)
                 }
+                
+                if !runner.renderEnabled {
+                    Text("Environment visualization is off. Charts will be shown instead.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .alert("Change Render Mode?", isPresented: $showRenderConfirm) {
+                Button("Cancel", role: .cancel) {}
+                Button("Switch", role: .destructive) {
+                    runner.stopTraining()
+                    runner.renderEnabled = proposedRenderEnabled
+                    runner.reset()
+                }
+            } message: {
+                Text("This will reset the environment and stop the current training run.")
             }
             
             Group {
@@ -74,6 +114,7 @@ struct FrozenLakeConfigurationView: View {
                     }
                     .pickerStyle(.segmented)
                     .onChange(of: runner.mapName) { _, _ in
+                        guard !runner.isLoadingAgent else { return }
                         runner.reset()
                     }
                     
@@ -87,6 +128,7 @@ struct FrozenLakeConfigurationView: View {
                                 .labelsHidden()
                         }
                         .onChange(of: runner.customMapSize) { _, _ in
+                            guard !runner.isLoadingAgent else { return }
                             runner.reset()
                         }
                         Text("(range 4-20)")
@@ -96,6 +138,7 @@ struct FrozenLakeConfigurationView: View {
                     
                     Toggle("Slippery", isOn: $runner.isSlippery)
                         .onChange(of: runner.isSlippery) { _, _ in
+                            guard !runner.isLoadingAgent else { return }
                             runner.reset()
                         }
                 }
@@ -141,30 +184,50 @@ struct FrozenLakeConfigurationView: View {
                     Slider(value: decayBinding, in: 0.9...0.9999)
                 }
                 
-                VStack(alignment: .leading) {
-                    Text("Training Limits")
-                        .font(.headline)
-                    
-                    let episodeBinding = clampedIntBinding($runner.episodesPerRun, range: 100...10000)
-                    HStack(spacing: 12) {
-                        Text("Episodes per Run")
-                        Spacer()
-                        IntInputField(value: episodeBinding, width: 90)
-                        Stepper("", value: episodeBinding, in: 100...10000, step: 100)
-                            .labelsHidden()
-                    }
-                    
-                    let stepBinding = clampedIntBinding($runner.maxStepsPerEpisode, range: 10...1000)
-                    HStack(spacing: 12) {
-                        Text("Max Steps per Episode")
-                        Spacer()
-                        IntInputField(value: stepBinding, width: 90)
-                        Stepper("", value: stepBinding, in: 10...1000, step: 10)
-                            .labelsHidden()
-                    }
+            VStack(alignment: .leading) {
+                Text("Training Limits")
+                    .font(.headline)
+                
+                let episodeBinding = clampedIntBinding($runner.episodesPerRun, range: 100...10000)
+                HStack(spacing: 12) {
+                    Text("Episodes per Run")
+                    Spacer()
+                    IntInputField(value: episodeBinding, width: 90)
+                    Stepper("", value: episodeBinding, in: 100...10000, step: 100)
+                        .labelsHidden()
+                }
+                
+                let stepBinding = clampedIntBinding($runner.maxStepsPerEpisode, range: 10...1000)
+                HStack(spacing: 12) {
+                    Text("Max Steps per Episode")
+                    Spacer()
+                    IntInputField(value: stepBinding, width: 90)
+                    Stepper("", value: stepBinding, in: 10...1000, step: 10)
+                        .labelsHidden()
                 }
             }
-            .disabled(runner.isTraining)
+        }
+        .disabled(runner.isTraining)
+        
+        Divider()
+        
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Environment Info")
+                .font(.headline)
+            
+            let mapSize = runner.mapName == "Custom" ? runner.customMapSize : (runner.mapName == "4x4" ? 4 : 8)
+            EnvironmentInfoRow(label: "State Space", value: "Discrete(\(mapSize * mapSize))")
+            EnvironmentInfoRow(label: "Action Space", value: "Discrete(4)")
+            EnvironmentInfoRow(label: "Actions", value: "←(0) ↓(1) →(2) ↑(3)")
+            EnvironmentInfoRow(label: "Reward (Goal)", value: "+1.0")
+            EnvironmentInfoRow(label: "Reward (Hole)", value: "0.0")
+            EnvironmentInfoRow(label: "Reward (Step)", value: "0.0")
+            if runner.isSlippery {
+                EnvironmentInfoRow(label: "Dynamics", value: "Stochastic (slippery)")
+            } else {
+                EnvironmentInfoRow(label: "Dynamics", value: "Deterministic")
+            }
+        }
         }
         .padding()
         #if os(iOS)
@@ -206,6 +269,22 @@ struct FrozenLakeConfigurationView: View {
             get: { min(max(binding.wrappedValue, range.lowerBound), range.upperBound) },
             set: { binding.wrappedValue = min(max($0, range.lowerBound), range.upperBound) }
         )
+    }
+}
+
+private struct EnvironmentInfoRow: View {
+    let label: String
+    let value: String
+    
+    var body: some View {
+        HStack {
+            Text(label)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Text(value)
+                .font(.system(.body, design: .monospaced))
+        }
+        .font(.caption)
     }
 }
 

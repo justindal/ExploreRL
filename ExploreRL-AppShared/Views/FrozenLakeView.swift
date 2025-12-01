@@ -5,16 +5,22 @@
 import SwiftUI
 import Foundation
 import Charts
-import ExploreRLCore
+import Gymnazo
 
 struct FrozenLakeView: View {
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
-    @State private var runner = FrozenLakeRunner()
+    @Environment(\.dismiss) private var dismiss
+    
+    @Bindable var runner: FrozenLakeRunner
+    
     @State private var showInspector = true
     @State private var selectedTab: InspectorTab = .settings
     @State private var showSaveSheet = false
     @State private var showLoadSheet = false
     @State private var showUnsavedChangesAlert = false
+    @State private var showLeaveUnsavedAlert = false
+    @State private var showResetConfirmation = false
+    @State private var showTrainingCompleteBanner = false
     
     private var hasUnsavedChanges: Bool {
         runner.episodeCount > 1 && (runner.loadedAgentId == nil || runner.hasTrainedSinceLoad)
@@ -129,8 +135,62 @@ struct FrozenLakeView: View {
         } message: {
             Text("You have unsaved training progress. Loading a new agent will discard your current progress.")
         }
-        .navigationBarBackButtonHidden(runner.isTraining)
-        .interactiveDismissDisabled(runner.isTraining)
+        .alert("Unsaved Changes", isPresented: $showLeaveUnsavedAlert) {
+            Button("Cancel", role: .cancel) { }
+            Button("Save & Leave") {
+                showSaveSheet = true
+            }
+            Button("Leave Without Saving", role: .destructive) {
+                dismiss()
+            }
+        } message: {
+            Text("You have unsaved training progress. Do you want to save before leaving?")
+        }
+        .alert("Reset Agent?", isPresented: $showResetConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Reset", role: .destructive) {
+                runner.reset()
+            }
+        } message: {
+            Text("This will reset the agent and clear all training progress. This cannot be undone.")
+        }
+        .onChange(of: runner.isTraining) { wasTraining, isTraining in
+            if wasTraining && !isTraining && runner.runProgress >= 1.0 {
+                withAnimation {
+                    showTrainingCompleteBanner = true
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                    withAnimation {
+                        showTrainingCompleteBanner = false
+                    }
+                }
+            }
+        }
+        .overlay(alignment: .top) {
+            if showTrainingCompleteBanner {
+                TrainingCompleteBanner()
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .padding(.top, 8)
+            }
+        }
+        #if os(iOS)
+        .navigationBarBackButtonHidden(runner.isTraining || hasUnsavedChanges)
+        .toolbar {
+            if hasUnsavedChanges && !runner.isTraining {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button {
+                        showLeaveUnsavedAlert = true
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "chevron.left")
+                            Text("Back")
+                        }
+                    }
+                }
+            }
+        }
+        #endif
+        .interactiveDismissDisabled(runner.isTraining || hasUnsavedChanges)
     }
     
     @ViewBuilder
@@ -196,17 +256,17 @@ struct FrozenLakeView: View {
             
             ViewThatFits(in: .horizontal) {
                 HStack {
-                    Label("\(max(1, runner.episodeCount)) Episodes", systemImage: "number")
+                    Label("\(runner.totalEpisodesTrained) Completed", systemImage: "checkmark.circle")
                     Spacer()
                     Label("Step \(runner.currentStep)", systemImage: "figure.walk")
                     Spacer()
-                    Label(String(format: "Success: %.0f%%", runner.successRate * 100), systemImage: "checkmark.circle")
+                    Label(String(format: "Success: %.0f%%", runner.successRate * 100), systemImage: "star.fill")
                 }
                 
                 VStack(alignment: .leading) {
-                    Label("\(max(1, runner.episodeCount)) Episodes", systemImage: "number")
+                    Label("\(runner.totalEpisodesTrained) Completed", systemImage: "checkmark.circle")
                     Label("Step \(runner.currentStep)", systemImage: "figure.walk")
-                    Label(String(format: "Success: %.0f%%", runner.successRate * 100), systemImage: "checkmark.circle")
+                    Label(String(format: "Success: %.0f%%", runner.successRate * 100), systemImage: "star.fill")
                 }
             }
             .font(.headline)
@@ -217,26 +277,40 @@ struct FrozenLakeView: View {
     @ViewBuilder
     private func EnvironmentCanvas() -> some View {
         ZStack {
-            if let snapshot = runner.snapshot {
-                FrozenLakeCanvasView(snapshot: snapshot)
-                    .aspectRatio(1.0, contentMode: .fit)
-                    .frame(maxWidth: 500, maxHeight: 500)
-                    .cornerRadius(12)
-                    .shadow(radius: 5)
-                    .overlay {
-                        if runner.showPolicy, let policy = runner.currentPolicy {
-                            PolicyOverlayView(map: runner.currentMap, policy: policy)
-                                .frame(maxWidth: 500, maxHeight: 500)
-                                .allowsHitTesting(false) 
+            if runner.renderEnabled {
+                if let snapshot = runner.snapshot {
+                    FrozenLakeCanvasView(snapshot: snapshot)
+                        .aspectRatio(1.0, contentMode: .fit)
+                        .frame(maxWidth: 500, maxHeight: 500)
+                        .cornerRadius(12)
+                        .shadow(radius: 5)
+                        .overlay {
+                            if runner.showPolicy, let policy = runner.currentPolicy {
+                                PolicyOverlayView(map: runner.currentMap, policy: policy)
+                                    .frame(maxWidth: 500, maxHeight: 500)
+                                    .allowsHitTesting(false) 
+                            }
                         }
-                    }
+                } else {
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.2))
+                        .aspectRatio(1.0, contentMode: .fit)
+                        .frame(maxWidth: 500)
+                        .overlay(Text("Initializing Environment..."))
+                        .cornerRadius(12)
+                }
             } else {
-                Rectangle()
-                    .fill(Color.gray.opacity(0.2))
-                    .aspectRatio(1.0, contentMode: .fit)
-                    .frame(maxWidth: 500)
-                    .overlay(Text("Initializing Environment..."))
-                    .cornerRadius(12)
+                ScrollView {
+                    FrozenLakeChartsView(
+                        runner: runner,
+                        columns: [GridItem(.flexible(), spacing: 12),
+                                  GridItem(.flexible(), spacing: 12)]
+                    )
+                    .frame(maxWidth: 700)
+                }
+                .frame(maxWidth: .infinity)
+                .background(Color.gray.opacity(0.1))
+                .cornerRadius(12)
             }
         }
         .padding(.horizontal)
@@ -282,6 +356,8 @@ struct FrozenLakeView: View {
                             .frame(minWidth: 120)
                     }
                     .buttonStyle(FrozenLakeButtonStyle(color: .red))
+                    .accessibilityLabel("Stop Training")
+                    .accessibilityHint("Stops the current training session")
                 } else {
                     Button(action: { runner.startTraining() }) {
                         Label(runner.canResume ? "Resume Training" : "Start Training", systemImage: "play.fill")
@@ -289,13 +365,23 @@ struct FrozenLakeView: View {
                             .frame(minWidth: 140)
                     }
                     .buttonStyle(FrozenLakeButtonStyle(color: .green))
+                    .accessibilityLabel(runner.canResume ? "Resume Training" : "Start Training")
+                    .accessibilityHint("Begins training the Frozen Lake agent")
                     
-                    Button(action: { runner.reset() }) {
+                    Button(action: {
+                        if hasUnsavedChanges {
+                            showResetConfirmation = true
+                        } else {
+                            runner.reset()
+                        }
+                    }) {
                         Label("Reset", systemImage: "arrow.counterclockwise")
                             .font(.headline)
                             .frame(minWidth: 100)
                     }
                     .buttonStyle(FrozenLakeButtonStyle(color: Color(.systemGray)))
+                    .accessibilityLabel("Reset Agent")
+                    .accessibilityHint("Resets the agent to initial state")
                 }
             }
         }
@@ -304,6 +390,7 @@ struct FrozenLakeView: View {
 
 struct FrozenLakeButtonStyle: ButtonStyle {
     let color: Color
+    @Environment(\.isEnabled) private var isEnabled
     
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -312,14 +399,14 @@ struct FrozenLakeButtonStyle: ButtonStyle {
             .background(
                 RoundedRectangle(cornerRadius: 10)
                     .fill(color)
-                    .opacity(configuration.isPressed ? 0.8 : 1.0)
+                    .opacity(isEnabled ? (configuration.isPressed ? 0.8 : 1.0) : 0.4)
             )
             .foregroundColor(.white)
             .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
-            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
+            .animation(.easeInOut(duration: 0.15), value: configuration.isPressed)
     }
 }
 
 #Preview {
-    FrozenLakeView()
+    FrozenLakeView(runner: FrozenLakeRunner())
 }

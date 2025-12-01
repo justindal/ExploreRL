@@ -3,12 +3,18 @@
 //
 
 import SwiftUI
-import ExploreRLCore
+import Gymnazo
 
 struct EvaluationView: View {
+    @Environment(\.horizontalSizeClass) var horizontalSizeClass
     @State private var runner = EvaluationRunner()
     @State private var showLoadSheet = false
-    @State private var selectedEnvironment: SavedAgent.EnvironmentType = .frozenLake
+    @State private var selectedEnvironment: EnvironmentType = .frozenLake
+    @State private var showResults = false
+    
+    private var isCompact: Bool {
+        horizontalSizeClass == .compact
+    }
     
     var body: some View {
         VStack(spacing: 0) {
@@ -27,13 +33,20 @@ struct EvaluationView: View {
                 try runner.loadAgent(agent)
             }
         }
+        .sheet(isPresented: $showResults) {
+            resultsSheet
+        }
+        .onDisappear {
+            runner.reset()
+        }
     }
+    
     
     private var headerView: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Evaluation Mode")
-                    .font(.title2)
+                    .font(isCompact ? .headline : .title2)
                     .fontWeight(.semibold)
                 
                 if let agent = runner.loadedAgent {
@@ -49,7 +62,12 @@ struct EvaluationView: View {
                 Button {
                     showLoadSheet = true
                 } label: {
-                    Label("Load Different", systemImage: "arrow.down.doc")
+                    if isCompact {
+                        Label("Load Different", systemImage: "tray.and.arrow.down")
+                            .labelStyle(.iconOnly)
+                    } else {
+                        Label("Load Different", systemImage: "tray.and.arrow.down")
+                    }
                 }
                 .buttonStyle(.bordered)
             }
@@ -57,11 +75,12 @@ struct EvaluationView: View {
         .padding()
     }
     
+    
     private var noAgentView: some View {
-        VStack(spacing: 0) {
-            Spacer()
-            
-            VStack(spacing: 32) {
+        ScrollView {
+            VStack(spacing: isCompact ? 24 : 32) {
+                Spacer(minLength: isCompact ? 20 : 40)
+                
                 ZStack {
                     Circle()
                         .fill(
@@ -71,20 +90,10 @@ struct EvaluationView: View {
                                 endPoint: .bottomTrailing
                             )
                         )
-                        .frame(width: 120, height: 120)
-                    
-                    Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: [.blue.opacity(0.3), .purple.opacity(0.3)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .frame(width: 90, height: 90)
+                        .frame(width: isCompact ? 80 : 120, height: isCompact ? 80 : 120)
                     
                     Image(systemName: "play.circle.fill")
-                        .font(.system(size: 48))
+                        .font(.system(size: isCompact ? 32 : 48))
                         .foregroundStyle(
                             LinearGradient(
                                 colors: [.blue, .purple],
@@ -96,36 +105,40 @@ struct EvaluationView: View {
                 
                 VStack(spacing: 12) {
                     Text("Evaluation Mode")
-                        .font(.largeTitle)
+                        .font(isCompact ? .title2 : .largeTitle)
                         .fontWeight(.bold)
                     
-                    Text("Test your trained agents without further training.\nSee how well they perform in their environment.")
-                        .font(.body)
+                    Text("Test your trained agents without further training.")
+                        .font(isCompact ? .subheadline : .body)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
-                        .frame(maxWidth: 400)
+                        .frame(maxWidth: 300)
                 }
                 
-                VStack(spacing: 16) {
+                VStack(spacing: 12) {
                     Text("Select Environment")
                         .font(.subheadline)
                         .fontWeight(.medium)
                         .foregroundStyle(.secondary)
                     
-                    HStack(spacing: 16) {
-                        EnvironmentCard(
-                            type: .frozenLake,
-                            isSelected: selectedEnvironment == .frozenLake
-                        ) {
-                            selectedEnvironment = .frozenLake
+                    if isCompact {
+                        VStack(spacing: 12) {
+                            ForEach(EnvironmentType.allCases, id: \.self) { type in
+                                compactEnvironmentCard(type: type)
+                            }
                         }
-                        
-                        EnvironmentCard(
-                            type: .cartPole,
-                            isSelected: selectedEnvironment == .cartPole
-                        ) {
-                            selectedEnvironment = .cartPole
+                    } else {
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 140))], spacing: 16) {
+                            ForEach(EnvironmentType.allCases, id: \.self) { type in
+                                EvalEnvironmentCard(
+                                    type: type,
+                                    isSelected: selectedEnvironment == type
+                                ) {
+                                    selectedEnvironment = type
+                                }
+                            }
                         }
+                        .frame(maxWidth: 600)
                     }
                 }
                 
@@ -133,12 +146,12 @@ struct EvaluationView: View {
                     showLoadSheet = true
                 } label: {
                     HStack(spacing: 8) {
-                        Image(systemName: "arrow.down.doc.fill")
+                        Image(systemName: "tray.and.arrow.down.fill")
                         Text("Load Agent")
                     }
                     .font(.headline)
                     .foregroundColor(.white)
-                    .frame(width: 200, height: 50)
+                    .frame(width: isCompact ? 160 : 200, height: isCompact ? 44 : 50)
                     .background(
                         LinearGradient(
                             colors: [.blue, .purple],
@@ -147,83 +160,161 @@ struct EvaluationView: View {
                         )
                     )
                     .cornerRadius(12)
-                    .shadow(color: .blue.opacity(0.3), radius: 8, y: 4)
                 }
                 .buttonStyle(.plain)
-            }
-            
-            Spacer()
-            
-            HStack(spacing: 8) {
-                Image(systemName: "lightbulb.fill")
-                    .foregroundStyle(.yellow)
-                Text("Tip: Train an agent first, then save it to evaluate here")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                
+                Spacer(minLength: 20)
+                
+                HStack(spacing: 8) {
+                    Image(systemName: "lightbulb.fill")
+                        .foregroundStyle(.yellow)
+                    Text("Train an agent first, then save it to evaluate here")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding()
             }
             .padding()
         }
-        .padding()
     }
     
-    private var evaluationContentView: some View {
-        HStack(spacing: 0) {
-            VStack(spacing: 20) {
-                statsBar
+    
+    private func compactEnvironmentCard(type: EnvironmentType) -> some View {
+        let isSelected = selectedEnvironment == type
+        let color = type.accentColor
+        
+        return Button {
+            selectedEnvironment = type
+        } label: {
+            HStack(spacing: 16) {
+                ZStack {
+                    Circle()
+                        .fill(color.opacity(0.15))
+                        .frame(width: 44, height: 44)
+                    
+                    Image(systemName: type.iconName)
+                        .font(.title2)
+                        .foregroundStyle(color)
+                }
                 
-                visualizationView
-                
-                controlsView
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(type.displayName)
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                    
+                    Text(type.defaultAlgorithm)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
                 
                 Spacer()
+                
+                if isSelected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(color)
+                }
             }
             .padding()
-            .frame(minWidth: 400)
-            
-            resultsSidebar
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(isSelected ? color.opacity(0.1) : Color.gray.opacity(0.05))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(isSelected ? color : Color.gray.opacity(0.2), lineWidth: isSelected ? 2 : 1)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+    
+    
+    private var evaluationContentView: some View {
+        Group {
+            if isCompact {
+                ScrollView {
+                    VStack(spacing: 16) {
+                        compactStatsView
+                        visualizationView
+                        controlsView
+                        
+                        if !runner.episodeRewards.isEmpty {
+                            compactResultsSummary
+                        }
+                    }
+                    .padding()
+                }
+            } else {
+                HStack(spacing: 0) {
+                    VStack(spacing: 20) {
+                        statsBar
+                        visualizationView
+                        controlsView
+                        Spacer()
+                    }
+                    .padding()
+                    .frame(minWidth: 400)
+                    
+                    resultsSidebar
+                }
+            }
         }
     }
+    
+    
+    private var compactStatsView: some View {
+        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+            compactStatCard(title: "Episode", value: "\(runner.currentEpisode)/\(runner.episodesToRun)", icon: "number")
+            compactStatCard(title: "Step", value: "\(runner.currentStep)", icon: "figure.walk")
+            compactStatCard(title: "Reward", value: String(format: "%.1f", runner.episodeReward), icon: "star.fill")
+            
+            if runner.loadedAgent?.environmentType == .frozenLake {
+                compactStatCard(title: "Success", value: String(format: "%.0f%%", runner.successRate * 100), icon: "checkmark.circle.fill", color: .green)
+            } else {
+                compactStatCard(title: "Avg Reward", value: String(format: "%.1f", runner.averageReward), icon: "chart.line.uptrend.xyaxis", color: .orange)
+            }
+        }
+    }
+    
+    private func compactStatCard(title: String, value: String, icon: String, color: Color = .primary) -> some View {
+        VStack(spacing: 4) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.caption2)
+                Text(title)
+                    .font(.caption2)
+            }
+            .foregroundStyle(.secondary)
+            
+            Text(value)
+                .font(.headline)
+                .fontWeight(.semibold)
+                .foregroundStyle(color)
+                .monospacedDigit()
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .background(Color.gray.opacity(0.1))
+        .cornerRadius(10)
+    }
+    
     
     private var statsBar: some View {
         HStack(spacing: 24) {
-            StatItem(
-                title: "Episode",
-                value: "\(runner.currentEpisode) / \(runner.episodesToRun)",
-                icon: "number"
-            )
-            
-            StatItem(
-                title: "Step",
-                value: "\(runner.currentStep)",
-                icon: "figure.walk"
-            )
-            
-            StatItem(
-                title: "Reward",
-                value: String(format: "%.1f", runner.episodeReward),
-                icon: "star.fill"
-            )
+            EvalStatItem(title: "Episode", value: "\(runner.currentEpisode) / \(runner.episodesToRun)", icon: "number")
+            EvalStatItem(title: "Step", value: "\(runner.currentStep)", icon: "figure.walk")
+            EvalStatItem(title: "Reward", value: String(format: "%.1f", runner.episodeReward), icon: "star.fill")
             
             if runner.loadedAgent?.environmentType == .frozenLake {
-                StatItem(
-                    title: "Success Rate",
-                    value: String(format: "%.0f%%", runner.successRate * 100),
-                    icon: "checkmark.circle.fill",
-                    color: .green
-                )
+                EvalStatItem(title: "Success Rate", value: String(format: "%.0f%%", runner.successRate * 100), icon: "checkmark.circle.fill", color: .green)
             } else {
-                StatItem(
-                    title: "Avg Reward",
-                    value: String(format: "%.1f", runner.averageReward),
-                    icon: "chart.line.uptrend.xyaxis",
-                    color: .orange
-                )
+                EvalStatItem(title: "Avg Reward", value: String(format: "%.1f", runner.averageReward), icon: "chart.line.uptrend.xyaxis", color: .orange)
             }
         }
         .padding()
         .background(Color.gray.opacity(0.1))
         .cornerRadius(12)
     }
+    
     
     @ViewBuilder
     private var visualizationView: some View {
@@ -233,13 +324,13 @@ struct EvaluationView: View {
                 if let snapshot = runner.frozenLakeSnapshot {
                     FrozenLakeCanvasView(snapshot: snapshot)
                         .aspectRatio(1.0, contentMode: .fit)
-                        .frame(maxWidth: 400, maxHeight: 400)
+                        .frame(maxWidth: isCompact ? .infinity : 400, maxHeight: isCompact ? 300 : 400)
                         .cornerRadius(12)
                         .shadow(radius: 5)
                         .overlay {
                             if let policy = runner.frozenLakePolicy {
                                 PolicyOverlayView(map: runner.frozenLakeMap, policy: policy)
-                                    .frame(maxWidth: 400, maxHeight: 400)
+                                    .frame(maxWidth: isCompact ? .infinity : 400, maxHeight: isCompact ? 300 : 400)
                                     .allowsHitTesting(false)
                             }
                         }
@@ -249,38 +340,91 @@ struct EvaluationView: View {
                 if let snapshot = runner.cartPoleSnapshot {
                     CartPoleViewAdapter(snapshot: snapshot)
                         .aspectRatio(1.5, contentMode: .fit)
-                        .frame(maxWidth: 500, maxHeight: 350)
+                        .frame(maxWidth: isCompact ? .infinity : 500, maxHeight: isCompact ? 200 : 350)
                         .cornerRadius(12)
                         .shadow(radius: 5)
                 } else {
-                    Rectangle()
-                        .fill(Color.gray.opacity(0.2))
-                        .aspectRatio(1.5, contentMode: .fit)
-                        .frame(maxWidth: 500)
-                        .overlay(Text("Ready to evaluate"))
+                    evaluationPlaceholder(environment: "CartPole")
+                }
+                
+            case .mountainCar:
+                if let snapshot = runner.mountainCarSnapshot {
+                    MountainCarCanvasView(snapshot: snapshot)
+                        .aspectRatio(2.0, contentMode: .fit)
+                        .frame(maxWidth: isCompact ? .infinity : 500, maxHeight: isCompact ? 200 : 300)
                         .cornerRadius(12)
+                        .shadow(radius: 5)
+                } else {
+                    evaluationPlaceholder(environment: "MountainCar")
+                }
+                
+            case .mountainCarContinuous:
+                if let snapshot = runner.mountainCarContinuousSnapshot {
+                    MountainCarCanvasView(snapshot: snapshot)
+                        .aspectRatio(2.0, contentMode: .fit)
+                        .frame(maxWidth: isCompact ? .infinity : 500, maxHeight: isCompact ? 200 : 300)
+                        .cornerRadius(12)
+                        .shadow(radius: 5)
+                } else {
+                    evaluationPlaceholder(environment: "MountainCar Continuous")
                 }
             }
         }
     }
     
+    private func evaluationPlaceholder(environment: String) -> some View {
+        Rectangle()
+            .fill(Color.gray.opacity(0.2))
+            .aspectRatio(1.5, contentMode: .fit)
+            .frame(maxWidth: isCompact ? .infinity : 500)
+            .overlay(Text("Ready to evaluate \(environment)"))
+            .cornerRadius(12)
+    }
+    
+    
     private var controlsView: some View {
         VStack(spacing: 12) {
-            HStack {
-                Text("Episodes to run:")
-                    .foregroundStyle(.secondary)
-                
-                TextField("Episodes", value: $runner.episodesToRun, formatter: NumberFormatter())
-                    .textFieldStyle(.roundedBorder)
-                    .frame(width: 80)
-                    .disabled(runner.isRunning)
-                
-                Spacer()
-                
-                Toggle("Show Visualization", isOn: $runner.showVisualization)
-                    .disabled(runner.isRunning)
+            if isCompact {
+                VStack(spacing: 12) {
+                    HStack {
+                        Text("Episodes:")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        
+                        TextField("", value: $runner.episodesToRun, formatter: NumberFormatter())
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 60)
+                            .disabled(runner.isRunning)
+                        
+                        Spacer()
+                        
+                        Toggle("Visualize", isOn: $runner.showVisualization)
+                            .toggleStyle(.switch)
+                            .labelsHidden()
+                            .disabled(runner.isRunning)
+                        
+                        Text("Visualize")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            } else {
+                HStack {
+                    Text("Episodes to run:")
+                        .foregroundStyle(.secondary)
+                    
+                    TextField("Episodes", value: $runner.episodesToRun, formatter: NumberFormatter())
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 80)
+                        .disabled(runner.isRunning)
+                    
+                    Spacer()
+                    
+                    Toggle("Show Visualization", isOn: $runner.showVisualization)
+                        .disabled(runner.isRunning)
+                }
+                .padding(.horizontal, 40)
             }
-            .padding(.horizontal, 40)
             
             HStack(spacing: 16) {
                 if runner.isRunning {
@@ -289,22 +433,76 @@ struct EvaluationView: View {
                     } label: {
                         Label("Stop", systemImage: "stop.fill")
                             .font(.headline)
-                            .frame(minWidth: 120)
+                            .frame(minWidth: isCompact ? 100 : 120)
                     }
                     .buttonStyle(EvaluationButtonStyle(color: .red))
                 } else {
                     Button {
                         runner.startEvaluation()
                     } label: {
-                        Label("Run Evaluation", systemImage: "play.fill")
+                        Label(isCompact ? "Run" : "Run Evaluation", systemImage: "play.fill")
                             .font(.headline)
-                            .frame(minWidth: 150)
+                            .frame(minWidth: isCompact ? 100 : 150)
                     }
                     .buttonStyle(EvaluationButtonStyle(color: .green))
+                }
+                
+                if isCompact && !runner.episodeRewards.isEmpty {
+                    Button {
+                        showResults = true
+                    } label: {
+                        Label("Results", systemImage: "list.bullet")
+                            .font(.headline)
+                            .frame(minWidth: 100)
+                    }
+                    .buttonStyle(EvaluationButtonStyle(color: .blue))
                 }
             }
         }
     }
+    
+    
+    private var compactResultsSummary: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Results Summary")
+                    .font(.headline)
+                Spacer()
+                Button("View All") {
+                    showResults = true
+                }
+                .font(.subheadline)
+            }
+            
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+                resultSummaryItem(label: "Completed", value: "\(runner.currentEpisode)")
+                resultSummaryItem(label: "Avg Reward", value: String(format: "%.1f", runner.averageReward))
+                resultSummaryItem(label: "Avg Steps", value: String(format: "%.1f", runner.averageSteps))
+                if runner.loadedAgent?.environmentType == .frozenLake {
+                    resultSummaryItem(label: "Success", value: String(format: "%.0f%%", runner.successRate * 100))
+                } else {
+                    resultSummaryItem(label: "Total", value: String(format: "%.0f", runner.totalReward))
+                }
+            }
+        }
+        .padding()
+        .background(Color.gray.opacity(0.05))
+        .cornerRadius(12)
+    }
+    
+    private func resultSummaryItem(label: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .monospacedDigit()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+    
     
     private var resultsSidebar: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -317,13 +515,13 @@ struct EvaluationView: View {
                     .foregroundStyle(.secondary)
             } else {
                 VStack(alignment: .leading, spacing: 12) {
-                    ResultRow(label: "Episodes Completed", value: "\(runner.currentEpisode)")
-                    ResultRow(label: "Total Reward", value: String(format: "%.1f", runner.totalReward))
-                    ResultRow(label: "Average Reward", value: String(format: "%.2f", runner.averageReward))
-                    ResultRow(label: "Average Steps", value: String(format: "%.1f", runner.averageSteps))
+                    EvalResultRow(label: "Episodes Completed", value: "\(runner.currentEpisode)")
+                    EvalResultRow(label: "Total Reward", value: String(format: "%.1f", runner.totalReward))
+                    EvalResultRow(label: "Average Reward", value: String(format: "%.2f", runner.averageReward))
+                    EvalResultRow(label: "Average Steps", value: String(format: "%.1f", runner.averageSteps))
                     
                     if runner.loadedAgent?.environmentType == .frozenLake {
-                        ResultRow(label: "Success Rate", value: String(format: "%.1f%%", runner.successRate * 100))
+                        EvalResultRow(label: "Success Rate", value: String(format: "%.1f%%", runner.successRate * 100))
                     }
                     
                     Divider()
@@ -342,9 +540,51 @@ struct EvaluationView: View {
         .frame(width: 250)
         .background(Color.gray.opacity(0.05))
     }
+    
+    
+    private var resultsSheet: some View {
+        NavigationStack {
+            List {
+                Section("Summary") {
+                    LabeledContent("Episodes Completed", value: "\(runner.currentEpisode)")
+                    LabeledContent("Total Reward", value: String(format: "%.1f", runner.totalReward))
+                    LabeledContent("Average Reward", value: String(format: "%.2f", runner.averageReward))
+                    LabeledContent("Average Steps", value: String(format: "%.1f", runner.averageSteps))
+                    if runner.loadedAgent?.environmentType == .frozenLake {
+                        LabeledContent("Success Rate", value: String(format: "%.1f%%", runner.successRate * 100))
+                    }
+                }
+                
+                Section("Recent Episodes") {
+                    ForEach(Array(runner.episodeRewards.suffix(20).enumerated().reversed()), id: \.offset) { index, reward in
+                        let episodeNum = runner.episodeRewards.count - (runner.episodeRewards.suffix(20).count - 1 - index)
+                        HStack {
+                            Text("Episode \(episodeNum)")
+                            Spacer()
+                            Text(String(format: "%.0f", reward))
+                                .fontWeight(.medium)
+                                .foregroundStyle(reward > 0 ? .green : .secondary)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Results")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") {
+                        showResults = false
+                    }
+                }
+            }
+        }
+    }
 }
 
-struct StatItem: View {
+
+private struct EvalStatItem: View {
     let title: String
     let value: String
     let icon: String
@@ -369,7 +609,7 @@ struct StatItem: View {
     }
 }
 
-struct ResultRow: View {
+private struct EvalResultRow: View {
     let label: String
     let value: String
     
@@ -387,7 +627,7 @@ struct ResultRow: View {
     }
 }
 
-struct RecentEpisodesView: View {
+private struct RecentEpisodesView: View {
     let rewards: [Double]
     
     private var recentRewards: [(index: Int, reward: Double)] {
@@ -417,7 +657,7 @@ struct RecentEpisodesView: View {
     }
 }
 
-struct EvaluationButtonStyle: ButtonStyle {
+private struct EvaluationButtonStyle: ButtonStyle {
     let color: Color
     
     func makeBody(configuration: Configuration) -> some View {
@@ -435,44 +675,40 @@ struct EvaluationButtonStyle: ButtonStyle {
     }
 }
 
-struct EnvironmentCard: View {
-    let type: SavedAgent.EnvironmentType
+private struct EvalEnvironmentCard: View {
+    let type: EnvironmentType
     let isSelected: Bool
     let action: () -> Void
-    
-    private var color: Color {
-        type == .frozenLake ? .cyan : .orange
-    }
     
     var body: some View {
         Button(action: action) {
             VStack(spacing: 12) {
                 ZStack {
                     Circle()
-                        .fill(color.opacity(0.15))
+                        .fill(type.accentColor.opacity(0.15))
                         .frame(width: 60, height: 60)
                     
                     Image(systemName: type.iconName)
                         .font(.title)
-                        .foregroundStyle(color)
+                        .foregroundStyle(type.accentColor)
                 }
                 
                 Text(type.displayName)
                     .font(.headline)
                     .foregroundStyle(isSelected ? .primary : .secondary)
                 
-                Text(type == .frozenLake ? "Tabular RL" : "Deep RL")
+                Text(type.defaultAlgorithm)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
             .frame(width: 140, height: 140)
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(isSelected ? color.opacity(0.1) : Color.gray.opacity(0.05))
+                    .fill(isSelected ? type.accentColor.opacity(0.1) : Color.gray.opacity(0.05))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 16)
-                    .stroke(isSelected ? color : Color.gray.opacity(0.2), lineWidth: isSelected ? 2 : 1)
+                    .stroke(isSelected ? type.accentColor : Color.gray.opacity(0.2), lineWidth: isSelected ? 2 : 1)
             )
         }
         .buttonStyle(.plain)
@@ -482,4 +718,3 @@ struct EnvironmentCard: View {
 #Preview {
     EvaluationView()
 }
-
