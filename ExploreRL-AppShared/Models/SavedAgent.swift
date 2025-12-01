@@ -3,6 +3,7 @@
 //
 
 import Foundation
+import SwiftUI
 
 /// Represents a saved RL agent that can be loaded for evaluation or continued training
 struct SavedAgent: Identifiable, Codable {
@@ -24,32 +25,12 @@ struct SavedAgent: Identifiable, Codable {
     let environmentConfig: [String: String]
     
     let agentDataPath: String
-    
-    enum EnvironmentType: String, Codable, CaseIterable {
-        case frozenLake = "FrozenLake"
-        case cartPole = "CartPole"
-        
-        var displayName: String {
-            switch self {
-            case .frozenLake: return "Frozen Lake"
-            case .cartPole: return "Cart Pole"
-            }
-        }
-        
-        var iconName: String {
-            switch self {
-            case .frozenLake: return "snowflake"
-            case .cartPole: return "cart"
-            }
-        }
-    }
 }
 
-/// Lightweight version for listing without loading full agent data
 struct SavedAgentSummary: Identifiable, Codable, Hashable {
     let id: UUID
     var name: String
-    let environmentType: SavedAgent.EnvironmentType
+    let environmentType: EnvironmentType
     let algorithmType: String
     let createdAt: Date
     var updatedAt: Date
@@ -83,4 +64,3 @@ extension SavedAgent {
         )
     }
 }
-

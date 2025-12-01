@@ -1,0 +1,126 @@
+//
+//  EnvironmentRunner.swift
+//
+
+import SwiftUI
+import Foundation
+
+/// Base protocol for all environment runners
+@MainActor
+protocol EnvironmentRunner: AnyObject, Observable {
+    associatedtype SnapshotType
+    
+    var snapshot: SnapshotType? { get }
+    var episodeCount: Int { get }
+    var currentStep: Int { get }
+    var episodeReward: Double { get }
+    var isTraining: Bool { get }
+    var renderEnabled: Bool { get set }
+    var episodeMetrics: [EpisodeMetrics] { get }
+    var episodesPerRun: Int { get set }
+    var targetFPS: Double { get set }
+    
+    var totalEpisodesTrained: Int { get }
+    
+    func startTraining()
+    func stopTraining()
+    func reset()
+    func setupEnvironment()
+    
+    static var environmentType: EnvironmentType { get }
+    static var displayName: String { get }
+    static var algorithmName: String { get }
+    static var icon: String { get }
+    static var accentColor: Color { get }
+    static var category: EnvironmentCategory { get }
+}
+
+/// Protocol for environments that support saving and loading agents
+@MainActor
+protocol SavableEnvironmentRunner: EnvironmentRunner {
+    var loadedAgentId: UUID? { get }
+    var loadedAgentName: String? { get }
+    var hasTrainedSinceLoad: Bool { get }
+    var canResume: Bool { get }
+    var totalEpisodesTrained: Int { get }
+    var averageReward: Double { get }
+    
+    func saveAgent(name: String) throws
+    func loadAgent(from agent: SavedAgent) throws
+    func updateAgent(id: UUID, name: String) throws
+}
+
+enum EnvironmentCategory: String, CaseIterable, Identifiable {
+    case toyText = "Toy Text"
+    case classicControl = "Classic Control"
+    case box2d = "Box2D"
+    case atari = "Atari"
+    case mujoco = "MuJoCo"
+    
+    var id: String { rawValue }
+}
+
+enum EnvironmentType: String, Codable, CaseIterable, Identifiable {
+    case frozenLake = "FrozenLake"
+    case cartPole = "CartPole"
+    case mountainCar = "MountainCar"
+    case mountainCarContinuous = "MountainCarContinuous"
+    
+    var id: String { rawValue }
+    
+    var displayName: String {
+        switch self {
+        case .frozenLake: return "Frozen Lake"
+        case .cartPole: return "Cart Pole"
+        case .mountainCar: return "Mountain Car"
+        case .mountainCarContinuous: return "Mountain Car Continuous"
+        }
+    }
+    
+    var iconName: String {
+        switch self {
+        case .frozenLake: return "snowflake"
+        case .cartPole: return "cart"
+        case .mountainCar: return "car.side"
+        case .mountainCarContinuous: return "car.side.fill"
+        }
+    }
+    
+    var accentColor: Color {
+        switch self {
+        case .frozenLake: return .cyan
+        case .cartPole: return .orange
+        case .mountainCar: return .green
+        case .mountainCarContinuous: return .purple
+        }
+    }
+    
+    var category: EnvironmentCategory {
+        switch self {
+        case .frozenLake: return .toyText
+        case .cartPole, .mountainCar, .mountainCarContinuous: return .classicControl
+        }
+    }
+    
+    var defaultAlgorithm: String {
+        switch self {
+        case .frozenLake: return "Q-Learning"
+        case .cartPole, .mountainCar: return "DQN"
+        case .mountainCarContinuous: return "SAC"
+        }
+    }
+}
+
+
+extension EnvironmentRunner {
+    var runProgress: Double {
+        guard episodesPerRun > 0 else { return 0 }
+        return Double(episodeMetrics.count) / Double(episodesPerRun)
+    }
+}
+
+extension SavableEnvironmentRunner {
+    var hasUnsavedChanges: Bool {
+        episodeMetrics.count > 0 && (loadedAgentId == nil || hasTrainedSinceLoad)
+    }
+}
