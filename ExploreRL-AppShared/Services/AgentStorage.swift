@@ -6,7 +6,7 @@ import Foundation
 import SwiftUI
 import MLX
 import MLXNN
-import ExploreRLCore
+import Gymnazo
 
 /// Storage manager for trained agents
 @MainActor
@@ -45,7 +45,6 @@ import ExploreRLCore
             for file in metadataFiles {
                 if let data = try? Data(contentsOf: file),
                    let agent = try? decoder.decode(SavedAgent.self, from: data) {
-                    // Calculate total file size (metadata + data file)
                     let fileSize = calculateFileSize(for: agent)
                     agents.append(agent.summary(fileSize: fileSize))
                 }
@@ -80,6 +79,7 @@ import ExploreRLCore
         guard let agent = try? loadAgent(id: agentId) else { return 0 }
         return calculateFileSize(for: agent)
     }
+    
     
     func saveFrozenLakeAgent(
         name: String,
@@ -124,6 +124,55 @@ import ExploreRLCore
         loadAgentList()
         return agent
     }
+    
+    func updateFrozenLakeAgent(
+        id: UUID,
+        newName: String,
+        qTable: MLXArray,
+        episodesTrained: Int,
+        epsilon: Double,
+        bestReward: Double,
+        averageReward: Double,
+        successRate: Double,
+        hyperparameters: [String: Double]
+    ) throws {
+        let agent = try loadAgent(id: id)
+        
+        let dataPath = agentsDirectory.appendingPathComponent(agent.agentDataPath)
+        try MLX.save(array: qTable, url: dataPath)
+        
+        let updatedAgent = SavedAgent(
+            id: agent.id,
+            name: newName,
+            environmentType: agent.environmentType,
+            algorithmType: agent.algorithmType,
+            createdAt: agent.createdAt,
+            updatedAt: Date(),
+            episodesTrained: episodesTrained,
+            finalEpsilon: epsilon,
+            bestReward: bestReward,
+            averageReward: averageReward,
+            successRate: successRate,
+            hyperparameters: hyperparameters,
+            environmentConfig: agent.environmentConfig,
+            agentDataPath: agent.agentDataPath
+        )
+        
+        let metadataPath = agentsDirectory.appendingPathComponent("\(id.uuidString)_metadata.json")
+        let data = try encoder.encode(updatedAgent)
+        try data.write(to: metadataPath)
+        
+        loadAgentList()
+    }
+    
+    func loadQTable(for agent: SavedAgent) throws -> MLXArray {
+        guard agent.environmentType == .frozenLake else {
+            throw AgentStorageError.wrongEnvironmentType
+        }
+        let dataPath = agentsDirectory.appendingPathComponent(agent.agentDataPath)
+        return try MLX.loadArray(url: dataPath)
+    }
+    
     
     func saveCartPoleAgent(
         name: String,
@@ -173,83 +222,6 @@ import ExploreRLCore
         return agent
     }
     
-    func loadAgent(id: UUID) throws -> SavedAgent {
-        let metadataPath = agentsDirectory.appendingPathComponent("\(id.uuidString)_metadata.json")
-        let data = try Data(contentsOf: metadataPath)
-        return try decoder.decode(SavedAgent.self, from: data)
-    }
-    
-    func loadQTable(for agent: SavedAgent) throws -> MLXArray {
-        guard agent.environmentType == .frozenLake else {
-            throw AgentStorageError.wrongEnvironmentType
-        }
-        let dataPath = agentsDirectory.appendingPathComponent(agent.agentDataPath)
-        return try MLX.loadArray(url: dataPath)
-    }
-    
-    func loadNetworkWeights(for agent: SavedAgent) throws -> [String: MLXArray] {
-        guard agent.environmentType == .cartPole else {
-            throw AgentStorageError.wrongEnvironmentType
-        }
-        let dataPath = agentsDirectory.appendingPathComponent(agent.agentDataPath)
-        return try MLX.loadArrays(url: dataPath)
-    }
-    
-    func renameAgent(id: UUID, newName: String) throws {
-        var agent = try loadAgent(id: id)
-        agent.name = newName
-        agent.updatedAt = Date()
-        
-        let metadataPath = agentsDirectory.appendingPathComponent("\(id.uuidString)_metadata.json")
-        let data = try encoder.encode(agent)
-        try data.write(to: metadataPath)
-        
-        loadAgentList()
-    }
-    
-    func updateFrozenLakeAgent(
-        id: UUID,
-        newName: String,
-        qTable: MLXArray,
-        episodesTrained: Int,
-        epsilon: Double,
-        bestReward: Double,
-        averageReward: Double,
-        successRate: Double,
-        hyperparameters: [String: Double]
-    ) throws {
-        var agent = try loadAgent(id: id)
-        
-        agent.name = newName
-        agent.updatedAt = Date()
-        
-        let dataPath = agentsDirectory.appendingPathComponent(agent.agentDataPath)
-        try MLX.save(array: qTable, url: dataPath)
-        
-        let updatedAgent = SavedAgent(
-            id: agent.id,
-            name: newName,
-            environmentType: agent.environmentType,
-            algorithmType: agent.algorithmType,
-            createdAt: agent.createdAt,
-            updatedAt: Date(),
-            episodesTrained: episodesTrained,
-            finalEpsilon: epsilon,
-            bestReward: bestReward,
-            averageReward: averageReward,
-            successRate: successRate,
-            hyperparameters: hyperparameters,
-            environmentConfig: agent.environmentConfig,
-            agentDataPath: agent.agentDataPath
-        )
-        
-        let metadataPath = agentsDirectory.appendingPathComponent("\(id.uuidString)_metadata.json")
-        let data = try encoder.encode(updatedAgent)
-        try data.write(to: metadataPath)
-        
-        loadAgentList()
-    }
-    
     func updateCartPoleAgent(
         id: UUID,
         newName: String,
@@ -260,10 +232,7 @@ import ExploreRLCore
         averageReward: Double,
         hyperparameters: [String: Double]
     ) throws {
-        var agent = try loadAgent(id: id)
-        
-        agent.name = newName
-        agent.updatedAt = Date()
+        let agent = try loadAgent(id: id)
         
         let dataPath = agentsDirectory.appendingPathComponent(agent.agentDataPath)
         let weights = policyNetwork.parameters()
@@ -298,6 +267,451 @@ import ExploreRLCore
         loadAgentList()
     }
     
+    
+    func saveMountainCarAgent(
+        name: String,
+        policyNetwork: QNetwork,
+        episodesTrained: Int,
+        epsilon: Double,
+        bestReward: Double,
+        averageReward: Double,
+        hyperparameters: [String: Double],
+        environmentConfig: [String: String]
+    ) throws -> SavedAgent {
+        let id = UUID()
+        let now = Date()
+        let dataFileName = "\(id.uuidString)_weights.safetensors"
+        let dataPath = agentsDirectory.appendingPathComponent(dataFileName)
+        
+        let weights = policyNetwork.parameters()
+        let flatWeights = weights.flattened()
+        var weightsDict: [String: MLXArray] = [:]
+        for (key, value) in flatWeights {
+            weightsDict[key] = value
+        }
+        try MLX.save(arrays: weightsDict, url: dataPath)
+        
+        let agent = SavedAgent(
+            id: id,
+            name: name,
+            environmentType: .mountainCar,
+            algorithmType: "DQN",
+            createdAt: now,
+            updatedAt: now,
+            episodesTrained: episodesTrained,
+            finalEpsilon: epsilon,
+            bestReward: bestReward,
+            averageReward: averageReward,
+            successRate: nil,
+            hyperparameters: hyperparameters,
+            environmentConfig: environmentConfig,
+            agentDataPath: dataFileName
+        )
+        
+        let metadataPath = agentsDirectory.appendingPathComponent("\(id.uuidString)_metadata.json")
+        let data = try encoder.encode(agent)
+        try data.write(to: metadataPath)
+        
+        loadAgentList()
+        return agent
+    }
+    
+    func updateMountainCarAgent(
+        id: UUID,
+        newName: String,
+        policyNetwork: QNetwork,
+        episodesTrained: Int,
+        epsilon: Double,
+        bestReward: Double,
+        averageReward: Double,
+        hyperparameters: [String: Double]
+    ) throws {
+        let agent = try loadAgent(id: id)
+        
+        let dataPath = agentsDirectory.appendingPathComponent(agent.agentDataPath)
+        let weights = policyNetwork.parameters()
+        let flatWeights = weights.flattened()
+        var weightsDict: [String: MLXArray] = [:]
+        for (key, value) in flatWeights {
+            weightsDict[key] = value
+        }
+        try MLX.save(arrays: weightsDict, url: dataPath)
+        
+        let updatedAgent = SavedAgent(
+            id: agent.id,
+            name: newName,
+            environmentType: agent.environmentType,
+            algorithmType: agent.algorithmType,
+            createdAt: agent.createdAt,
+            updatedAt: Date(),
+            episodesTrained: episodesTrained,
+            finalEpsilon: epsilon,
+            bestReward: bestReward,
+            averageReward: averageReward,
+            successRate: nil,
+            hyperparameters: hyperparameters,
+            environmentConfig: agent.environmentConfig,
+            agentDataPath: agent.agentDataPath
+        )
+        
+        let metadataPath = agentsDirectory.appendingPathComponent("\(id.uuidString)_metadata.json")
+        let data = try encoder.encode(updatedAgent)
+        try data.write(to: metadataPath)
+        
+        loadAgentList()
+    }
+    
+    
+    func saveMountainCarContinuousAgent(
+        name: String,
+        actor: SACActorNetwork,
+        qf1: SoftQNetwork,
+        qf2: SoftQNetwork,
+        episodesTrained: Int,
+        alpha: Double,
+        bestReward: Double,
+        averageReward: Double,
+        hyperparameters: [String: Double],
+        environmentConfig: [String: String]
+    ) throws -> SavedAgent {
+        let id = UUID()
+        let now = Date()
+        let dataFileName = "\(id.uuidString)_sac_weights.safetensors"
+        let dataPath = agentsDirectory.appendingPathComponent(dataFileName)
+        
+        var combinedWeights: [String: MLXArray] = [:]
+        
+        let actorWeights = actor.parameters().flattened()
+        for (key, value) in actorWeights {
+            combinedWeights["actor.\(key)"] = value
+        }
+        
+        let qf1Weights = qf1.parameters().flattened()
+        for (key, value) in qf1Weights {
+            combinedWeights["qf1.\(key)"] = value
+        }
+        
+        let qf2Weights = qf2.parameters().flattened()
+        for (key, value) in qf2Weights {
+            combinedWeights["qf2.\(key)"] = value
+        }
+        
+        try MLX.save(arrays: combinedWeights, url: dataPath)
+        
+        let agent = SavedAgent(
+            id: id,
+            name: name,
+            environmentType: .mountainCarContinuous,
+            algorithmType: "SAC",
+            createdAt: now,
+            updatedAt: now,
+            episodesTrained: episodesTrained,
+            finalEpsilon: alpha,
+            bestReward: bestReward,
+            averageReward: averageReward,
+            successRate: nil,
+            hyperparameters: hyperparameters,
+            environmentConfig: environmentConfig,
+            agentDataPath: dataFileName
+        )
+        
+        let metadataPath = agentsDirectory.appendingPathComponent("\(id.uuidString)_metadata.json")
+        let data = try encoder.encode(agent)
+        try data.write(to: metadataPath)
+        
+        loadAgentList()
+        return agent
+    }
+    
+    func updateMountainCarContinuousAgent(
+        id: UUID,
+        newName: String,
+        actor: SACActorNetwork,
+        qf1: SoftQNetwork,
+        qf2: SoftQNetwork,
+        episodesTrained: Int,
+        alpha: Double,
+        bestReward: Double,
+        averageReward: Double,
+        hyperparameters: [String: Double]
+    ) throws {
+        let agent = try loadAgent(id: id)
+        
+        let dataPath = agentsDirectory.appendingPathComponent(agent.agentDataPath)
+        
+        var combinedWeights: [String: MLXArray] = [:]
+        
+        let actorWeights = actor.parameters().flattened()
+        for (key, value) in actorWeights {
+            combinedWeights["actor.\(key)"] = value
+        }
+        
+        let qf1Weights = qf1.parameters().flattened()
+        for (key, value) in qf1Weights {
+            combinedWeights["qf1.\(key)"] = value
+        }
+        
+        let qf2Weights = qf2.parameters().flattened()
+        for (key, value) in qf2Weights {
+            combinedWeights["qf2.\(key)"] = value
+        }
+        
+        try MLX.save(arrays: combinedWeights, url: dataPath)
+        
+        let updatedAgent = SavedAgent(
+            id: agent.id,
+            name: newName,
+            environmentType: agent.environmentType,
+            algorithmType: agent.algorithmType,
+            createdAt: agent.createdAt,
+            updatedAt: Date(),
+            episodesTrained: episodesTrained,
+            finalEpsilon: alpha,
+            bestReward: bestReward,
+            averageReward: averageReward,
+            successRate: nil,
+            hyperparameters: hyperparameters,
+            environmentConfig: agent.environmentConfig,
+            agentDataPath: agent.agentDataPath
+        )
+        
+        let metadataPath = agentsDirectory.appendingPathComponent("\(id.uuidString)_metadata.json")
+        let data = try encoder.encode(updatedAgent)
+        try data.write(to: metadataPath)
+        
+        loadAgentList()
+    }
+    
+    
+    func loadAgent(id: UUID) throws -> SavedAgent {
+        let metadataPath = agentsDirectory.appendingPathComponent("\(id.uuidString)_metadata.json")
+        let data = try Data(contentsOf: metadataPath)
+        return try decoder.decode(SavedAgent.self, from: data)
+    }
+    
+    func loadNetworkWeights(for agent: SavedAgent) throws -> [String: MLXArray] {
+        guard agent.environmentType == .cartPole || agent.environmentType == .mountainCar else {
+            throw AgentStorageError.wrongEnvironmentType
+        }
+        let dataPath = agentsDirectory.appendingPathComponent(agent.agentDataPath)
+        return try MLX.loadArrays(url: dataPath)
+    }
+    
+    func loadSACWeights(for agent: SavedAgent) throws -> [String: [String: MLXArray]] {
+        guard agent.environmentType == .mountainCarContinuous else {
+            throw AgentStorageError.wrongEnvironmentType
+        }
+        let dataPath = agentsDirectory.appendingPathComponent(agent.agentDataPath)
+        let allWeights = try MLX.loadArrays(url: dataPath)
+        
+        var actorWeights: [String: MLXArray] = [:]
+        var qf1Weights: [String: MLXArray] = [:]
+        var qf2Weights: [String: MLXArray] = [:]
+        
+        for (key, value) in allWeights {
+            if key.hasPrefix("actor.") {
+                let strippedKey = String(key.dropFirst("actor.".count))
+                actorWeights[strippedKey] = value
+            } else if key.hasPrefix("qf1.") {
+                let strippedKey = String(key.dropFirst("qf1.".count))
+                qf1Weights[strippedKey] = value
+            } else if key.hasPrefix("qf2.") {
+                let strippedKey = String(key.dropFirst("qf2.".count))
+                qf2Weights[strippedKey] = value
+            }
+        }
+        
+        return [
+            "actor": actorWeights,
+            "qf1": qf1Weights,
+            "qf2": qf2Weights
+        ]
+    }
+    
+    
+    func saveMountainCarContinuousAgentVmap(
+        name: String,
+        actor: SACActorNetwork,
+        qEnsemble: EnsembleQNetwork,
+        episodesTrained: Int,
+        alpha: Double,
+        bestReward: Double,
+        averageReward: Double,
+        hyperparameters: [String: Double],
+        environmentConfig: [String: String]
+    ) throws -> SavedAgent {
+        let id = UUID()
+        let now = Date()
+        let dataFileName = "\(id.uuidString)_sac_vmap_weights.safetensors"
+        let dataPath = agentsDirectory.appendingPathComponent(dataFileName)
+        
+        var combinedWeights: [String: MLXArray] = [:]
+        
+        let actorWeights = actor.parameters().flattened()
+        for (key, value) in actorWeights {
+            combinedWeights["actor.\(key)"] = value
+        }
+        
+        let qEnsembleWeights = qEnsemble.parameters().flattened()
+        for (key, value) in qEnsembleWeights {
+            combinedWeights["qEnsemble.\(key)"] = value
+        }
+        
+        try MLX.save(arrays: combinedWeights, url: dataPath)
+        
+        let agent = SavedAgent(
+            id: id,
+            name: name,
+            environmentType: .mountainCarContinuous,
+            algorithmType: "SAC-Vmap",
+            createdAt: now,
+            updatedAt: now,
+            episodesTrained: episodesTrained,
+            finalEpsilon: alpha,
+            bestReward: bestReward,
+            averageReward: averageReward,
+            successRate: nil,
+            hyperparameters: hyperparameters,
+            environmentConfig: environmentConfig,
+            agentDataPath: dataFileName
+        )
+        
+        let metadataPath = agentsDirectory.appendingPathComponent("\(id.uuidString)_metadata.json")
+        let data = try encoder.encode(agent)
+        try data.write(to: metadataPath)
+        
+        loadAgentList()
+        return agent
+    }
+    
+    func updateMountainCarContinuousAgentVmap(
+        id: UUID,
+        newName: String,
+        actor: SACActorNetwork,
+        qEnsemble: EnsembleQNetwork,
+        episodesTrained: Int,
+        alpha: Double,
+        bestReward: Double,
+        averageReward: Double,
+        hyperparameters: [String: Double]
+    ) throws {
+        let agent = try loadAgent(id: id)
+        
+        let dataPath = agentsDirectory.appendingPathComponent(agent.agentDataPath)
+        
+        var combinedWeights: [String: MLXArray] = [:]
+        
+        let actorWeights = actor.parameters().flattened()
+        for (key, value) in actorWeights {
+            combinedWeights["actor.\(key)"] = value
+        }
+        
+        let qEnsembleWeights = qEnsemble.parameters().flattened()
+        for (key, value) in qEnsembleWeights {
+            combinedWeights["qEnsemble.\(key)"] = value
+        }
+        
+        try MLX.save(arrays: combinedWeights, url: dataPath)
+        
+        let updatedAgent = SavedAgent(
+            id: agent.id,
+            name: newName,
+            environmentType: agent.environmentType,
+            algorithmType: agent.algorithmType,
+            createdAt: agent.createdAt,
+            updatedAt: Date(),
+            episodesTrained: episodesTrained,
+            finalEpsilon: alpha,
+            bestReward: bestReward,
+            averageReward: averageReward,
+            successRate: nil,
+            hyperparameters: hyperparameters,
+            environmentConfig: agent.environmentConfig,
+            agentDataPath: agent.agentDataPath
+        )
+        
+        let metadataPath = agentsDirectory.appendingPathComponent("\(id.uuidString)_metadata.json")
+        let data = try encoder.encode(updatedAgent)
+        try data.write(to: metadataPath)
+        
+        loadAgentList()
+    }
+    
+    func loadSACVmapWeights(for agent: SavedAgent) throws -> [String: [String: MLXArray]] {
+        guard agent.environmentType == .mountainCarContinuous else {
+            throw AgentStorageError.wrongEnvironmentType
+        }
+        let dataPath = agentsDirectory.appendingPathComponent(agent.agentDataPath)
+        let allWeights = try MLX.loadArrays(url: dataPath)
+        
+        var actorWeights: [String: MLXArray] = [:]
+        var qEnsembleWeights: [String: MLXArray] = [:]
+        
+        for (key, value) in allWeights {
+            if key.hasPrefix("actor.") {
+                let strippedKey = String(key.dropFirst("actor.".count))
+                actorWeights[strippedKey] = value
+            } else if key.hasPrefix("qEnsemble.") {
+                let strippedKey = String(key.dropFirst("qEnsemble.".count))
+                qEnsembleWeights[strippedKey] = value
+            }
+        }
+        
+        return [
+            "actor": actorWeights,
+            "qEnsemble": qEnsembleWeights
+        ]
+    }
+    
+    
+    func renameAgent(id: UUID, newName: String) throws {
+        var agent = try loadAgent(id: id)
+        agent.name = newName
+        agent.updatedAt = Date()
+        
+        let metadataPath = agentsDirectory.appendingPathComponent("\(id.uuidString)_metadata.json")
+        let data = try encoder.encode(agent)
+        try data.write(to: metadataPath)
+        
+        loadAgentList()
+    }
+    
+    func duplicateAgent(id: UUID) throws {
+        let original = try loadAgent(id: id)
+        let newId = UUID()
+        let now = Date()
+        
+        let originalDataPath = agentsDirectory.appendingPathComponent(original.agentDataPath)
+        let fileExtension = (original.agentDataPath as NSString).pathExtension
+        let newDataFileName = "\(newId.uuidString)_\(fileExtension.isEmpty ? "data" : original.agentDataPath.components(separatedBy: "_").dropFirst().joined(separator: "_"))"
+        let newDataPath = agentsDirectory.appendingPathComponent(newDataFileName)
+        
+        try fileManager.copyItem(at: originalDataPath, to: newDataPath)
+        
+        let newAgent = SavedAgent(
+            id: newId,
+            name: "\(original.name) Copy",
+            environmentType: original.environmentType,
+            algorithmType: original.algorithmType,
+            createdAt: now,
+            updatedAt: now,
+            episodesTrained: original.episodesTrained,
+            finalEpsilon: original.finalEpsilon,
+            bestReward: original.bestReward,
+            averageReward: original.averageReward,
+            successRate: original.successRate,
+            hyperparameters: original.hyperparameters,
+            environmentConfig: original.environmentConfig,
+            agentDataPath: newDataFileName
+        )
+        
+        let metadataPath = agentsDirectory.appendingPathComponent("\(newId.uuidString)_metadata.json")
+        let data = try encoder.encode(newAgent)
+        try data.write(to: metadataPath)
+        
+        loadAgentList()
+    }
+    
     func deleteAgent(id: UUID) throws {
         let agent = try loadAgent(id: id)
         
@@ -310,7 +724,7 @@ import ExploreRLCore
         loadAgentList()
     }
     
-    func agents(for environmentType: SavedAgent.EnvironmentType) -> [SavedAgentSummary] {
+    func agents(for environmentType: EnvironmentType) -> [SavedAgentSummary] {
         savedAgents.filter { $0.environmentType == environmentType }
     }
 }
@@ -331,4 +745,3 @@ enum AgentStorageError: LocalizedError {
         }
     }
 }
-

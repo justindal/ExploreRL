@@ -5,13 +5,13 @@
 import SwiftUI
 
 struct SaveAgentSheet: View {
-    let environmentType: SavedAgent.EnvironmentType
+    let environmentType: EnvironmentType
     let algorithmType: String
     let episodesTrained: Int
     let currentReward: Double
     let loadedAgentId: UUID?
     let loadedAgentName: String?
-    let onSave: (String) throws -> SavedAgent
+    let onSave: (String) throws -> Void
     let onUpdate: ((UUID, String) throws -> Void)?
     
     @Environment(\.dismiss) private var dismiss
@@ -26,8 +26,45 @@ struct SaveAgentSheet: View {
         case update
     }
     
+    init(
+        environmentType: EnvironmentType,
+        existingAgentId: UUID?,
+        existingAgentName: String?,
+        onSave: @escaping (String) throws -> Void,
+        onUpdate: ((UUID, String) throws -> Void)?
+    ) {
+        self.environmentType = environmentType
+        self.algorithmType = environmentType.defaultAlgorithm
+        self.episodesTrained = 0
+        self.currentReward = 0
+        self.loadedAgentId = existingAgentId
+        self.loadedAgentName = existingAgentName
+        self.onSave = onSave
+        self.onUpdate = onUpdate
+    }
+    
+    init(
+        environmentType: EnvironmentType,
+        algorithmType: String,
+        episodesTrained: Int,
+        currentReward: Double,
+        loadedAgentId: UUID?,
+        loadedAgentName: String?,
+        onSave: @escaping (String) throws -> Void,
+        onUpdate: ((UUID, String) throws -> Void)?
+    ) {
+        self.environmentType = environmentType
+        self.algorithmType = algorithmType
+        self.episodesTrained = episodesTrained
+        self.currentReward = currentReward
+        self.loadedAgentId = loadedAgentId
+        self.loadedAgentName = loadedAgentName
+        self.onSave = onSave
+        self.onUpdate = onUpdate
+    }
+    
     private var environmentColor: Color {
-        environmentType == .frozenLake ? .cyan : .orange
+        environmentType.accentColor
     }
     
     private var canUpdate: Bool {
@@ -45,7 +82,9 @@ struct SaveAgentSheet: View {
                 
                 nameInputSection
                 
-                statsSection
+                if episodesTrained > 0 {
+                    statsSection
+                }
                 
                 if let error = errorMessage {
                     errorView(error)
@@ -77,7 +116,7 @@ struct SaveAgentSheet: View {
     }
     
     private func generateDefaultName() -> String {
-        let envName = environmentType == .frozenLake ? "FrozenLake" : "CartPole"
+        let envName = environmentType.displayName.replacingOccurrences(of: " ", with: "")
         let randomSuffix = String((0..<6).map { _ in "abcdefghijklmnopqrstuvwxyz0123456789".randomElement()! })
         return "\(envName)-\(randomSuffix)"
     }
@@ -182,21 +221,21 @@ struct SaveAgentSheet: View {
                 .foregroundStyle(.secondary)
             
             HStack(spacing: 12) {
-                StatCard(
+                SaveSheetStatCard(
                     icon: "cpu",
                     label: "Algorithm",
                     value: algorithmType,
                     color: .blue
                 )
                 
-                StatCard(
+                SaveSheetStatCard(
                     icon: "number",
                     label: "Episodes",
                     value: "\(episodesTrained)",
                     color: .purple
                 )
                 
-                StatCard(
+                SaveSheetStatCard(
                     icon: "star.fill",
                     label: "Reward",
                     value: String(format: "%.2f", currentReward),
@@ -286,7 +325,7 @@ struct SaveAgentSheet: View {
             if saveMode == .update, let agentId = loadedAgentId, let updateFn = onUpdate {
                 try updateFn(agentId, agentName)
             } else {
-                _ = try onSave(agentName)
+                try onSave(agentName)
             }
             savedSuccessfully = true
             
@@ -339,7 +378,7 @@ private struct SaveModeButton: View {
     }
 }
 
-private struct StatCard: View {
+private struct SaveSheetStatCard: View {
     let icon: String
     let label: String
     let value: String
@@ -402,4 +441,3 @@ private struct StatCard: View {
         onUpdate: { _, _ in }
     )
 }
-

@@ -5,7 +5,7 @@
 import SwiftUI
 
 struct LoadAgentSheet: View {
-    let environmentType: SavedAgent.EnvironmentType
+    let environmentType: EnvironmentType
     let onLoad: (SavedAgent) throws -> Void
     
     @Environment(\.dismiss) private var dismiss
@@ -37,6 +37,9 @@ struct LoadAgentSheet: View {
                         dismiss()
                     }
                 }
+            }
+            .onAppear {
+                storage.loadAgentList()
             }
         }
         #if os(macOS)

@@ -5,20 +5,86 @@
 import SwiftUI
 import MLX
 
+
+enum AgentSortOption: String, CaseIterable, Identifiable {
+    case dateNewest = "Newest First"
+    case dateOldest = "Oldest First"
+    case nameAZ = "Name (A-Z)"
+    case nameZA = "Name (Z-A)"
+    case episodesHigh = "Most Episodes"
+    case rewardHigh = "Best Reward"
+    
+    var id: String { rawValue }
+    
+    var icon: String {
+        switch self {
+        case .dateNewest: return "arrow.down.circle"
+        case .dateOldest: return "arrow.up.circle"
+        case .nameAZ: return "textformat.abc"
+        case .nameZA: return "textformat.abc"
+        case .episodesHigh: return "number.circle"
+        case .rewardHigh: return "star.circle"
+        }
+    }
+}
+
+
 struct SavedAgentsView: View {
+    @Environment(\.horizontalSizeClass) var horizontalSizeClass
     @State private var storage = AgentStorage.shared
-    @State private var selectedEnvironment: SavedAgent.EnvironmentType?
+    @State private var selectedEnvironment: EnvironmentType?
     @State private var selectedAgent: SavedAgentSummary?
     @State private var agentToRename: SavedAgentSummary?
     @State private var agentToDelete: SavedAgentSummary?
     @State private var newName: String = ""
     @State private var showDeleteConfirmation = false
     
-    var filteredAgents: [SavedAgentSummary] {
+    @State private var searchText: String = ""
+    @State private var sortOption: AgentSortOption = .dateNewest
+    @State private var isSelecting: Bool = false
+    @State private var selectedAgents: Set<UUID> = [] 
+    @State private var singleSelection: UUID? = nil
+    @State private var showBatchDeleteConfirmation = false
+    @State private var showDuplicateConfirmation = false
+    @State private var agentToDuplicate: SavedAgentSummary?
+    
+    private var isCompact: Bool {
+        horizontalSizeClass == .compact
+    }
+    
+    var filteredAndSortedAgents: [SavedAgentSummary] {
+        var agents: [SavedAgentSummary]
+        
         if let env = selectedEnvironment {
-            return storage.agents(for: env)
+            agents = storage.agents(for: env)
+        } else {
+            agents = storage.savedAgents
         }
-        return storage.savedAgents
+        
+        if !searchText.isEmpty {
+            agents = agents.filter { agent in
+                agent.name.localizedCaseInsensitiveContains(searchText) ||
+                agent.algorithmType.localizedCaseInsensitiveContains(searchText) ||
+                agent.environmentType.displayName.localizedCaseInsensitiveContains(searchText)
+            }
+        }
+        
+        switch sortOption {
+        case .dateNewest:
+            agents.sort { $0.updatedAt > $1.updatedAt }
+        case .dateOldest:
+            agents.sort { $0.updatedAt < $1.updatedAt }
+        case .nameAZ:
+            agents.sort { $0.name.localizedCompare($1.name) == .orderedAscending }
+        case .nameZA:
+            agents.sort { $0.name.localizedCompare($1.name) == .orderedDescending }
+        case .episodesHigh:
+            agents.sort { $0.episodesTrained > $1.episodesTrained }
+        case .rewardHigh:
+            agents.sort { $0.bestReward > $1.bestReward }
+        }
+        
+        return agents
     }
     
     var body: some View {
@@ -43,6 +109,26 @@ struct SavedAgentsView: View {
             } message: { agent in
                 Text("Are you sure you want to delete \"\(agent.name)\"? This cannot be undone.")
             }
+            .alert("Delete \(selectedAgents.count) Agents?", isPresented: $showBatchDeleteConfirmation) {
+                Button("Cancel", role: .cancel) {
+                    selectedAgents.removeAll()
+                }
+                Button("Delete All", role: .destructive) {
+                    deleteSelectedAgents()
+                }
+            } message: {
+                Text("Are you sure you want to delete \(selectedAgents.count) agents? This cannot be undone.")
+            }
+            .alert("Duplicate Agent?", isPresented: $showDuplicateConfirmation, presenting: agentToDuplicate) { agent in
+                Button("Cancel", role: .cancel) {
+                    agentToDuplicate = nil
+                }
+                Button("Duplicate") {
+                    duplicateAgent(agent)
+                }
+            } message: { agent in
+                Text("Create a copy of \"\(agent.name)\"?")
+            }
     }
     
     @ViewBuilder
@@ -53,17 +139,87 @@ struct SavedAgentsView: View {
             detailSection
         }
         #else
-        NavigationStack {
-            listSection
-                .navigationDestination(item: $selectedAgent) { agent in
-                    AgentDetailView(agent: agent)
-                }
+        if isCompact {
+            NavigationStack {
+                listSection
+                    .navigationTitle("Saved Agents")
+                    .navigationBarTitleDisplayMode(.large)
+                    .navigationDestination(for: SavedAgentSummary.self) { agent in
+                        AgentDetailView(agent: agent)
+                    }
+            }
+        } else {
+            NavigationStack {
+                listSection
+                    .navigationDestination(item: $selectedAgent) { agent in
+                        AgentDetailView(agent: agent)
+                    }
+            }
         }
         #endif
     }
     
     private var listSection: some View {
         VStack(spacing: 0) {
+            #if os(macOS)
+            headerView
+            Divider()
+            #endif
+            
+            if filteredAndSortedAgents.isEmpty {
+                emptyStateView
+            } else {
+                agentListView
+            }
+        }
+        #if os(macOS)
+        .frame(minWidth: 380)
+        #else
+        .searchable(text: $searchText, prompt: "Search agents...")
+        .toolbar {
+            ToolbarItem(placement: .automatic) {
+                Menu {
+                    Picker("Filter by Environment", selection: $selectedEnvironment) {
+                        Text("All Environments").tag(nil as EnvironmentType?)
+                        Divider()
+                        ForEach(EnvironmentType.allCases, id: \.self) { env in
+                            Label(env.displayName, systemImage: env.iconName)
+                                .tag(env as EnvironmentType?)
+                        }
+                    }
+                    
+                    Divider()
+                    
+                    Picker("Sort By", selection: $sortOption) {
+                        ForEach(AgentSortOption.allCases) { option in
+                            Label(option.rawValue, systemImage: option.icon)
+                                .tag(option)
+                        }
+                    }
+                } label: {
+                    Label("Options", systemImage: "line.3.horizontal.decrease.circle")
+                }
+            }
+            
+            ToolbarItem(placement: .automatic) {
+                Button(isSelecting ? "Done" : "Select") {
+                    withAnimation {
+                        if isSelecting {
+                            isSelecting = false
+                            selectedAgents.removeAll()
+                        } else {
+                            isSelecting = true
+                        }
+                    }
+                }
+            }
+        }
+        #endif
+    }
+    
+    #if os(macOS)
+    private var headerView: some View {
+        VStack(spacing: 12) {
             HStack {
                 Text("Saved Agents")
                     .font(.title2)
@@ -71,37 +227,117 @@ struct SavedAgentsView: View {
                 
                 Spacer()
                 
-                Picker("Filter", selection: $selectedEnvironment) {
-                    Text("All").tag(nil as SavedAgent.EnvironmentType?)
-                    ForEach(SavedAgent.EnvironmentType.allCases, id: \.self) { env in
+                if isSelecting {
+                    HStack(spacing: 8) {
+                        Button {
+                            withAnimation(.snappy(duration: 0.2)) {
+                                if selectedAgents.count == filteredAndSortedAgents.count {
+                                    selectedAgents.removeAll()
+                                } else {
+                                    selectedAgents = Set(filteredAndSortedAgents.map(\.id))
+                                }
+                            }
+                        } label: {
+                            Text(selectedAgents.count == filteredAndSortedAgents.count ? "Deselect All" : "Select All")
+                        }
+                        .buttonStyle(.bordered)
+                        
+                        Button("Done") {
+                            withAnimation {
+                                isSelecting = false
+                                selectedAgents.removeAll()
+                                singleSelection = selectedAgent?.id
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                } else {
+                    Button {
+                        withAnimation {
+                            isSelecting = true
+                            singleSelection = nil
+                        }
+                    } label: {
+                        Label("Select", systemImage: "checkmark.circle")
+                    }
+                    .buttonStyle(.bordered)
+                    .help("Enter selection mode to select multiple agents")
+                }
+            }
+            
+            HStack(spacing: 12) {
+                HStack {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(.secondary)
+                    TextField("Search agents...", text: $searchText)
+                        .textFieldStyle(.plain)
+                    if !searchText.isEmpty {
+                        Button {
+                            searchText = ""
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(8)
+                .background(Color.gray.opacity(0.1))
+                .cornerRadius(8)
+                
+                Picker("Environment", selection: $selectedEnvironment) {
+                    Text("All").tag(nil as EnvironmentType?)
+                    ForEach(EnvironmentType.allCases, id: \.self) { env in
                         Label(env.displayName, systemImage: env.iconName)
-                            .tag(env as SavedAgent.EnvironmentType?)
+                            .tag(env as EnvironmentType?)
                     }
                 }
                 .pickerStyle(.menu)
+                .frame(width: 160)
+                
+                Menu {
+                    ForEach(AgentSortOption.allCases) { option in
+                        Button {
+                            sortOption = option
+                        } label: {
+                            Label(option.rawValue, systemImage: option.icon)
+                        }
+                    }
+                } label: {
+                    Label(sortOption.rawValue, systemImage: "arrow.up.arrow.down")
+                }
+                .menuStyle(.borderlessButton)
+                .frame(width: 140)
             }
-            .padding()
             
-            Divider()
-            
-            if filteredAgents.isEmpty {
-                emptyStateView
-            } else {
-                agentListView
+            if isSelecting && !selectedAgents.isEmpty {
+                HStack {
+                    Text("\(selectedAgents.count) selected")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    
+                    Spacer()
+                    
+                    Button(role: .destructive) {
+                        showBatchDeleteConfirmation = true
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.red)
+                }
+                .padding(.top, 8)
             }
         }
-        #if os(macOS)
-        .frame(minWidth: 350)
-        #endif
+        .padding()
     }
     
-    #if os(macOS)
     private var detailSection: some View {
         Group {
             if let agent = selectedAgent {
                 AgentDetailView(agent: agent)
             } else {
-                VStack {
+                VStack(spacing: 16) {
                     Spacer()
                     Image(systemName: "doc.text.magnifyingglass")
                         .font(.system(size: 48))
@@ -121,18 +357,38 @@ struct SavedAgentsView: View {
         VStack(spacing: 16) {
             Spacer()
             
-            Image(systemName: "tray")
-                .font(.system(size: 48))
-                .foregroundStyle(.secondary)
-            
-            Text("No Saved Agents")
-                .font(.title3)
-                .fontWeight(.medium)
-            
-            Text("Train an agent and save it to see it here.\nYou can then evaluate it or continue training.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+            if !searchText.isEmpty {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 48))
+                    .foregroundStyle(.secondary)
+                
+                Text("No Results")
+                    .font(.title3)
+                    .fontWeight(.medium)
+                
+                Text("No agents match \"\(searchText)\"")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                
+                Button("Clear Search") {
+                    searchText = ""
+                }
+                .buttonStyle(.bordered)
+            } else {
+                Image(systemName: "tray")
+                    .font(.system(size: 48))
+                    .foregroundStyle(.secondary)
+                
+                Text("No Saved Agents")
+                    .font(.title3)
+                    .fontWeight(.medium)
+                
+                Text("Train an agent and save it to see it here.\nYou can then evaluate it or continue training.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
             
             Spacer()
         }
@@ -140,55 +396,203 @@ struct SavedAgentsView: View {
     }
     
     private var agentListView: some View {
-        List(selection: $selectedAgent) {
-            ForEach(filteredAgents) { agent in
-                SavedAgentRow(agent: agent)
-                    .tag(agent)
+        #if os(macOS)
+        macOSAgentList
+        #else
+        iOSAgentList
+        #endif
+    }
+    
+    #if os(macOS)
+    @ViewBuilder
+    private var macOSAgentList: some View {
+        if isSelecting {
+            List {
+                ForEach(filteredAndSortedAgents) { agent in
+                    HStack(spacing: 12) {
+                        Image(systemName: selectedAgents.contains(agent.id) ? "checkmark.circle.fill" : "circle")
+                            .foregroundStyle(selectedAgents.contains(agent.id) ? Color.accentColor : .secondary)
+                            .font(.title3)
+                        
+                        SavedAgentRow(agent: agent)
+                        
+                        Spacer()
+                    }
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        withAnimation(.snappy(duration: 0.15)) {
+                            if selectedAgents.contains(agent.id) {
+                                selectedAgents.remove(agent.id)
+                            } else {
+                                selectedAgents.insert(agent.id)
+                            }
+                        }
+                    }
+                    .listRowBackground(
+                        selectedAgents.contains(agent.id)
+                        ? Color.accentColor.opacity(0.15)
+                        : Color.clear
+                    )
                     .contextMenu {
-                        Button {
-                            newName = agent.name
-                            agentToRename = agent
-                        } label: {
-                            Label("Rename", systemImage: "pencil")
-                        }
-                        
-                        Divider()
-                        
-                        Button(role: .destructive) {
-                            agentToDelete = agent
-                            showDeleteConfirmation = true
-                        } label: {
-                            Label("Delete", systemImage: "trash")
-                        }
+                        agentContextMenu(for: agent)
+                    }
+                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        agentSwipeActions(for: agent)
+                    }
+                }
+            }
+            .listStyle(.inset)
+        } else {
+            List(filteredAndSortedAgents, selection: $singleSelection) { agent in
+                SavedAgentRow(agent: agent)
+                    .tag(agent.id)
+                    .contextMenu {
+                        agentContextMenu(for: agent)
+                    }
+                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        agentSwipeActions(for: agent)
+                    }
+            }
+            .listStyle(.inset)
+            .onChange(of: singleSelection) { _, newValue in
+                if let id = newValue {
+                    selectedAgent = filteredAndSortedAgents.first { $0.id == id }
+                } else {
+                    selectedAgent = nil
+                }
+            }
+        }
+    }
+    #endif
+    
+    #if os(iOS)
+    @ViewBuilder
+    private var iOSAgentList: some View {
+        List {
+            ForEach(filteredAndSortedAgents) { agent in
+                if isCompact && !isSelecting {
+                    NavigationLink(value: agent) {
+                        SavedAgentRow(agent: agent)
+                    }
+                    .contextMenu {
+                        agentContextMenu(for: agent)
                     }
                     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                        Button(role: .destructive) {
-                            agentToDelete = agent
-                            showDeleteConfirmation = true
-                        } label: {
-                            Label("Delete", systemImage: "trash")
-                        }
-                        
-                        Button {
-                            newName = agent.name
-                            agentToRename = agent
-                        } label: {
-                            Label("Rename", systemImage: "pencil")
-                        }
-                        .tint(.orange)
+                        agentSwipeActions(for: agent)
                     }
+                } else {
+                    SavedAgentRow(agent: agent)
+                        .tag(agent.id)
+                        .onTapGesture {
+                            if isSelecting {
+                                if selectedAgents.contains(agent.id) {
+                                    selectedAgents.remove(agent.id)
+                                } else {
+                                    selectedAgents.insert(agent.id)
+                                }
+                            } else {
+                                selectedAgent = agent
+                            }
+                        }
+                        .listRowBackground(
+                            isSelecting && selectedAgents.contains(agent.id)
+                            ? Color.accentColor.opacity(0.15)
+                            : nil
+                        )
+                        .contextMenu {
+                            agentContextMenu(for: agent)
+                        }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            agentSwipeActions(for: agent)
+                        }
+                }
             }
         }
         .listStyle(.inset)
     }
+    #endif
+    
+    @ViewBuilder
+    private func agentContextMenu(for agent: SavedAgentSummary) -> some View {
+        Button {
+            newName = agent.name
+            agentToRename = agent
+        } label: {
+            Label("Rename", systemImage: "pencil")
+        }
+        
+        Button {
+            agentToDuplicate = agent
+            showDuplicateConfirmation = true
+        } label: {
+            Label("Duplicate", systemImage: "plus.square.on.square")
+        }
+        
+        Divider()
+        
+        Button(role: .destructive) {
+            agentToDelete = agent
+            showDeleteConfirmation = true
+        } label: {
+            Label("Delete", systemImage: "trash")
+        }
+    }
+    
+    @ViewBuilder
+    private func agentSwipeActions(for agent: SavedAgentSummary) -> some View {
+        Button(role: .destructive) {
+            agentToDelete = agent
+            showDeleteConfirmation = true
+        } label: {
+            Label("Delete", systemImage: "trash")
+        }
+        
+        Button {
+            newName = agent.name
+            agentToRename = agent
+        } label: {
+            Label("Rename", systemImage: "pencil")
+        }
+        .tint(.orange)
+        
+        Button {
+            agentToDuplicate = agent
+            showDuplicateConfirmation = true
+        } label: {
+            Label("Duplicate", systemImage: "plus.square.on.square")
+        }
+        .tint(.blue)
+    }
+    
+    
+    private func deleteSelectedAgents() {
+        for agentId in selectedAgents {
+            try? storage.deleteAgent(id: agentId)
+        }
+        selectedAgents.removeAll()
+        isSelecting = false
+        selectedAgent = nil
+        singleSelection = nil
+    }
+    
+    private func duplicateAgent(_ agent: SavedAgentSummary) {
+        do {
+            try storage.duplicateAgent(id: agent.id)
+        } catch {
+            print("Failed to duplicate agent: \(error)")
+        }
+        agentToDuplicate = nil
+    }
 }
+
 
 struct AgentDetailView: View {
     let agent: SavedAgentSummary
     @State private var fullAgent: SavedAgent?
+    @State private var isLoadingDetails = true
     
     private var environmentColor: Color {
-        agent.environmentType == .frozenLake ? .cyan : .orange
+        agent.environmentType.accentColor
     }
     
     var body: some View {
@@ -379,10 +783,21 @@ struct AgentDetailView: View {
         .onChange(of: agent) { _, _ in
             loadFullAgent()
         }
+        #if os(iOS)
+        .navigationTitle(agent.name)
+        .navigationBarTitleDisplayMode(.inline)
+        #endif
     }
     
     private func loadFullAgent() {
-        fullAgent = try? AgentStorage.shared.loadAgent(id: agent.id)
+        isLoadingDetails = true
+        Task {
+            try? await Task.sleep(nanoseconds: 100_000_000)
+            await MainActor.run {
+                fullAgent = try? AgentStorage.shared.loadAgent(id: agent.id)
+                isLoadingDetails = false
+            }
+        }
     }
     
     private func formatHyperparameterName(_ name: String) -> String {
@@ -408,6 +823,7 @@ struct AgentDetailView: View {
         }
     }
 }
+
 
 struct DetailMetricCard: View {
     let title: String
@@ -442,7 +858,7 @@ struct SavedAgentRow: View {
     let agent: SavedAgentSummary
     
     private var environmentColor: Color {
-        agent.environmentType == .frozenLake ? .cyan : .orange
+        agent.environmentType.accentColor
     }
     
     var body: some View {
@@ -576,15 +992,19 @@ struct RenameAgentSheet: View {
     }
 }
 
+
 struct AgentDataVisualizationView: View {
     let agent: SavedAgent
     @State private var qTable: [[Double]]?
     @State private var networkLayers: [NetworkLayerInfo]?
     @State private var weightStats: WeightStatistics?
+    @State private var sacNetworks: [String: [NetworkLayerInfo]]?
+    @State private var sacWeightStats: [String: WeightStatistics]?
     @State private var isLoading = true
     @State private var errorMessage: String?
     @State private var selectedAction: Int = 0
     @State private var selectedLayerForHistogram: String?
+    @State private var selectedSACNetwork: String = "actor"
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -614,6 +1034,8 @@ struct AgentDataVisualizationView: View {
                 .cornerRadius(8)
             } else if agent.environmentType == .frozenLake {
                 qTableVisualization
+            } else if agent.environmentType == .mountainCarContinuous {
+                sacNetworkVisualization
             } else {
                 networkVisualization
             }
@@ -820,51 +1242,6 @@ struct AgentDataVisualizationView: View {
                                 .frame(height: 50)
                         }
                         .padding(.top, 4)
-                        
-                        if !stats.layerStats.isEmpty {
-                            Divider()
-                            
-                            Text("Per-Layer Statistics")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                            
-                            ForEach(Array(stats.layerStats.keys.sorted()), id: \.self) { layerName in
-                                if let layerStat = stats.layerStats[layerName] {
-                                    DisclosureGroup {
-                                        HStack(spacing: 12) {
-                                            VStack(alignment: .leading) {
-                                                Text("Mean")
-                                                    .font(.caption2)
-                                                    .foregroundStyle(.tertiary)
-                                                Text(String(format: "%.4f", layerStat.mean))
-                                                    .font(.caption)
-                                                    .monospacedDigit()
-                                            }
-                                            VStack(alignment: .leading) {
-                                                Text("Std")
-                                                    .font(.caption2)
-                                                    .foregroundStyle(.tertiary)
-                                                Text(String(format: "%.4f", layerStat.stdDev))
-                                                    .font(.caption)
-                                                    .monospacedDigit()
-                                            }
-                                            VStack(alignment: .leading) {
-                                                Text("Range")
-                                                    .font(.caption2)
-                                                    .foregroundStyle(.tertiary)
-                                                Text("[\(String(format: "%.2f", layerStat.min)), \(String(format: "%.2f", layerStat.max))]")
-                                                    .font(.caption)
-                                                    .monospacedDigit()
-                                            }
-                                        }
-                                        .padding(.vertical, 4)
-                                    } label: {
-                                        Text(layerName)
-                                            .font(.caption)
-                                    }
-                                }
-                            }
-                        }
                     }
                 }
                 
@@ -887,6 +1264,147 @@ struct AgentDataVisualizationView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .padding()
+        }
+    }
+    
+    @ViewBuilder
+    private var sacNetworkVisualization: some View {
+        if let networks = sacNetworks {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("SAC Neural Networks")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                
+                let availableNetworks = Array(networks.keys).sorted()
+                Picker("Network", selection: $selectedSACNetwork) {
+                    ForEach(availableNetworks, id: \.self) { networkName in
+                        Text(networkDisplayName(networkName)).tag(networkName)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .onAppear {
+                    if !availableNetworks.contains(selectedSACNetwork), let first = availableNetworks.first {
+                        selectedSACNetwork = first
+                    }
+                }
+                
+                if let layers = networks[selectedSACNetwork] {
+                    HStack(alignment: .center, spacing: 8) {
+                        ForEach(Array(layers.enumerated()), id: \.offset) { index, layer in
+                            VStack(spacing: 4) {
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(layerColor(for: layer.type))
+                                    .frame(width: 60, height: CGFloat(min(100, max(30, layer.outputSize / 2))))
+                                    .overlay(
+                                        VStack(spacing: 2) {
+                                            Text("\(layer.outputSize)")
+                                                .font(.system(size: 10, weight: .bold))
+                                                .foregroundStyle(.white)
+                                        }
+                                    )
+                                
+                                Text(layer.name)
+                                    .font(.system(size: 8))
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                            
+                            if index < layers.count - 1 {
+                                Image(systemName: "arrow.right")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    
+                    Divider()
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Layer Details")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        
+                        ForEach(layers, id: \.name) { layer in
+                            HStack {
+                                Circle()
+                                    .fill(layerColor(for: layer.type))
+                                    .frame(width: 8, height: 8)
+                                
+                                Text(layer.name)
+                                    .font(.caption)
+                                
+                                Spacer()
+                                
+                                Text("\(layer.inputSize) → \(layer.outputSize)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                
+                                Text("(\(layer.paramCount) params)")
+                                    .font(.caption2)
+                                    .foregroundStyle(.tertiary)
+                            }
+                        }
+                    }
+                    
+                    let totalParams = layers.reduce(0) { $0 + $1.paramCount }
+                    HStack {
+                        Text("Total Parameters:")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text("\(totalParams)")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                    }
+                    .padding(.top, 4)
+                }
+                
+                if let stats = sacWeightStats?[selectedSACNetwork] {
+                    Divider()
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Weight Statistics (\(selectedSACNetwork))")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        
+                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+                            WeightStatCard(title: "Mean", value: String(format: "%.4f", stats.mean))
+                            WeightStatCard(title: "Std Dev", value: String(format: "%.4f", stats.stdDev))
+                            WeightStatCard(title: "Min", value: String(format: "%.4f", stats.min))
+                            WeightStatCard(title: "Max", value: String(format: "%.4f", stats.max))
+                        }
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Weight Distribution")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                            
+                            WeightHistogramView(histogram: stats.histogram)
+                                .frame(height: 50)
+                        }
+                        .padding(.top, 4)
+                    }
+                }
+            }
+            .padding()
+            .background(Color.gray.opacity(0.08))
+            .cornerRadius(12)
+        } else if !isLoading {
+            Text("Unable to load SAC network data")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding()
+        }
+    }
+    
+    private func networkDisplayName(_ name: String) -> String {
+        switch name {
+        case "actor": return "Actor"
+        case "qf1": return "Q-Function 1"
+        case "qf2": return "Q-Function 2"
+        case "qEnsemble": return "Q-Ensemble"
+        default: return name.capitalized
         }
     }
     
@@ -915,42 +1433,133 @@ struct AgentDataVisualizationView: View {
         isLoading = true
         errorMessage = nil
         
-        Task {
+        let agentCopy = agent
+        
+        Task.detached(priority: .userInitiated) {
             do {
-                if agent.environmentType == .frozenLake {
-                    let qTableArray = try AgentStorage.shared.loadQTable(for: agent)
+                if agentCopy.environmentType == .frozenLake {
+                    let qTableArray = try await AgentStorage.shared.loadQTable(for: agentCopy)
                     let shape = qTableArray.shape
                     let numStates = shape[0]
                     let numActions = shape[1]
                     
-                    var table: [[Double]] = []
+                    var result: [[Double]] = []
                     for s in 0..<numStates {
                         var row: [Double] = []
                         for a in 0..<numActions {
                             let value = qTableArray[s, a].item(Float.self)
                             row.append(Double(value))
                         }
-                        table.append(row)
+                        result.append(row)
                     }
                     
+                    let finalResult = result
                     await MainActor.run {
-                        self.qTable = table
+                        self.qTable = finalResult
+                        self.isLoading = false
+                    }
+                } else if agentCopy.environmentType == .mountainCarContinuous {
+                    var allWeights: [String: [String: MLXArray]]
+                    var isVmapFormat = false
+                    
+                    if agentCopy.algorithmType == "SAC-Vmap" || agentCopy.agentDataPath.contains("vmap") {
+                        allWeights = try await AgentStorage.shared.loadSACVmapWeights(for: agentCopy)
+                        isVmapFormat = true
+                    } else {
+                        allWeights = try await AgentStorage.shared.loadSACWeights(for: agentCopy)
+                    }
+                    
+                    var networks: [String: [NetworkLayerInfo]] = [:]
+                    var weightStats: [String: WeightStatistics] = [:]
+                    
+                    for (networkName, weights) in allWeights {
+                        var layers: [NetworkLayerInfo] = []
+                        
+                        let inputSize: Int
+                        if networkName == "actor" {
+                            inputSize = 2
+                        } else if networkName == "qEnsemble" || networkName == "qf1" || networkName == "qf2" {
+                            inputSize = 3
+                        } else {
+                            inputSize = 2
+                        }
+                        
+                        layers.append(NetworkLayerInfo(
+                            name: "Input",
+                            type: "input",
+                            inputSize: inputSize,
+                            outputSize: inputSize,
+                            paramCount: 0
+                        ))
+                        
+                        let sortedKeys = weights.keys.sorted()
+                        var layerIndex = 0
+                        
+                        for key in sortedKeys {
+                            if key.contains("weight") {
+                                let shape = weights[key]?.shape ?? []
+                                if shape.count >= 2 {
+                                    let inSize: Int
+                                    let outSize: Int
+                                    let ensembleSize: Int
+                                    
+                                    if shape.count == 3 && isVmapFormat && networkName == "qEnsemble" {
+                                        ensembleSize = shape[0]
+                                        outSize = shape[1]
+                                        inSize = shape[2]
+                                    } else {
+                                        ensembleSize = 1
+                                        outSize = shape[0]
+                                        inSize = shape[1]
+                                    }
+                                    
+                                    let biasKey = key.replacingOccurrences(of: "weight", with: "bias")
+                                    let biasParams = weights[biasKey]?.shape.last ?? 0
+                                    let weightParams = inSize * outSize * ensembleSize
+                                    
+                                    let layerType = layerIndex == sortedKeys.filter { $0.contains("weight") }.count - 1 ? "output" : "hidden"
+                                    
+                                    let layerName = networkName == "qEnsemble"
+                                        ? "Layer \(layerIndex + 1) (x\(ensembleSize))"
+                                        : "Layer \(layerIndex + 1)"
+                                    
+                                    layers.append(NetworkLayerInfo(
+                                        name: layerName,
+                                        type: layerType,
+                                        inputSize: inSize,
+                                        outputSize: outSize,
+                                        paramCount: weightParams + (biasParams * ensembleSize)
+                                    ))
+                                    layerIndex += 1
+                                }
+                            }
+                        }
+                        
+                        networks[networkName] = layers
+                        weightStats[networkName] = self.computeWeightStatisticsBackground(weights: weights)
+                    }
+                    
+                    let finalNetworks = networks
+                    let finalStats = weightStats
+                    await MainActor.run {
+                        self.sacNetworks = finalNetworks
+                        self.sacWeightStats = finalStats
                         self.isLoading = false
                     }
                 } else {
-                    let weights = try AgentStorage.shared.loadNetworkWeights(for: agent)
+                    let weights = try await AgentStorage.shared.loadNetworkWeights(for: agentCopy)
+                    
                     var layers: [NetworkLayerInfo] = []
                     
-                    // Input layer
+                    let inputSize = agentCopy.environmentType == .cartPole ? 4 : 2
                     layers.append(NetworkLayerInfo(
                         name: "Input",
                         type: "input",
-                        inputSize: 4,
-                        outputSize: 4,
+                        inputSize: inputSize,
+                        outputSize: inputSize,
                         paramCount: 0
                     ))
                     
-                    // Find layer weights and extract dimensions
                     let sortedKeys = weights.keys.sorted()
                     var layerIndex = 0
                     
@@ -958,19 +1567,19 @@ struct AgentDataVisualizationView: View {
                         if key.contains("weight") {
                             let shape = weights[key]?.shape ?? []
                             if shape.count >= 2 {
-                                let inputSize = shape[1]
-                                let outputSize = shape[0]
+                                let inSize = shape[1]
+                                let outSize = shape[0]
                                 let biasKey = key.replacingOccurrences(of: "weight", with: "bias")
                                 let biasParams = weights[biasKey]?.shape.first ?? 0
-                                let weightParams = inputSize * outputSize
+                                let weightParams = inSize * outSize
                                 
                                 let layerType = layerIndex == sortedKeys.filter { $0.contains("weight") }.count - 1 ? "output" : "hidden"
                                 
                                 layers.append(NetworkLayerInfo(
                                     name: "Layer \(layerIndex + 1)",
                                     type: layerType,
-                                    inputSize: inputSize,
-                                    outputSize: outputSize,
+                                    inputSize: inSize,
+                                    outputSize: outSize,
                                     paramCount: weightParams + biasParams
                                 ))
                                 layerIndex += 1
@@ -978,10 +1587,11 @@ struct AgentDataVisualizationView: View {
                         }
                     }
                     
-                    let stats = computeWeightStatistics(weights: weights)
+                    let stats = self.computeWeightStatisticsBackground(weights: weights)
                     
+                    let finalLayers = layers
                     await MainActor.run {
-                        self.networkLayers = layers
+                        self.networkLayers = finalLayers
                         self.weightStats = stats
                         self.isLoading = false
                     }
@@ -995,7 +1605,7 @@ struct AgentDataVisualizationView: View {
         }
     }
     
-    private func computeWeightStatistics(weights: [String: MLXArray]) -> WeightStatistics {
+    private nonisolated func computeWeightStatisticsBackground(weights: [String: MLXArray]) -> WeightStatistics {
         var allValues: [Float] = []
         var layerStats: [String: LayerStatistics] = [:]
         
@@ -1012,7 +1622,7 @@ struct AgentDataVisualizationView: View {
             
             if !layerValues.isEmpty {
                 let mean = layerValues.reduce(0, +) / Float(layerValues.count)
-                let variance = layerValues.map { pow($0 - mean, 2) }.reduce(0, +) / Float(layerValues.count)
+                let variance = layerValues.map { ($0 - mean) * ($0 - mean) }.reduce(0, +) / Float(layerValues.count)
                 let stdDev = sqrt(variance)
                 let minVal = layerValues.min() ?? 0
                 let maxVal = layerValues.max() ?? 0
@@ -1027,13 +1637,37 @@ struct AgentDataVisualizationView: View {
             }
         }
         
-        let mean = allValues.isEmpty ? 0 : allValues.reduce(0, +) / Float(allValues.count)
-        let variance = allValues.isEmpty ? 0 : allValues.map { pow($0 - mean, 2) }.reduce(0, +) / Float(allValues.count)
+        guard !allValues.isEmpty else {
+            return WeightStatistics(
+                mean: 0,
+                stdDev: 0,
+                min: 0,
+                max: 0,
+                histogram: Array(repeating: 0, count: 20),
+                layerStats: [:]
+            )
+        }
+        
+        let mean = allValues.reduce(0, +) / Float(allValues.count)
+        let variance = allValues.map { ($0 - mean) * ($0 - mean) }.reduce(0, +) / Float(allValues.count)
         let stdDev = sqrt(variance)
         let minVal = allValues.min() ?? 0
         let maxVal = allValues.max() ?? 0
         
-        let histogram = computeHistogram(values: allValues, bins: 20)
+        let binCount = 20
+        let range = maxVal - minVal
+        
+        var histogram = Array(repeating: 0, count: binCount)
+        if range > 0 {
+            let binWidth = range / Float(binCount)
+            for value in allValues {
+                var binIndex = Int((value - minVal) / binWidth)
+                binIndex = max(0, min(binCount - 1, binIndex))
+                histogram[binIndex] += 1
+            }
+        } else {
+            histogram[0] = allValues.count
+        }
         
         return WeightStatistics(
             mean: Double(mean),
@@ -1044,28 +1678,8 @@ struct AgentDataVisualizationView: View {
             layerStats: layerStats
         )
     }
-    
-    private func computeHistogram(values: [Float], bins: Int) -> [Int] {
-        guard !values.isEmpty else { return Array(repeating: 0, count: bins) }
-        
-        let minVal = values.min()!
-        let maxVal = values.max()!
-        let range = maxVal - minVal
-        
-        guard range > 0 else { return Array(repeating: values.count, count: 1) + Array(repeating: 0, count: bins - 1) }
-        
-        var histogram = Array(repeating: 0, count: bins)
-        let binWidth = range / Float(bins)
-        
-        for value in values {
-            var binIndex = Int((value - minVal) / binWidth)
-            binIndex = min(binIndex, bins - 1)
-            histogram[binIndex] += 1
-        }
-        
-        return histogram
-    }
 }
+
 
 struct NetworkLayerInfo: Hashable {
     let name: String
@@ -1145,4 +1759,3 @@ struct WeightHistogramView: View {
 #Preview {
     SavedAgentsView()
 }
-
