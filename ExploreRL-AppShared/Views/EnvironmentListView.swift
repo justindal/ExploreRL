@@ -12,6 +12,8 @@ struct EnvironmentListView: View {
     @State private var cartPoleRunner = CartPoleRunner()
     @State private var mountainCarRunner = MountainCarRunner()
     @State private var mountainCarContinuousRunner = MountainCarContinuousRunner()
+    @State private var acrobotRunner = AcrobotRunner()
+    @State private var pendulumRunner = PendulumRunner()
     
     var body: some View {
         NavigationSplitView {
@@ -93,6 +95,10 @@ struct EnvironmentListView: View {
             MountainCarView(runner: mountainCarRunner)
         case .mountainCarContinuous:
             MountainCarContinuousView(runner: mountainCarContinuousRunner)
+        case .acrobot:
+            AcrobotView(runner: acrobotRunner)
+        case .pendulum:
+            PendulumView(runner: pendulumRunner)
         }
     }
 }

@@ -368,6 +368,28 @@ struct EvaluationView: View {
                 } else {
                     evaluationPlaceholder(environment: "MountainCar Continuous")
                 }
+                
+            case .acrobot:
+                if let snapshot = runner.acrobotSnapshot {
+                    AcrobotViewAdapter(snapshot: snapshot)
+                        .aspectRatio(1.0, contentMode: .fit)
+                        .frame(maxWidth: isCompact ? .infinity : 400, maxHeight: isCompact ? 300 : 400)
+                        .cornerRadius(12)
+                        .shadow(radius: 5)
+                } else {
+                    evaluationPlaceholder(environment: "Acrobot")
+                }
+                
+            case .pendulum:
+                if let snapshot = runner.pendulumSnapshot {
+                    PendulumViewAdapter(snapshot: snapshot)
+                        .aspectRatio(1.0, contentMode: .fit)
+                        .frame(maxWidth: isCompact ? .infinity : 400, maxHeight: isCompact ? 300 : 400)
+                        .cornerRadius(12)
+                        .shadow(radius: 5)
+                } else {
+                    evaluationPlaceholder(environment: "Pendulum")
+                }
             }
         }
     }

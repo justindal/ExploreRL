@@ -490,7 +490,7 @@ import Gymnazo
     }
     
     func loadNetworkWeights(for agent: SavedAgent) throws -> [String: MLXArray] {
-        guard agent.environmentType == .cartPole || agent.environmentType == .mountainCar else {
+        guard agent.environmentType == .cartPole || agent.environmentType == .mountainCar || agent.environmentType == .acrobot else {
             throw AgentStorageError.wrongEnvironmentType
         }
         let dataPath = agentsDirectory.appendingPathComponent(agent.agentDataPath)
@@ -639,6 +639,239 @@ import Gymnazo
     
     func loadSACVmapWeights(for agent: SavedAgent) throws -> [String: [String: MLXArray]] {
         guard agent.environmentType == .mountainCarContinuous else {
+            throw AgentStorageError.wrongEnvironmentType
+        }
+        let dataPath = agentsDirectory.appendingPathComponent(agent.agentDataPath)
+        let allWeights = try MLX.loadArrays(url: dataPath)
+        
+        var actorWeights: [String: MLXArray] = [:]
+        var qEnsembleWeights: [String: MLXArray] = [:]
+        
+        for (key, value) in allWeights {
+            if key.hasPrefix("actor.") {
+                let strippedKey = String(key.dropFirst("actor.".count))
+                actorWeights[strippedKey] = value
+            } else if key.hasPrefix("qEnsemble.") {
+                let strippedKey = String(key.dropFirst("qEnsemble.".count))
+                qEnsembleWeights[strippedKey] = value
+            }
+        }
+        
+        return [
+            "actor": actorWeights,
+            "qEnsemble": qEnsembleWeights
+        ]
+    }
+    
+    
+    // MARK: - Acrobot (DQN)
+    
+    func saveAcrobotAgent(
+        name: String,
+        policyNetwork: QNetwork,
+        episodesTrained: Int,
+        epsilon: Double,
+        bestReward: Double,
+        averageReward: Double,
+        hyperparameters: [String: Double],
+        environmentConfig: [String: String]
+    ) throws -> SavedAgent {
+        let id = UUID()
+        let now = Date()
+        let dataFileName = "\(id.uuidString)_acrobot_weights.safetensors"
+        let dataPath = agentsDirectory.appendingPathComponent(dataFileName)
+        
+        let weights = policyNetwork.parameters()
+        let flatWeights = weights.flattened()
+        var weightsDict: [String: MLXArray] = [:]
+        for (key, value) in flatWeights {
+            weightsDict[key] = value
+        }
+        try MLX.save(arrays: weightsDict, url: dataPath)
+        
+        let agent = SavedAgent(
+            id: id,
+            name: name,
+            environmentType: .acrobot,
+            algorithmType: "DQN",
+            createdAt: now,
+            updatedAt: now,
+            episodesTrained: episodesTrained,
+            finalEpsilon: epsilon,
+            bestReward: bestReward,
+            averageReward: averageReward,
+            successRate: nil,
+            hyperparameters: hyperparameters,
+            environmentConfig: environmentConfig,
+            agentDataPath: dataFileName
+        )
+        
+        let metadataPath = agentsDirectory.appendingPathComponent("\(id.uuidString)_metadata.json")
+        let data = try encoder.encode(agent)
+        try data.write(to: metadataPath)
+        
+        loadAgentList()
+        return agent
+    }
+    
+    func updateAcrobotAgent(
+        id: UUID,
+        newName: String,
+        policyNetwork: QNetwork,
+        episodesTrained: Int,
+        epsilon: Double,
+        bestReward: Double,
+        averageReward: Double,
+        hyperparameters: [String: Double]
+    ) throws {
+        let agent = try loadAgent(id: id)
+        
+        let dataPath = agentsDirectory.appendingPathComponent(agent.agentDataPath)
+        let weights = policyNetwork.parameters()
+        let flatWeights = weights.flattened()
+        var weightsDict: [String: MLXArray] = [:]
+        for (key, value) in flatWeights {
+            weightsDict[key] = value
+        }
+        try MLX.save(arrays: weightsDict, url: dataPath)
+        
+        let updatedAgent = SavedAgent(
+            id: agent.id,
+            name: newName,
+            environmentType: agent.environmentType,
+            algorithmType: agent.algorithmType,
+            createdAt: agent.createdAt,
+            updatedAt: Date(),
+            episodesTrained: episodesTrained,
+            finalEpsilon: epsilon,
+            bestReward: bestReward,
+            averageReward: averageReward,
+            successRate: nil,
+            hyperparameters: hyperparameters,
+            environmentConfig: agent.environmentConfig,
+            agentDataPath: agent.agentDataPath
+        )
+        
+        let metadataPath = agentsDirectory.appendingPathComponent("\(id.uuidString)_metadata.json")
+        let data = try encoder.encode(updatedAgent)
+        try data.write(to: metadataPath)
+        
+        loadAgentList()
+    }
+    
+    
+    // MARK: - Pendulum (SAC)
+    
+    func savePendulumAgent(
+        name: String,
+        actor: SACActorNetwork,
+        qEnsemble: EnsembleQNetwork,
+        episodesTrained: Int,
+        alpha: Double,
+        bestReward: Double,
+        averageReward: Double,
+        hyperparameters: [String: Double],
+        environmentConfig: [String: String]
+    ) throws -> SavedAgent {
+        let id = UUID()
+        let now = Date()
+        let dataFileName = "\(id.uuidString)_pendulum_sac_weights.safetensors"
+        let dataPath = agentsDirectory.appendingPathComponent(dataFileName)
+        
+        var combinedWeights: [String: MLXArray] = [:]
+        
+        let actorWeights = actor.parameters().flattened()
+        for (key, value) in actorWeights {
+            combinedWeights["actor.\(key)"] = value
+        }
+        
+        let qEnsembleWeights = qEnsemble.parameters().flattened()
+        for (key, value) in qEnsembleWeights {
+            combinedWeights["qEnsemble.\(key)"] = value
+        }
+        
+        try MLX.save(arrays: combinedWeights, url: dataPath)
+        
+        let agent = SavedAgent(
+            id: id,
+            name: name,
+            environmentType: .pendulum,
+            algorithmType: "SAC",
+            createdAt: now,
+            updatedAt: now,
+            episodesTrained: episodesTrained,
+            finalEpsilon: alpha,
+            bestReward: bestReward,
+            averageReward: averageReward,
+            successRate: nil,
+            hyperparameters: hyperparameters,
+            environmentConfig: environmentConfig,
+            agentDataPath: dataFileName
+        )
+        
+        let metadataPath = agentsDirectory.appendingPathComponent("\(id.uuidString)_metadata.json")
+        let data = try encoder.encode(agent)
+        try data.write(to: metadataPath)
+        
+        loadAgentList()
+        return agent
+    }
+    
+    func updatePendulumAgent(
+        id: UUID,
+        newName: String,
+        actor: SACActorNetwork,
+        qEnsemble: EnsembleQNetwork,
+        episodesTrained: Int,
+        alpha: Double,
+        bestReward: Double,
+        averageReward: Double,
+        hyperparameters: [String: Double]
+    ) throws {
+        let agent = try loadAgent(id: id)
+        
+        let dataPath = agentsDirectory.appendingPathComponent(agent.agentDataPath)
+        
+        var combinedWeights: [String: MLXArray] = [:]
+        
+        let actorWeights = actor.parameters().flattened()
+        for (key, value) in actorWeights {
+            combinedWeights["actor.\(key)"] = value
+        }
+        
+        let qEnsembleWeights = qEnsemble.parameters().flattened()
+        for (key, value) in qEnsembleWeights {
+            combinedWeights["qEnsemble.\(key)"] = value
+        }
+        
+        try MLX.save(arrays: combinedWeights, url: dataPath)
+        
+        let updatedAgent = SavedAgent(
+            id: agent.id,
+            name: newName,
+            environmentType: agent.environmentType,
+            algorithmType: agent.algorithmType,
+            createdAt: agent.createdAt,
+            updatedAt: Date(),
+            episodesTrained: episodesTrained,
+            finalEpsilon: alpha,
+            bestReward: bestReward,
+            averageReward: averageReward,
+            successRate: nil,
+            hyperparameters: hyperparameters,
+            environmentConfig: agent.environmentConfig,
+            agentDataPath: agent.agentDataPath
+        )
+        
+        let metadataPath = agentsDirectory.appendingPathComponent("\(id.uuidString)_metadata.json")
+        let data = try encoder.encode(updatedAgent)
+        try data.write(to: metadataPath)
+        
+        loadAgentList()
+    }
+    
+    func loadPendulumWeights(for agent: SavedAgent) throws -> [String: [String: MLXArray]] {
+        guard agent.environmentType == .pendulum else {
             throw AgentStorageError.wrongEnvironmentType
         }
         let dataPath = agentsDirectory.appendingPathComponent(agent.agentDataPath)

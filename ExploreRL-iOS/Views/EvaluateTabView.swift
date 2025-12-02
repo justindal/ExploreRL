@@ -66,7 +66,7 @@ struct EvaluateEnvironmentRow: View {
     let environmentType: EnvironmentType
     
     private var color: Color {
-        environmentType == .frozenLake ? .cyan : .orange
+        environmentType.accentColor
     }
     
     var body: some View {
@@ -370,6 +370,18 @@ struct EvaluationContentViewiOS: View {
                     if let snapshot = runner.mountainCarContinuousSnapshot {
                         MountainCarCanvasView(snapshot: snapshot)
                             .aspectRatio(2.0, contentMode: .fit)
+                            .cornerRadius(12)
+                    }
+                case .acrobot:
+                    if let snapshot = runner.acrobotSnapshot {
+                        AcrobotViewAdapter(snapshot: snapshot)
+                            .aspectRatio(1.0, contentMode: .fit)
+                            .cornerRadius(12)
+                    }
+                case .pendulum:
+                    if let snapshot = runner.pendulumSnapshot {
+                        PendulumViewAdapter(snapshot: snapshot)
+                            .aspectRatio(1.0, contentMode: .fit)
                             .cornerRadius(12)
                     }
                 }

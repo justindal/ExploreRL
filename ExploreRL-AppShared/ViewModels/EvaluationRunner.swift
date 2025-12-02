@@ -48,6 +48,16 @@ import MLXNN
     private var mountainCarContinuousEnv: (any Env<MLXArray, MLXArray>)?
     private var mountainCarContinuousAgent: SACAgentVmap?
     
+    // Acrobot
+    var acrobotSnapshot: AcrobotSnapshot?
+    private var acrobotEnv: (any Env<MLXArray, Int>)?
+    private var acrobotAgent: DQNAgent?
+    
+    // Pendulum
+    var pendulumSnapshot: PendulumSnapshot?
+    private var pendulumEnv: (any Env<MLXArray, MLXArray>)?
+    private var pendulumAgent: SACAgentVmap?
+    
     private var rngKey: MLXArray = MLX.key(0)
     
     var averageReward: Double {
@@ -82,6 +92,10 @@ import MLXNN
             try setupMountainCar(agent)
         case .mountainCarContinuous:
             try setupMountainCarContinuous(agent)
+        case .acrobot:
+            try setupAcrobot(agent)
+        case .pendulum:
+            try setupPendulum(agent)
         }
     }
     
@@ -312,6 +326,114 @@ import MLXNN
         }
     }
     
+    private func setupAcrobot(_ agent: SavedAgent) throws {
+        let maxSteps = Int(agent.environmentConfig["maxStepsPerEpisode"] ?? "500") ?? 500
+        
+        let renderMode: String? = showVisualization ? "human" : nil
+        guard var env = Gymnazo.make(
+            "Acrobot-v1",
+            maxEpisodeSteps: maxSteps,
+            kwargs: ["render_mode": renderMode as Any]
+        ) as? any Env<MLXArray, Int> else {
+            throw AgentStorageError.dataCorrupted
+        }
+        
+        _ = env.reset()
+        acrobotEnv = env
+        
+        guard let obsSpace = env.observation_space as? Box,
+              let actSpace = env.action_space as? Discrete else {
+            throw AgentStorageError.dataCorrupted
+        }
+        
+        let dqnAgent = DQNAgent(
+            observationSpace: obsSpace,
+            actionSpace: actSpace,
+            hiddenDimensions: 128,
+            learningRate: 0,
+            gamma: 0.99,
+            epsilon: 0,
+            epsilonEnd: 0,
+            epsilonDecaySteps: 1,
+            tau: 0,
+            batchSize: 64,
+            bufferSize: 1000,
+            gradClipNorm: 100
+        )
+        
+        let weightsDict = try AgentStorage.shared.loadNetworkWeights(for: agent)
+        let weightsTuples = weightsDict.map { ($0.key, $0.value) }
+        let newParams = NestedDictionary<String, MLXArray>.unflattened(weightsTuples)
+        dqnAgent.policyNetwork.update(parameters: newParams)
+        eval(dqnAgent.policyNetwork)
+        
+        acrobotAgent = dqnAgent
+        
+        if let acrobot = env.unwrapped as? Acrobot {
+            acrobotSnapshot = acrobot.currentSnapshot
+        }
+    }
+    
+    private func setupPendulum(_ agent: SavedAgent) throws {
+        let maxSteps = Int(agent.environmentConfig["maxStepsPerEpisode"] ?? "200") ?? 200
+        
+        var kwargs: [String: Any] = [:]
+        if showVisualization {
+            kwargs["render_mode"] = "human"
+        }
+        
+        guard var env = Gymnazo.make(
+            "Pendulum-v1",
+            maxEpisodeSteps: maxSteps,
+            kwargs: kwargs
+        ) as? any Env<MLXArray, MLXArray> else {
+            throw AgentStorageError.dataCorrupted
+        }
+        
+        _ = env.reset()
+        pendulumEnv = env
+        
+        guard let obsSpace = env.observation_space as? Box,
+              let actSpace = env.action_space as? Box else {
+            throw AgentStorageError.dataCorrupted
+        }
+        
+        let sacAgent = SACAgentVmap(
+            observationSpace: obsSpace,
+            actionSpace: actSpace,
+            hiddenSize: 256,
+            learningRate: 0,
+            gamma: 0.99,
+            tau: 0.005,
+            alpha: Float(agent.finalEpsilon),
+            autotune: false,
+            batchSize: 256,
+            bufferSize: 1000
+        )
+        
+        let weightsDict = try AgentStorage.shared.loadPendulumWeights(for: agent)
+        
+        if let actorWeights = weightsDict["actor"] {
+            let actorTuples = actorWeights.map { ($0.key, $0.value) }
+            let actorParams = NestedDictionary<String, MLXArray>.unflattened(actorTuples)
+            sacAgent.actor.update(parameters: actorParams)
+        }
+        
+        if let qEnsembleWeights = weightsDict["qEnsemble"] {
+            let qTuples = qEnsembleWeights.map { ($0.key, $0.value) }
+            let qParams = NestedDictionary<String, MLXArray>.unflattened(qTuples)
+            sacAgent.qEnsemble.update(parameters: qParams)
+        }
+        
+        eval(sacAgent.actor, sacAgent.qEnsemble)
+        
+        pendulumAgent = sacAgent
+        
+        if let pendulum = env.unwrapped as? Pendulum {
+            pendulumSnapshot = pendulum.currentSnapshot
+        }
+    }
+    
     func startEvaluation() {
         guard !isRunning, loadedAgent != nil else { return }
         isRunning = true
@@ -362,6 +484,16 @@ import MLXNN
         mountainCarContinuousSnapshot = nil
         mountainCarContinuousEnv = nil
         mountainCarContinuousAgent = nil
+        
+        // Acrobot
+        acrobotSnapshot = nil
+        acrobotEnv = nil
+        acrobotAgent = nil
+        
+        // Pendulum
+        pendulumSnapshot = nil
+        pendulumEnv = nil
+        pendulumAgent = nil
     }
     
     private func runEvaluationLoop() async {
@@ -383,6 +515,10 @@ import MLXNN
                 await runMountainCarEpisode()
             case .mountainCarContinuous:
                 await runMountainCarContinuousEpisode()
+            case .acrobot:
+                await runAcrobotEpisode()
+            case .pendulum:
+                await runPendulumEpisode()
             }
         }
         
@@ -583,6 +719,112 @@ import MLXNN
             self.totalReward += reward
             
             if terminated {
+                self.successCount += 1
+            }
+        }
+    }
+    
+    private func runAcrobotEpisode() async {
+        guard var env = acrobotEnv, let agent = acrobotAgent else { return }
+        
+        let resetResult = env.reset()
+        var state = resetResult.obs
+        var terminated = false
+        var truncated = false
+        var steps = 0
+        var reward = 0.0
+        
+        guard let actionSpace = env.action_space as? Discrete else { return }
+        
+        while !terminated && !truncated && isRunning {
+            var key = rngKey
+            let actionArray = agent.chooseAction(state: state, actionSpace: actionSpace, key: &key)
+            rngKey = key
+            let action = actionArray.item(Int.self)
+            
+            let result = env.step(action)
+            state = result.obs
+            terminated = result.terminated
+            truncated = result.truncated
+            reward += result.reward
+            steps += 1
+            
+            currentStep = steps
+            episodeReward = reward
+            
+            if showVisualization {
+                if let acrobot = env.unwrapped as? Acrobot {
+                    acrobotSnapshot = acrobot.currentSnapshot
+                }
+                
+                let delayNs = UInt64(1_000_000_000 / targetFPS)
+                try? await Task.sleep(nanoseconds: delayNs)
+            }
+        }
+        
+        acrobotEnv = env
+        episodeRewards.append(reward)
+        episodeSteps.append(steps)
+        totalReward += reward
+        
+        // Acrobot success: terminated before max steps (reached target height)
+        if terminated {
+            successCount += 1
+        }
+    }
+    
+    private func runPendulumEpisode() async {
+        guard var env = pendulumEnv, let agent = pendulumAgent else { return }
+        
+        let resetResult = env.reset()
+        var state = resetResult.obs
+        var terminated = false
+        var truncated = false
+        var steps = 0
+        var reward = 0.0
+        
+        let maxSteps = 200
+        
+        while !terminated && !truncated && isRunning && steps < maxSteps {
+            var key = rngKey
+            let action = agent.chooseAction(state: state, key: &key, deterministic: true)
+            rngKey = key
+            
+            eval(action)
+            
+            let result = env.step(action)
+            state = result.obs
+            terminated = result.terminated
+            truncated = result.truncated
+            reward += result.reward
+            steps += 1
+            
+            await MainActor.run {
+                self.currentStep = steps
+                self.episodeReward = reward
+            }
+            
+            if showVisualization {
+                if let pendulum = env.unwrapped as? Pendulum {
+                    await MainActor.run {
+                        self.pendulumSnapshot = pendulum.currentSnapshot
+                    }
+                }
+                
+                let delayNs = UInt64(1_000_000_000 / targetFPS)
+                try? await Task.sleep(nanoseconds: delayNs)
+            }
+        }
+        
+        pendulumEnv = env
+        
+        await MainActor.run {
+            self.episodeRewards.append(reward)
+            self.episodeSteps.append(steps)
+            self.totalReward += reward
+            
+            // Pendulum: good performance if reward > -500
+            if reward > -500 {
                 self.successCount += 1
             }
         }
