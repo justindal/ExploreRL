@@ -1,0 +1,559 @@
+//
+//  AcrobotRunner.swift
+//
+
+import Foundation
+import Gymnazo
+import SwiftUI
+import MLX
+import MLXNN
+
+@MainActor
+@Observable class AcrobotRunner: SavableEnvironmentRunner {
+    var snapshot: AcrobotSnapshot?
+    var episodeCount = 1
+    var currentStep = 0
+    var episodeReward: Double = 0.0
+    var isTraining = false
+    var renderEnabled: Bool = DQNDefaults.renderEnabled
+    var episodeMetrics: [EpisodeMetrics] = []
+    var episodesPerRun: Int = DQNDefaults.episodesPerRun
+    var targetFPS: Double = DQNDefaults.targetFPS
+    
+    var loadedAgentId: UUID?
+    var loadedAgentName: String?
+    var hasTrainedSinceLoad = false
+    
+    private var loadedEpisodeCount: Int = 0
+    private var loadedBestReward: Double = 0
+    private var trainingCompletedNormally = false
+    
+    var canResume: Bool {
+        return agent != nil && episodeCount > 1 && !trainingCompletedNormally
+    }
+    
+    var totalEpisodesTrained: Int {
+        return loadedEpisodeCount + episodeMetrics.count
+    }
+    
+    var averageReward: Double {
+        guard !episodeMetrics.isEmpty else { return 0 }
+        let recentEpisodes = episodeMetrics.suffix(movingAverageWindow)
+        return recentEpisodes.map { $0.reward }.reduce(0, +) / Double(recentEpisodes.count)
+    }
+    
+    var combinedBestReward: Double {
+        let newBest = episodeMetrics.map { $0.reward }.max() ?? -500
+        return max(loadedBestReward, newBest)
+    }
+    
+    static var environmentType: EnvironmentType { .acrobot }
+    static var displayName: String { "Acrobot" }
+    static var algorithmName: String { "DQN" }
+    static var icon: String { "figure.flexibility" }
+    static var accentColor: Color { .red }
+    static var category: EnvironmentCategory { .classicControl }
+    
+    var totalReward = 0.0
+    var turboMode: Bool = DQNDefaults.turboMode
+    var movingAverageWindow = 50
+    
+    // Hyperparameters
+    var learningRate: Double = DQNDefaults.learningRate
+    var gamma: Double = DQNDefaults.gamma
+    var epsilon: Double = DQNDefaults.epsilon
+    var epsilonDecaySteps: Int = DQNDefaults.epsilonDecaySteps
+    var epsilonMin: Double = DQNDefaults.epsilonMin
+    var batchSize: Int = DQNDefaults.batchSize
+    var tau: Double = DQNDefaults.tau
+    var warmupSteps: Int = DQNDefaults.warmupSteps
+    var gradClipNorm: Double = DQNDefaults.gradClipNorm
+    
+    // Environment settings
+    var useSeed: Bool = DQNDefaults.useSeed
+    var seed: Int = DQNDefaults.seed
+    var maxStepsPerEpisode: Int = 500
+    
+    // Early stopping
+    var earlyStopEnabled: Bool = DQNDefaults.earlyStopEnabled
+    var earlyStopWindow: Int = DQNDefaults.earlyStopWindow
+    var earlyStopRewardThreshold: Double = -100
+    
+    // Reward clipping
+    var clipReward: Bool = DQNDefaults.clipReward
+    var clipRewardMin: Double = DQNDefaults.clipRewardMin
+    var clipRewardMax: Double = DQNDefaults.clipRewardMax
+    
+    private var episodesCompletedInRun: Int = 0
+    private var env: (any Env<MLXArray, Int>)?
+    private var rngKey: MLXArray
+    private var agent: DQNAgent?
+    private var totalSteps: Int = 0
+    
+    
+    var successRate: Double {
+        guard !episodeMetrics.isEmpty else { return 0 }
+        let recentEpisodes = episodeMetrics.suffix(movingAverageWindow)
+        let successes = recentEpisodes.filter { $0.success }.count
+        return Double(successes) / Double(recentEpisodes.count)
+    }
+    
+    
+    init() {
+        self.rngKey = MLX.key(0)
+        setupEnvironment()
+    }
+    
+    
+    func setupEnvironment() {
+        let renderMode: String? = renderEnabled ? "human" : nil
+        var env = Gymnazo.make(
+            "Acrobot-v1",
+            maxEpisodeSteps: maxStepsPerEpisode,
+            kwargs: ["render_mode": renderMode as Any]
+        ) as! any Env<MLXArray, Int>
+        
+        let _ = env.reset()
+        self.env = env
+        
+        if let acrobot = env.unwrapped as? Acrobot {
+            self.snapshot = renderEnabled ? acrobot.currentSnapshot : nil
+        } else {
+            self.snapshot = nil
+        }
+        
+        if useSeed {
+            self.rngKey = MLX.key(UInt64(seed))
+        } else {
+            self.rngKey = MLX.key(0)
+        }
+        
+        if let obsSpace = env.observation_space as? Box,
+           let actSpace = env.action_space as? Discrete {
+            self.agent = DQNAgent(
+                observationSpace: obsSpace,
+                actionSpace: actSpace,
+                hiddenDimensions: 128,
+                learningRate: Float(learningRate),
+                gamma: Float(gamma),
+                epsilon: Float(epsilon),
+                epsilonEnd: Float(epsilonMin),
+                epsilonDecaySteps: epsilonDecaySteps,
+                tau: Float(tau),
+                batchSize: batchSize,
+                bufferSize: 10_000,
+                gradClipNorm: Float(gradClipNorm)
+            )
+        } else {
+            self.agent = nil
+        }
+        
+        episodeMetrics.removeAll()
+        totalReward = 0
+        episodeCount = 1
+        currentStep = 0
+        episodeReward = 0
+        totalSteps = 0
+        episodesCompletedInRun = 0
+    }
+    
+    func startTraining() {
+        guard !isTraining else { return }
+
+        guard !TrainingState.shared.isTraining else { return }
+        
+        isTraining = true
+        hasTrainedSinceLoad = true
+        trainingCompletedNormally = false
+        TrainingState.shared.startTraining(environment: Self.displayName)
+        
+        Task.detached { [weak self] in
+            await self?.runTrainingLoop()
+        }
+    }
+    
+    func stopTraining() {
+        isTraining = false
+        TrainingState.shared.stopTraining()
+    }
+    
+    func reset() {
+        stopTraining()
+        
+        epsilon = DQNDefaults.epsilon 
+        loadedAgentId = nil
+        loadedAgentName = nil
+        hasTrainedSinceLoad = false
+        loadedEpisodeCount = 0
+        loadedBestReward = 0
+        trainingCompletedNormally = false
+        
+        setupEnvironment()
+    }
+    
+    func resetToDefaults() {
+        learningRate = DQNDefaults.learningRate
+        gamma = DQNDefaults.gamma
+        epsilon = DQNDefaults.epsilon
+        epsilonDecaySteps = DQNDefaults.epsilonDecaySteps
+        epsilonMin = DQNDefaults.epsilonMin
+        batchSize = DQNDefaults.batchSize
+        tau = DQNDefaults.tau
+        warmupSteps = DQNDefaults.warmupSteps
+        renderEnabled = DQNDefaults.renderEnabled
+        episodesPerRun = DQNDefaults.episodesPerRun
+        episodesCompletedInRun = 0
+        useSeed = DQNDefaults.useSeed
+        seed = DQNDefaults.seed
+        maxStepsPerEpisode = 500
+        earlyStopEnabled = DQNDefaults.earlyStopEnabled
+        earlyStopWindow = DQNDefaults.earlyStopWindow
+        earlyStopRewardThreshold = -100
+        clipReward = DQNDefaults.clipReward
+        clipRewardMin = DQNDefaults.clipRewardMin
+        clipRewardMax = DQNDefaults.clipRewardMax
+        gradClipNorm = DQNDefaults.gradClipNorm
+        targetFPS = DQNDefaults.targetFPS
+        turboMode = DQNDefaults.turboMode
+    }
+    
+    
+    func saveAgent(name: String) throws {
+        guard let agent = self.agent else {
+            throw AgentStorageError.agentNotFound
+        }
+        
+        let saved = try AgentStorage.shared.saveAcrobotAgent(
+            name: name,
+            policyNetwork: agent.policyNetwork,
+            episodesTrained: totalEpisodesTrained,
+            epsilon: epsilon,
+            bestReward: combinedBestReward,
+            averageReward: averageReward,
+            hyperparameters: [
+                "learningRate": learningRate,
+                "gamma": gamma,
+                "epsilon": epsilon,
+                "epsilonMin": epsilonMin,
+                "epsilonDecaySteps": Double(epsilonDecaySteps),
+                "tau": tau,
+                "batchSize": Double(batchSize),
+                "gradClipNorm": gradClipNorm,
+                "warmupSteps": Double(warmupSteps),
+                "explorationSteps": Double(agent.currentExplorationSteps),
+                "trainingSteps": Double(agent.currentSteps)
+            ],
+            environmentConfig: [
+                "maxStepsPerEpisode": "\(maxStepsPerEpisode)"
+            ]
+        )
+        
+        loadedAgentId = saved.id
+        loadedAgentName = saved.name
+        hasTrainedSinceLoad = false
+        loadedEpisodeCount = totalEpisodesTrained
+        loadedBestReward = combinedBestReward
+    }
+    
+    func updateAgent(id: UUID, name: String) throws {
+        guard let agent = self.agent else {
+            throw AgentStorageError.agentNotFound
+        }
+        
+        try AgentStorage.shared.updateAcrobotAgent(
+            id: id,
+            newName: name,
+            policyNetwork: agent.policyNetwork,
+            episodesTrained: totalEpisodesTrained,
+            epsilon: epsilon,
+            bestReward: combinedBestReward,
+            averageReward: averageReward,
+            hyperparameters: [
+                "learningRate": learningRate,
+                "gamma": gamma,
+                "epsilon": epsilon,
+                "epsilonMin": epsilonMin,
+                "epsilonDecaySteps": Double(epsilonDecaySteps),
+                "tau": tau,
+                "batchSize": Double(batchSize),
+                "gradClipNorm": gradClipNorm,
+                "warmupSteps": Double(warmupSteps),
+                "explorationSteps": Double(agent.currentExplorationSteps),
+                "trainingSteps": Double(agent.currentSteps)
+            ]
+        )
+        
+        loadedAgentName = name
+        hasTrainedSinceLoad = false
+    }
+    
+    func loadAgent(from savedAgent: SavedAgent) throws {
+        guard savedAgent.environmentType == .acrobot else {
+            throw AgentStorageError.wrongEnvironmentType
+        }
+        
+        stopTraining()
+        
+        if let lr = savedAgent.hyperparameters["learningRate"] { learningRate = lr }
+        if let g = savedAgent.hyperparameters["gamma"] { gamma = g }
+        if let eps = savedAgent.hyperparameters["epsilon"] { epsilon = eps }
+        if let epsMin = savedAgent.hyperparameters["epsilonMin"] { epsilonMin = epsMin }
+        if let decaySteps = savedAgent.hyperparameters["epsilonDecaySteps"] { epsilonDecaySteps = Int(decaySteps) }
+        if let t = savedAgent.hyperparameters["tau"] { tau = t }
+        if let bs = savedAgent.hyperparameters["batchSize"] { batchSize = Int(bs) }
+        if let gcn = savedAgent.hyperparameters["gradClipNorm"] { gradClipNorm = gcn }
+        if let wSteps = savedAgent.hyperparameters["warmupSteps"] { warmupSteps = Int(wSteps) }
+        
+        if let maxSteps = savedAgent.environmentConfig["maxStepsPerEpisode"],
+           let steps = Int(maxSteps) {
+            maxStepsPerEpisode = steps
+        }
+        
+        setupEnvironment()
+        
+        let weightsDict = try AgentStorage.shared.loadNetworkWeights(for: savedAgent)
+        
+        guard let agent = self.agent else {
+            throw AgentStorageError.dataCorrupted
+        }
+        
+        let weightsTuples = weightsDict.map { ($0.key, $0.value) }
+        let newParams = NestedDictionary<String, MLXArray>.unflattened(weightsTuples)
+        agent.policyNetwork.update(parameters: newParams)
+        agent.targetNetwork.update(parameters: newParams)
+        eval(agent.policyNetwork)
+        eval(agent.targetNetwork)
+        
+        if let explorationSteps = savedAgent.hyperparameters["explorationSteps"] {
+            agent.setExplorationSteps(Int(explorationSteps))
+        }
+        if let trainingSteps = savedAgent.hyperparameters["trainingSteps"] {
+            agent.setSteps(Int(trainingSteps))
+        }
+        
+        episodeMetrics = []
+        episodeCount = savedAgent.episodesTrained + 1
+        episodesCompletedInRun = 0
+        
+        loadedAgentId = savedAgent.id
+        loadedAgentName = savedAgent.name
+        hasTrainedSinceLoad = false
+        loadedEpisodeCount = savedAgent.episodesTrained
+        loadedBestReward = savedAgent.bestReward
+    }
+    
+    
+    private func getCurrentSnapshot(from environment: any Env<MLXArray, Int>) -> AcrobotSnapshot {
+        if let acrobot = environment as? Acrobot {
+            return acrobot.currentSnapshot
+        }
+        
+        if let wrapper = environment as? RecordEpisodeStatistics<TimeLimit<OrderEnforcing<PassiveEnvChecker<Acrobot>>>> {
+            return wrapper.env.env.env.env.currentSnapshot
+        }
+        
+        if let acrobot = environment.unwrapped as? Acrobot {
+            return acrobot.currentSnapshot
+        }
+        
+        return .zero
+    }
+    
+    
+    private func runTrainingLoop() async {
+        var lastUIUpdate = Date()
+        let uiUpdateInterval: TimeInterval = 1.0 / 30.0 
+        
+        while isTraining {
+            guard var env = self.env, let agent = self.agent else { break }
+            
+            let resetResult = env.reset()
+            self.env = env
+            var state = resetResult.obs
+            
+            var terminated = false
+            var truncated = false
+            var steps = 0
+            var episodeRewardLocal = 0.0
+            var totalLoss = 0.0
+            var totalMeanQ = 0.0
+            var totalGradNorm = 0.0
+            var totalTdError = 0.0
+            var lossCount = 0
+            
+            if !turboMode || episodeCount % 10 == 0 {
+                await MainActor.run {
+                    self.currentStep = 0
+                    self.episodeReward = 0
+                }
+            }
+            
+            while !terminated && !truncated {
+                if !isTraining { break }
+                
+                var keyForAction = self.rngKey
+                
+                guard let actionSpace = env.action_space as? Discrete else { break }
+                
+                let action = agent.chooseAction(
+                    state: state,
+                    actionSpace: actionSpace,
+                    key: &keyForAction
+                ).item(Int.self)
+                self.rngKey = keyForAction
+                
+                let result = env.step(action)
+                self.env = env
+                
+                terminated = result.terminated
+                truncated = result.truncated
+                
+                steps += 1
+                let usedReward = clipReward ? min(max(result.reward, clipRewardMin), clipRewardMax) : result.reward
+                episodeRewardLocal += usedReward
+                
+                let nextState = result.obs
+                
+                agent.store(
+                    state: state,
+                    action: MLXArray(Int32(action)),
+                    reward: Float(usedReward),
+                    nextState: nextState,
+                    terminated: terminated
+                )
+                
+                totalSteps += 1
+                state = nextState
+                
+                if !turboMode {
+                    let currentS = steps
+                    let currentR = episodeRewardLocal
+                    if renderEnabled {
+                        let snap = getCurrentSnapshot(from: env)
+                        await MainActor.run {
+                            self.snapshot = snap
+                            self.currentStep = currentS
+                            self.episodeReward = currentR
+                        }
+                        let delayNs = UInt64(1_000_000_000 / self.targetFPS)
+                        try? await Task.sleep(nanoseconds: delayNs)
+                    } else {
+                        let now = Date()
+                        if now.timeIntervalSince(lastUIUpdate) >= uiUpdateInterval {
+                            await MainActor.run {
+                                self.currentStep = currentS
+                                self.episodeReward = currentR
+                            }
+                            lastUIUpdate = now
+                        }
+                    }
+                }
+            }
+            
+            let episodeCompleted = terminated || truncated
+            if !episodeCompleted {
+                await MainActor.run {
+                    self.currentStep = 0
+                    self.episodeReward = 0
+                }
+                break
+            }
+            
+            let updatesPerEpisode = max(1, steps / 10)
+            for i in 0..<updatesPerEpisode {
+                if let (loss, meanQ, gradNorm, tdError) = agent.update() {
+                    totalLoss += Double(loss)
+                    totalMeanQ += Double(meanQ)
+                    totalGradNorm += Double(gradNorm)
+                    totalTdError += Double(tdError)
+                    lossCount += 1
+                }
+                if i % 5 == 0 {
+                    await Task.yield()
+                }
+            }
+            
+            let finalReward = episodeRewardLocal
+            let finalSteps = steps
+            let avgLoss = lossCount > 0 ? totalLoss / Double(lossCount) : nil
+            let avgMaxQ = lossCount > 0 ? totalMeanQ / Double(lossCount) : 0.0
+            let avgGradNorm = lossCount > 0 ? totalGradNorm / Double(lossCount) : nil
+            let avgTdError = lossCount > 0 ? totalTdError / Double(lossCount) : nil
+            
+            if episodeCount % 50 == 0 {
+                GPU.clearCache()
+            }
+            
+            await MainActor.run {
+                self.episodesCompletedInRun += 1
+                self.totalReward += finalReward
+                if let agent = self.agent {
+                    self.epsilon = Double(agent.epsilon)
+                }
+                
+                let window = max(1, min(self.movingAverageWindow, self.episodeMetrics.count + 1))
+                let recentRewards = self.episodeMetrics.suffix(window - 1).map { $0.reward }
+                let rewardSum = recentRewards.reduce(0, +) + finalReward
+                let rewardMovingAverage = rewardSum / Double(window)
+                
+                let completedEpisodeNumber = self.loadedEpisodeCount + self.episodeMetrics.count + 1
+                
+                // success: terminated before max steps (reached target height)
+                let success = terminated && finalSteps < self.maxStepsPerEpisode
+                
+                let metric = EpisodeMetrics(
+                    episode: completedEpisodeNumber,
+                    reward: finalReward,
+                    steps: finalSteps,
+                    success: success,
+                    averageTDError: avgTdError ?? 0,
+                    averageLoss: avgLoss,
+                    averageMaxQ: avgMaxQ,
+                    epsilon: self.epsilon,
+                    averageGradNorm: avgGradNorm,
+                    rewardMovingAverage: rewardMovingAverage
+                )
+                self.episodeMetrics.append(metric)
+                
+                self.episodeCount += 1
+            }
+            
+            if earlyStopEnabled {
+                let window = max(1, earlyStopWindow)
+                let recent = self.episodeMetrics.suffix(window)
+                if !recent.isEmpty {
+                    let avg = recent.map { $0.reward }.reduce(0, +) / Double(recent.count)
+                    if avg >= earlyStopRewardThreshold {
+                        await MainActor.run {
+                            self.trainingCompletedNormally = true
+                            self.isTraining = false
+                            TrainingState.shared.stopTraining()
+                        }
+                        break
+                    }
+                }
+            }
+            
+            if episodesPerRun > 0 && episodesCompletedInRun >= episodesPerRun {
+                await MainActor.run {
+                    self.trainingCompletedNormally = true
+                    self.isTraining = false
+                    TrainingState.shared.stopTraining()
+                }
+                break
+            }
+            
+            if turboMode {
+                await Task.yield()
+            }
+        }
+        
+        await MainActor.run {
+            if self.isTraining {
+                self.isTraining = false
+                TrainingState.shared.stopTraining()
+            }
+        }
+    }
+}
+
