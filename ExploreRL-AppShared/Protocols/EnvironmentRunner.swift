@@ -65,6 +65,8 @@ enum EnvironmentType: String, Codable, CaseIterable, Identifiable {
     case cartPole = "CartPole"
     case mountainCar = "MountainCar"
     case mountainCarContinuous = "MountainCarContinuous"
+    case acrobot = "Acrobot"
+    case pendulum = "Pendulum"
     
     var id: String { rawValue }
     
@@ -74,6 +76,8 @@ enum EnvironmentType: String, Codable, CaseIterable, Identifiable {
         case .cartPole: return "Cart Pole"
         case .mountainCar: return "Mountain Car"
         case .mountainCarContinuous: return "Mountain Car Continuous"
+        case .acrobot: return "Acrobot"
+        case .pendulum: return "Pendulum"
         }
     }
     
@@ -83,6 +87,8 @@ enum EnvironmentType: String, Codable, CaseIterable, Identifiable {
         case .cartPole: return "cart"
         case .mountainCar: return "car.side"
         case .mountainCarContinuous: return "car.side.fill"
+        case .acrobot: return "figure.flexibility"
+        case .pendulum: return "circle.circle"
         }
     }
     
@@ -92,21 +98,23 @@ enum EnvironmentType: String, Codable, CaseIterable, Identifiable {
         case .cartPole: return .orange
         case .mountainCar: return .green
         case .mountainCarContinuous: return .purple
+        case .acrobot: return .red
+        case .pendulum: return .indigo
         }
     }
     
     var category: EnvironmentCategory {
         switch self {
         case .frozenLake: return .toyText
-        case .cartPole, .mountainCar, .mountainCarContinuous: return .classicControl
+        case .cartPole, .mountainCar, .mountainCarContinuous, .acrobot, .pendulum: return .classicControl
         }
     }
     
     var defaultAlgorithm: String {
         switch self {
         case .frozenLake: return "Q-Learning"
-        case .cartPole, .mountainCar: return "DQN"
-        case .mountainCarContinuous: return "SAC"
+        case .cartPole, .mountainCar, .acrobot: return "DQN"
+        case .mountainCarContinuous, .pendulum: return "SAC"
         }
     }
 }

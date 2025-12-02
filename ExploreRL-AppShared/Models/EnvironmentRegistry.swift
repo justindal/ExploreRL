@@ -62,6 +62,24 @@ struct EnvironmentRegistry {
             accentColor: .purple,
             category: .classicControl,
             description: "Drive a car up a steep hill with continuous force control."
+        ),
+        EnvironmentInfo(
+            type: .acrobot,
+            displayName: "Acrobot",
+            algorithmName: "DQN",
+            icon: "figure.flexibility",
+            accentColor: .red,
+            category: .classicControl,
+            description: "Swing a two-link robot arm to reach a target height."
+        ),
+        EnvironmentInfo(
+            type: .pendulum,
+            displayName: "Pendulum",
+            algorithmName: "SAC",
+            icon: "circle.circle",
+            accentColor: .indigo,
+            category: .classicControl,
+            description: "Swing up and balance an inverted pendulum using continuous torque."
         )
     ]
     
@@ -98,7 +116,9 @@ extension EnvironmentRegistry {
         frozenLakeRunner: FrozenLakeRunner,
         cartPoleRunner: CartPoleRunner,
         mountainCarRunner: MountainCarRunner,
-        mountainCarContinuousRunner: MountainCarContinuousRunner
+        mountainCarContinuousRunner: MountainCarContinuousRunner,
+        acrobotRunner: AcrobotRunner,
+        pendulumRunner: PendulumRunner
     ) -> some View {
         switch type {
         case .frozenLake:
@@ -109,6 +129,10 @@ extension EnvironmentRegistry {
             MountainCarView(runner: mountainCarRunner)
         case .mountainCarContinuous:
             MountainCarContinuousView(runner: mountainCarContinuousRunner)
+        case .acrobot:
+            AcrobotView(runner: acrobotRunner)
+        case .pendulum:
+            PendulumView(runner: pendulumRunner)
         }
     }
 }
