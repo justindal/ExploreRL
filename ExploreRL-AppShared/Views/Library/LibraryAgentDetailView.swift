@@ -8,17 +8,17 @@ struct LibraryAgentDetailView: View {
     let agentSummary: SavedAgentSummary
     @State private var fullAgent: SavedAgent?
     @State private var isLoading = true
-    
+
     private var environmentColor: Color {
         agentSummary.environmentType.accentColor
     }
-    
+
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
                 headerCard
                 statsGrid
-                
+
                 if let agent = fullAgent {
                     hyperparametersSection(agent: agent)
                     AgentDataVisualizationView(agent: agent)
@@ -27,37 +27,37 @@ struct LibraryAgentDetailView: View {
                         .frame(maxWidth: .infinity)
                         .padding()
                 }
-                
+
                 timestampsSection
             }
             .padding()
         }
         #if os(iOS)
-        .navigationTitle(agentSummary.name)
-        .navigationBarTitleDisplayMode(.inline)
+            .navigationTitle(agentSummary.name)
+            .navigationBarTitleDisplayMode(.inline)
         #endif
         .task(id: agentSummary.id) {
             await loadAgent()
         }
     }
-    
+
     private var headerCard: some View {
         VStack(spacing: 16) {
             ZStack {
                 Circle()
                     .fill(environmentColor.opacity(0.15))
                     .frame(width: 80, height: 80)
-                
+
                 Image(systemName: agentSummary.environmentType.iconName)
                     .font(.largeTitle)
                     .foregroundStyle(environmentColor)
             }
-            
+
             VStack(spacing: 4) {
                 Text(agentSummary.name)
                     .font(.title2)
                     .fontWeight(.bold)
-                
+
                 HStack(spacing: 8) {
                     Text(agentSummary.algorithmType)
                         .font(.caption)
@@ -66,7 +66,7 @@ struct LibraryAgentDetailView: View {
                         .background(Color.blue.opacity(0.2))
                         .foregroundStyle(.blue)
                         .cornerRadius(6)
-                    
+
                     Text(agentSummary.environmentType.displayName)
                         .font(.caption)
                         .padding(.horizontal, 8)
@@ -82,39 +82,72 @@ struct LibraryAgentDetailView: View {
         .background(Color.gray.opacity(0.08))
         .cornerRadius(16)
     }
-    
+
     private var statsGrid: some View {
-        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-            LibraryStatBox(title: "Episodes", value: "\(agentSummary.episodesTrained)", icon: "number", color: .blue)
-            
+        LazyVGrid(
+            columns: [GridItem(.flexible()), GridItem(.flexible())],
+            spacing: 12
+        ) {
+            LibraryStatBox(
+                title: "Episodes",
+                value: "\(agentSummary.episodesTrained)",
+                icon: "number",
+                color: .blue
+            )
+
             if let successRate = agentSummary.successRate {
-                LibraryStatBox(title: "Success Rate", value: String(format: "%.0f%%", successRate * 100), icon: "checkmark.circle", color: .green)
+                LibraryStatBox(
+                    title: "Success Rate",
+                    value: String(format: "%.0f%%", successRate * 100),
+                    icon: "checkmark.circle",
+                    color: .green
+                )
             } else {
-                LibraryStatBox(title: "Best Reward", value: formatDisplayValue(agentSummary.bestReward), icon: "star", color: .orange)
+                LibraryStatBox(
+                    title: "Best Reward",
+                    value: formatDisplayValue(agentSummary.bestReward),
+                    icon: "star",
+                    color: .orange
+                )
             }
-            
-            LibraryStatBox(title: "Avg Reward", value: formatDisplayValue(agentSummary.averageReward), icon: "chart.line.uptrend.xyaxis", color: .purple)
-            
-            LibraryStatBox(title: "File Size", value: agentSummary.formattedFileSize, icon: "doc", color: .gray)
+
+            LibraryStatBox(
+                title: "Avg Reward",
+                value: formatDisplayValue(agentSummary.averageReward),
+                icon: "chart.line.uptrend.xyaxis",
+                color: .purple
+            )
+
+            LibraryStatBox(
+                title: "File Size",
+                value: agentSummary.formattedFileSize,
+                icon: "doc",
+                color: .gray
+            )
         }
     }
-    
+
     private func hyperparametersSection(agent: SavedAgent) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Hyperparameters")
                 .font(.headline)
-            
+
             VStack(spacing: 8) {
-                ForEach(Array(agent.hyperparameters.keys.sorted()), id: \.self) { key in
+                ForEach(Array(agent.hyperparameters.keys.sorted()), id: \.self)
+                { key in
                     HStack {
                         Text(formatKey(key))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                         Spacer()
-                        Text(formatHyperparameterValue(agent.hyperparameters[key] ?? 0))
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                            .monospacedDigit()
+                        Text(
+                            formatHyperparameterValue(
+                                agent.hyperparameters[key] ?? 0
+                            )
+                        )
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .monospacedDigit()
                     }
                 }
             }
@@ -123,7 +156,7 @@ struct LibraryAgentDetailView: View {
         .background(Color.gray.opacity(0.08))
         .cornerRadius(12)
     }
-    
+
     private var timestampsSection: some View {
         VStack(spacing: 8) {
             HStack {
@@ -133,7 +166,7 @@ struct LibraryAgentDetailView: View {
                 Text(agentSummary.createdAt, style: .date)
             }
             .font(.caption)
-            
+
             HStack {
                 Text("Last Updated")
                     .foregroundStyle(.secondary)
@@ -146,7 +179,7 @@ struct LibraryAgentDetailView: View {
         .background(Color.gray.opacity(0.08))
         .cornerRadius(12)
     }
-    
+
     private func loadAgent() async {
         isLoading = true
         fullAgent = nil
@@ -159,7 +192,7 @@ struct LibraryAgentDetailView: View {
         }
         self.isLoading = false
     }
-    
+
     private func formatKey(_ key: String) -> String {
         var result = ""
         for char in key {
@@ -170,31 +203,32 @@ struct LibraryAgentDetailView: View {
         }
         return result.prefix(1).uppercased() + result.dropFirst()
     }
-    
+
     private func formatHyperparameterValue(_ value: Double) -> String {
-        if value == value.rounded() && abs(value) < 100000 {
+        let mag = value.magnitude
+
+        if value == value.rounded() && mag < 100_000 {
             return String(format: "%.0f", value)
         }
-        
-        if abs(value) < 0.0001 && value != 0 {
-            let formatted = String(format: "%.6f", value)
-            return trimTrailingZeros(formatted)
+
+        let precision: Int
+        switch mag {
+        case 0..<0.0001 where value != 0:
+            precision = 6
+        case 0..<0.01:
+            precision = 5
+        case 0..<1:
+            precision = 4
+        default:
+            precision = 3
         }
-        
-        if abs(value) < 0.01 && value != 0 {
-            let formatted = String(format: "%.5f", value)
-            return trimTrailingZeros(formatted)
-        }
-        
-        if abs(value) < 1 {
-            let formatted = String(format: "%.4f", value)
-            return trimTrailingZeros(formatted)
-        }
-        
-        let formatted = String(format: "%.3f", value)
+
+        let format = "%.\(precision)f"
+        let formatted = String(format: format, value)
+
         return trimTrailingZeros(formatted)
     }
-    
+
     private func trimTrailingZeros(_ string: String) -> String {
         var result = string
         while result.hasSuffix("0") && result.contains(".") {
@@ -205,9 +239,9 @@ struct LibraryAgentDetailView: View {
         }
         return result
     }
-    
+
     private func formatDisplayValue(_ value: Double) -> String {
-        if value == value.rounded() && abs(value) < 10000 {
+        if value == value.rounded() && Swift.abs(value) < 10000 {
             return String(format: "%.0f", value)
         }
         let formatted = String(format: "%.1f", value)
@@ -220,7 +254,7 @@ struct LibraryStatBox: View {
     let value: String
     let icon: String
     let color: Color
-    
+
     var body: some View {
         VStack(spacing: 8) {
             HStack(spacing: 4) {
@@ -231,7 +265,7 @@ struct LibraryStatBox: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            
+
             Text(value)
                 .font(.title3)
                 .fontWeight(.bold)
@@ -243,4 +277,3 @@ struct LibraryStatBox: View {
         .cornerRadius(12)
     }
 }
-

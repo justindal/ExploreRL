@@ -812,11 +812,11 @@ struct AgentDetailView: View {
     }
     
     private func formatHyperparameterValue(_ value: Double) -> String {
-        if value == value.rounded() && abs(value) < 10000 {
+        if value == value.rounded() && Swift.abs(value) < 10000 {
             return String(format: "%.0f", value)
-        } else if abs(value) < 0.001 {
+        } else if Swift.abs(value) < 0.001 {
             return String(format: "%.6f", value)
-        } else if abs(value) < 1 {
+        } else if Swift.abs(value) < 1 {
             return String(format: "%.4f", value)
         } else {
             return String(format: "%.3f", value)

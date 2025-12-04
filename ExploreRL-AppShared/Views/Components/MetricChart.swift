@@ -97,13 +97,13 @@ struct MetricChart<DataPoint: Identifiable>: View {
     }
     
     private func formatValue(_ value: Double) -> String {
-        if abs(value) >= 1000 {
+        if Swift.abs(value) >= 1000 {
             return String(format: "%.1fk", value / 1000)
-        } else if abs(value) >= 100 {
+        } else if Swift.abs(value) >= 100 {
             return String(format: "%.0f", value)
-        } else if abs(value) >= 10 {
+        } else if Swift.abs(value) >= 10 {
             return String(format: "%.1f", value)
-        } else if abs(value) >= 1 {
+        } else if Swift.abs(value) >= 1 {
             return String(format: "%.2f", value)
         } else {
             return String(format: "%.3f", value)
