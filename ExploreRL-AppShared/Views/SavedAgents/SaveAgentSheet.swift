@@ -71,6 +71,10 @@ struct SaveAgentSheet: View {
         loadedAgentId != nil && onUpdate != nil
     }
     
+    private var canSave: Bool {
+        episodesTrained > 0
+    }
+    
     var body: some View {
         VStack(spacing: 0) {
             headerView
@@ -84,24 +88,22 @@ struct SaveAgentSheet: View {
                 
                 if episodesTrained > 0 {
                     statsSection
+                } else {
+                    noEpisodesWarning
                 }
                 
-                if let error = errorMessage {
-                    errorView(error)
-                }
-                
-                if savedSuccessfully {
-                    successView
-                }
-                
-                Spacer()
-                
-                actionButtons
+                statusMessageArea
             }
             .padding(24)
+            
+            Spacer(minLength: 0)
+            
+            actionButtons
+                .padding(.horizontal, 24)
+                .padding(.bottom, 24)
         }
         #if os(macOS)
-        .frame(width: 420, height: canUpdate ? 500 : 440)
+        .frame(width: 420, height: canUpdate ? 580 : 460)
         .background(Color(nsColor: .windowBackgroundColor))
         #endif
         .onAppear {
@@ -279,6 +281,61 @@ struct SaveAgentSheet: View {
         )
     }
     
+    private var noEpisodesWarning: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.largeTitle)
+                .foregroundStyle(.orange)
+            
+            Text("No Training Data")
+                .font(.headline)
+                .fontWeight(.semibold)
+            
+            Text("Complete at least one episode before saving. The agent needs training data to be saved.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.orange.opacity(0.08))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.orange.opacity(0.2), lineWidth: 1)
+        )
+    }
+    
+    private var statusMessageArea: some View {
+        ZStack {
+            if let error = errorMessage {
+                errorView(error)
+                    .transition(.opacity)
+            } else if savedSuccessfully {
+                successView
+                    .transition(.opacity)
+            } else {
+                Color.clear
+            }
+        }
+        .frame(height: 48)
+        .animation(.easeInOut(duration: 0.2), value: savedSuccessfully)
+        .animation(.easeInOut(duration: 0.2), value: errorMessage)
+    }
+    
+    private var saveButtonDisabledReason: String? {
+        if !canSave {
+            return "Complete at least one training episode first"
+        } else if agentName.isEmpty {
+            return "Enter a name for the agent"
+        } else if savedSuccessfully {
+            return "Agent already saved"
+        }
+        return nil
+    }
+    
     private var actionButtons: some View {
         HStack(spacing: 12) {
             Button {
@@ -313,7 +370,8 @@ struct SaveAgentSheet: View {
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
-            .disabled(agentName.isEmpty || isSaving || savedSuccessfully)
+            .disabled(agentName.isEmpty || isSaving || savedSuccessfully || !canSave)
+            .help(saveButtonDisabledReason ?? "Save the trained agent")
         }
     }
     
@@ -425,6 +483,19 @@ private struct SaveSheetStatCard: View {
         loadedAgentId: nil,
         loadedAgentName: nil,
         onSave: { _ in throw AgentStorageError.agentNotFound },
+        onUpdate: nil
+    )
+}
+
+#Preview("No Episodes") {
+    SaveAgentSheet(
+        environmentType: .mountainCar,
+        algorithmType: "DQN",
+        episodesTrained: 0,
+        currentReward: 0,
+        loadedAgentId: nil,
+        loadedAgentName: nil,
+        onSave: { _ in },
         onUpdate: nil
     )
 }
