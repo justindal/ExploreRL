@@ -176,7 +176,7 @@ import Gymnazo
     
     func saveCartPoleAgent(
         name: String,
-        policyNetwork: QNetwork,
+        policyNetwork: Module,
         episodesTrained: Int,
         epsilon: Double,
         bestReward: Double,
@@ -225,7 +225,7 @@ import Gymnazo
     func updateCartPoleAgent(
         id: UUID,
         newName: String,
-        policyNetwork: QNetwork,
+        policyNetwork: Module,
         episodesTrained: Int,
         epsilon: Double,
         bestReward: Double,
@@ -270,7 +270,7 @@ import Gymnazo
     
     func saveMountainCarAgent(
         name: String,
-        policyNetwork: QNetwork,
+        policyNetwork: Module,
         episodesTrained: Int,
         epsilon: Double,
         bestReward: Double,
@@ -319,7 +319,7 @@ import Gymnazo
     func updateMountainCarAgent(
         id: UUID,
         newName: String,
-        policyNetwork: QNetwork,
+        policyNetwork: Module,
         episodesTrained: Int,
         epsilon: Double,
         bestReward: Double,
@@ -364,9 +364,9 @@ import Gymnazo
     
     func saveMountainCarContinuousAgent(
         name: String,
-        actor: SACActorNetwork,
-        qf1: SoftQNetwork,
-        qf2: SoftQNetwork,
+        actor: Module,
+        qf1: Module,
+        qf2: Module,
         episodesTrained: Int,
         alpha: Double,
         bestReward: Double,
@@ -426,9 +426,9 @@ import Gymnazo
     func updateMountainCarContinuousAgent(
         id: UUID,
         newName: String,
-        actor: SACActorNetwork,
-        qf1: SoftQNetwork,
-        qf2: SoftQNetwork,
+        actor: Module,
+        qf1: Module,
+        qf2: Module,
         episodesTrained: Int,
         alpha: Double,
         bestReward: Double,
@@ -531,8 +531,8 @@ import Gymnazo
     
     func saveMountainCarContinuousAgentVmap(
         name: String,
-        actor: SACActorNetwork,
-        qEnsemble: EnsembleQNetwork,
+        actor: Module,
+        qEnsemble: Module,
         episodesTrained: Int,
         alpha: Double,
         bestReward: Double,
@@ -587,8 +587,8 @@ import Gymnazo
     func updateMountainCarContinuousAgentVmap(
         id: UUID,
         newName: String,
-        actor: SACActorNetwork,
-        qEnsemble: EnsembleQNetwork,
+        actor: Module,
+        qEnsemble: Module,
         episodesTrained: Int,
         alpha: Double,
         bestReward: Double,
@@ -663,12 +663,9 @@ import Gymnazo
         ]
     }
     
-    
-    // MARK: - Acrobot (DQN)
-    
     func saveAcrobotAgent(
         name: String,
-        policyNetwork: QNetwork,
+        policyNetwork: Module,
         episodesTrained: Int,
         epsilon: Double,
         bestReward: Double,
@@ -717,7 +714,7 @@ import Gymnazo
     func updateAcrobotAgent(
         id: UUID,
         newName: String,
-        policyNetwork: QNetwork,
+        policyNetwork: Module,
         episodesTrained: Int,
         epsilon: Double,
         bestReward: Double,
@@ -759,13 +756,10 @@ import Gymnazo
         loadAgentList()
     }
     
-    
-    // MARK: - Pendulum (SAC)
-    
     func savePendulumAgent(
         name: String,
-        actor: SACActorNetwork,
-        qEnsemble: EnsembleQNetwork,
+        actor: Module,
+        qEnsemble: Module,
         episodesTrained: Int,
         alpha: Double,
         bestReward: Double,
@@ -820,8 +814,8 @@ import Gymnazo
     func updatePendulumAgent(
         id: UUID,
         newName: String,
-        actor: SACActorNetwork,
-        qEnsemble: EnsembleQNetwork,
+        actor: Module,
+        qEnsemble: Module,
         episodesTrained: Int,
         alpha: Double,
         bestReward: Double,
