@@ -1,273 +1,19 @@
 //
-//  EvaluateTabView.swift
+//  EvaluationContentView.swift
 //
 
 import SwiftUI
 import Gymnazo
 
-struct EvaluateTabView: View {
-    @State private var runner = EvaluationRunner()
-    @State private var showLoadSheet = false
-    @State private var selectedEnvironment: EnvironmentType?
-    @State private var sheetEnvironment: EnvironmentType?
-    @State private var isShowingEvaluation = false
-    
-    var body: some View {
-        NavigationStack {
-            Group {
-                if isShowingEvaluation && runner.loadedAgent != nil {
-                    EvaluationContentViewiOS(runner: runner) {
-                        // Go back to selection
-                        runner.reset()
-                        isShowingEvaluation = false
-                    }
-                } else {
-                    environmentSelectionView
-                        .navigationTitle("Evaluate")
-                }
-            }
-        }
-        .sheet(isPresented: $showLoadSheet, onDismiss: {
-            sheetEnvironment = nil
-        }) {
-            if let env = sheetEnvironment {
-                LoadAgentSheetiOS(environmentType: env) { agent in
-                    try runner.loadAgent(agent)
-                    isShowingEvaluation = true
-                }
-            }
-        }
-        .onChange(of: selectedEnvironment) { _, newValue in
-            if let env = newValue {
-                sheetEnvironment = env
-                showLoadSheet = true
-                selectedEnvironment = nil
-            }
-        }
-    }
-    
-    private var environmentSelectionView: some View {
-        List {
-            Section("Select Environment") {
-                ForEach(EnvironmentType.allCases, id: \.self) { env in
-                    Button {
-                        selectedEnvironment = env
-                    } label: {
-                        EvaluateEnvironmentRow(environmentType: env)
-                    }
-                }
-            }
-        }
-    }
-}
-
-
-struct EvaluateEnvironmentRow: View {
-    let environmentType: EnvironmentType
-    
-    private var color: Color {
-        environmentType.accentColor
-    }
-    
-    var body: some View {
-        HStack(spacing: 12) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(color.opacity(0.15))
-                    .frame(width: 44, height: 44)
-                
-                Image(systemName: environmentType.iconName)
-                    .font(.title2)
-                    .foregroundStyle(color)
-            }
-            
-            VStack(alignment: .leading, spacing: 4) {
-                Text(environmentType.displayName)
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-                
-                Text("Load a saved \(environmentType.displayName) agent")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            
-            Spacer()
-            
-            Image(systemName: "chevron.right")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-        }
-        .padding(.vertical, 4)
-    }
-}
-
-
-struct LoadAgentSheetiOS: View {
-    let environmentType: EnvironmentType
-    let onLoad: (SavedAgent) throws -> Void
-    
-    @Environment(\.dismiss) private var dismiss
-    @State private var storage = AgentStorage.shared
-    @State private var isLoading = false
-    @State private var isLoadingList = true
-    @State private var errorMessage: String?
-    @State private var agents: [SavedAgentSummary] = []
-    
-    var body: some View {
-        NavigationStack {
-            Group {
-                if isLoadingList {
-                    loadingView
-                } else if agents.isEmpty {
-                    emptyStateView
-                } else {
-                    agentListView
-                }
-            }
-            .navigationTitle("Load \(environmentType.displayName) Agent")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                }
-            }
-            .task {
-                await loadAgents()
-            }
-        }
-    }
-    
-    private func loadAgents() async {
-        isLoadingList = true
-        storage.loadAgentList()
-        try? await Task.sleep(nanoseconds: 150_000_000)
-        agents = storage.agents(for: environmentType)
-        isLoadingList = false
-    }
-    
-    private var loadingView: some View {
-        VStack(spacing: 16) {
-            ProgressView()
-            Text("Loading agents...")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-    
-    private var emptyStateView: some View {
-        ContentUnavailableView {
-            Label("No Saved Agents", systemImage: "tray")
-        } description: {
-            Text("You haven't saved any \(environmentType.displayName) agents yet.\n\nGo to the Train tab to train an agent, then save it to evaluate later.")
-        } actions: {
-            Button("Go to Train") {
-                dismiss()
-            }
-            .buttonStyle(.borderedProminent)
-        }
-    }
-    
-    private var agentListView: some View {
-        List {
-            if let error = errorMessage {
-                Section {
-                    HStack {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.yellow)
-                        Text(error)
-                            .font(.subheadline)
-                    }
-                }
-            }
-            
-            Section("\(agents.count) agent\(agents.count == 1 ? "" : "s")") {
-                ForEach(agents) { agent in
-                    Button {
-                        loadAgent(agent)
-                    } label: {
-                        LoadAgentRowView(agent: agent, isLoading: isLoading)
-                    }
-                    .disabled(isLoading)
-                }
-            }
-        }
-    }
-    
-    private func loadAgent(_ agentSummary: SavedAgentSummary) {
-        isLoading = true
-        errorMessage = nil
-        
-        do {
-            let fullAgent = try storage.loadAgent(id: agentSummary.id)
-            try onLoad(fullAgent)
-            dismiss()
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-        
-        isLoading = false
-    }
-}
-
-struct LoadAgentRowView: View {
-    let agent: SavedAgentSummary
-    let isLoading: Bool
-    
-    var body: some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(agent.name)
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-                
-                HStack(spacing: 8) {
-                    Text(agent.algorithmType)
-                        .font(.caption)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Color.blue.opacity(0.2))
-                        .foregroundStyle(.blue)
-                        .cornerRadius(4)
-                    
-                    Text("\(agent.episodesTrained) episodes")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    
-                    if let successRate = agent.successRate {
-                        Text(String(format: "%.0f%% success", successRate * 100))
-                            .font(.caption)
-                            .foregroundStyle(.green)
-                    } else {
-                        Text(String(format: "Best: %.0f", agent.bestReward))
-                            .font(.caption)
-                            .foregroundStyle(.orange)
-                    }
-                }
-            }
-            
-            Spacer()
-            
-            if isLoading {
-                ProgressView()
-                    .controlSize(.small)
-            } else {
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-            }
-        }
-        .padding(.vertical, 4)
-    }
-}
-
-
-struct EvaluationContentViewiOS: View {
+struct EvaluationContentView: View {
     @Bindable var runner: EvaluationRunner
     let onBack: () -> Void
     @State private var showResults = false
+    @Environment(\.horizontalSizeClass) var horizontalSizeClass
+    
+    private var isCompact: Bool {
+        horizontalSizeClass == .compact
+    }
     
     var body: some View {
         ScrollView {
@@ -280,27 +26,20 @@ struct EvaluationContentViewiOS: View {
             }
             .padding()
         }
-        .navigationTitle("Evaluation")
-        .navigationBarTitleDisplayMode(.inline)
-        .navigationBarBackButtonHidden(true)
         .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
+            ToolbarItem(placement: .cancellationAction) {
                 Button {
                     runner.stopEvaluation()
                     onBack()
                 } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "chevron.left")
-                        Text("Back")
-                    }
+                    Label("Back", systemImage: "chevron.left")
                 }
             }
         }
         .sheet(isPresented: $showResults) {
-            EvaluationResultsSheetiOS(runner: runner)
+            EvaluationResultsSheet(runner: runner)
         }
     }
-    
     
     @ViewBuilder
     private var agentInfoHeader: some View {
@@ -335,7 +74,6 @@ struct EvaluationContentViewiOS: View {
             .cornerRadius(12)
         }
     }
-    
     
     @ViewBuilder
     private var visualizationSection: some View {
@@ -388,26 +126,25 @@ struct EvaluationContentViewiOS: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .frame(height: 300)
+        .frame(height: isCompact ? 300 : 400)
         .background(Color.gray.opacity(0.05))
         .cornerRadius(12)
     }
     
-    
     private var statsSection: some View {
         VStack(spacing: 12) {
             HStack(spacing: 12) {
-                EvalStatCardiOS(
+                EvaluationStatCard(
                     title: "Episode",
                     value: "\(runner.currentEpisode)/\(runner.episodesToRun)",
                     color: .blue
                 )
-                EvalStatCardiOS(
+                EvaluationStatCard(
                     title: "Step",
                     value: "\(runner.currentStep)",
                     color: .purple
                 )
-                EvalStatCardiOS(
+                EvaluationStatCard(
                     title: "Reward",
                     value: String(format: "%.0f", runner.episodeReward),
                     color: .cyan
@@ -415,19 +152,19 @@ struct EvaluationContentViewiOS: View {
             }
             
             HStack(spacing: 12) {
-                EvalStatCardiOS(
+                EvaluationStatCard(
                     title: "Avg Reward",
                     value: String(format: "%.1f", runner.averageReward),
                     color: .green
                 )
                 if runner.loadedAgent?.environmentType == .frozenLake {
-                    EvalStatCardiOS(
+                    EvaluationStatCard(
                         title: "Success",
                         value: String(format: "%.0f%%", runner.successRate * 100),
                         color: .orange
                     )
                 } else {
-                    EvalStatCardiOS(
+                    EvaluationStatCard(
                         title: "Avg Steps",
                         value: String(format: "%.0f", runner.averageSteps),
                         color: .orange
@@ -436,7 +173,6 @@ struct EvaluationContentViewiOS: View {
             }
         }
     }
-    
     
     private var controlsSection: some View {
         HStack(spacing: 16) {
@@ -466,7 +202,6 @@ struct EvaluationContentViewiOS: View {
             }
         }
     }
-    
     
     private var settingsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -502,8 +237,7 @@ struct EvaluationContentViewiOS: View {
     }
 }
 
-
-struct EvalStatCardiOS: View {
+struct EvaluationStatCard: View {
     let title: String
     let value: String
     let color: Color
@@ -525,8 +259,7 @@ struct EvalStatCardiOS: View {
     }
 }
 
-
-struct EvaluationResultsSheetiOS: View {
+struct EvaluationResultsSheet: View {
     let runner: EvaluationRunner
     @Environment(\.dismiss) private var dismiss
     
@@ -553,7 +286,9 @@ struct EvaluationResultsSheetiOS: View {
                 }
             }
             .navigationTitle("Results")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") {
@@ -565,6 +300,3 @@ struct EvaluationResultsSheetiOS: View {
     }
 }
 
-#Preview {
-    EvaluateTabView()
-}
