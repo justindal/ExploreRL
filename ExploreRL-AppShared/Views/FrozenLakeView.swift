@@ -54,25 +54,30 @@ struct FrozenLakeView: View {
             } else {
                 // layout for macOS/iPadOS
                 HStack(spacing: 0) {
-                    VStack(spacing: 20) {
-                        EnvironmentHeader()
-                        
-                        EnvironmentCanvas()
-                        
-                        EnvironmentControls()
-                        
-                        Spacer()
+                    ScrollView {
+                        VStack(spacing: 20) {
+                            EnvironmentHeader()
+                            
+                            EnvironmentCanvas()
+                            
+                            EnvironmentControls()
+                            
+                            Spacer()
+                        }
+                        .padding()
                     }
-                    .padding()
-                    .frame(minWidth: 400)
+                    .frame(maxWidth: .infinity)
                     
                     if showInspector {
-                        VStack(spacing: 0) {
-                            InspectorView()
-                        }
-                        .frame(width: 350)
-                        .background(Color.gray.opacity(0.05))
-                        .border(Color.gray.opacity(0.2), width: 1)
+                        Divider()
+                        
+                        InspectorView()
+                            .frame(width: 320)
+                            #if os(macOS)
+                            .background(.background)
+                            #else
+                            .background(Color(UIColor.secondarySystemBackground))
+                            #endif
                     }
                 }
             }
@@ -309,7 +314,6 @@ struct FrozenLakeView: View {
                     .frame(maxWidth: 700)
                 }
                 .frame(maxWidth: .infinity)
-                .background(Color.gray.opacity(0.1))
                 .cornerRadius(12)
             }
         }
@@ -355,7 +359,7 @@ struct FrozenLakeView: View {
                             .font(.headline)
                             .frame(minWidth: 120)
                     }
-                    .buttonStyle(FrozenLakeButtonStyle(color: .red))
+                    .buttonStyle(TrainingButtonStyle(color: .red))
                     .accessibilityLabel("Stop Training")
                     .accessibilityHint("Stops the current training session")
                 } else {
@@ -364,7 +368,7 @@ struct FrozenLakeView: View {
                             .font(.headline)
                             .frame(minWidth: 140)
                     }
-                    .buttonStyle(FrozenLakeButtonStyle(color: .green))
+                    .buttonStyle(TrainingButtonStyle(color: .green))
                     .accessibilityLabel(runner.canResume ? "Resume Training" : "Start Training")
                     .accessibilityHint("Begins training the Frozen Lake agent")
                     
@@ -379,31 +383,12 @@ struct FrozenLakeView: View {
                             .font(.headline)
                             .frame(minWidth: 100)
                     }
-                    .buttonStyle(FrozenLakeButtonStyle(color: Color(.systemGray)))
+                    .buttonStyle(TrainingButtonStyle(color: Color(.systemGray)))
                     .accessibilityLabel("Reset Agent")
                     .accessibilityHint("Resets the agent to initial state")
                 }
             }
         }
-    }
-}
-
-struct FrozenLakeButtonStyle: ButtonStyle {
-    let color: Color
-    @Environment(\.isEnabled) private var isEnabled
-    
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(color)
-                    .opacity(isEnabled ? (configuration.isPressed ? 0.8 : 1.0) : 0.4)
-            )
-            .foregroundColor(.white)
-            .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
-            .animation(.easeInOut(duration: 0.15), value: configuration.isPressed)
     }
 }
 

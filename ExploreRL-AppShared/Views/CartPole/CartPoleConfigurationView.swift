@@ -19,28 +19,6 @@ struct CartPoleConfigurationView: View {
     @State private var showClipInfo = false
     @State private var showGradClipInfo = false
     
-    @State private var showRenderConfirm = false
-    @State private var proposedRenderEnabled = true
-    
-    private var renderSegment: Binding<Int> {
-        Binding(
-            get: { runner.renderEnabled ? 1 : 0 },
-            set: { newVal in
-                let newEnabled = (newVal == 1)
-                guard newEnabled != runner.renderEnabled else { return }
-                
-                if runner.isTraining {
-                    proposedRenderEnabled = newEnabled
-                    showRenderConfirm = true
-                } else {
-                    runner.stopTraining()
-                    runner.renderEnabled = newEnabled
-                    runner.setupEnvironment()
-                }
-            }
-        )
-    }
-    
     var body: some View {
         VStack(alignment: .leading, spacing: 15) {
             HStack {
@@ -56,61 +34,22 @@ struct CartPoleConfigurationView: View {
                 .buttonStyle(.bordered)
             }
             
-            VStack(alignment: .leading) {
-                Text("Speed & Run Control")
-                    .font(.headline)
-                Picker("Render", selection: renderSegment) {
-                    Text("Off").tag(0)
-                    Text("On").tag(1)
+            SpeedControlSection(
+                renderEnabled: $runner.renderEnabled,
+                targetFPS: $runner.targetFPS,
+                turboMode: $runner.turboMode,
+                isTraining: runner.isTraining,
+                onRenderChange: {
+                    runner.stopTraining()
+                    runner.setupEnvironment()
                 }
-                .pickerStyle(.segmented)
-                HStack(spacing: 6) {
-                    Image(systemName: "info.circle")
-                    Text("Switching render mode resets the environment.")
-                }
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-                if runner.renderEnabled {
-                    Toggle("Turbo Mode", isOn: $runner.turboMode)
-                }
-                if runner.renderEnabled && !runner.turboMode {
-                    let fpsBinding = clampedDoubleBinding($runner.targetFPS, range: 1...120, step: 1)
-                    HStack {
-                        Text("Target FPS")
-                        Spacer()
-                        DoubleInputField(value: fpsBinding, decimals: 0, width: 70)
-                    }
-                    Slider(value: fpsBinding, in: 1...120)
-                }
-                
-                let episodesBinding = Binding<Double>(
-                    get: { Double(runner.episodesPerRun) },
-                    set: { runner.episodesPerRun = max(1, Int($0.rounded())) }
-                )
-                HStack {
-                    Text("Episodes Per Run")
-                    Spacer()
-                    TextField("100", value: $runner.episodesPerRun, formatter: NumberFormatter())
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 90)
-                        .disabled(runner.isTraining)
-                }
-                Slider(value: episodesBinding, in: 10...2000)
-                    .disabled(runner.isTraining)
-                
-                let maxStepsBinding = Binding<Double>(
-                    get: { Double(runner.maxStepsPerEpisode) },
-                    set: { runner.maxStepsPerEpisode = Int($0) }
-                )
-                HStack {
-                    Text("Max Steps / Episode")
-                    Spacer()
-                    Text("\(runner.maxStepsPerEpisode)")
-                        .monospacedDigit()
-                }
-                Slider(value: maxStepsBinding, in: 50...2000, step: 50)
-                    .disabled(runner.isTraining)
-            }
+            )
+            
+            TrainingLimitsSection(
+                episodesPerRun: $runner.episodesPerRun,
+                maxStepsPerEpisode: $runner.maxStepsPerEpisode,
+                isTraining: runner.isTraining
+            )
             
             VStack(alignment: .leading, spacing: 10) {
                 Text("Hyperparameters (DQN)")
@@ -199,8 +138,17 @@ struct CartPoleConfigurationView: View {
             }
             
             DisclosureGroup("Advanced") {
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack { Text("Use Seed"); InfoButton(isPresented: $showSeedInfo, title: "Seed", description: "Enable deterministic initialization for reproducible runs.", icon: "info.circle"); Spacer(); Toggle("", isOn: $runner.useSeed).labelsHidden().disabled(runner.isTraining) }
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Text("Use Seed")
+                            .lineLimit(1)
+                        InfoButton(isPresented: $showSeedInfo, title: "Seed", description: "Enable deterministic initialization for reproducible runs.", icon: "info.circle")
+                        Spacer()
+                        Toggle("", isOn: $runner.useSeed)
+                            .labelsHidden()
+                            .fixedSize()
+                            .disabled(runner.isTraining)
+                    }
                     HStack {
                         Text("Seed")
                         Spacer()
@@ -210,7 +158,16 @@ struct CartPoleConfigurationView: View {
                             .disabled(!runner.useSeed || runner.isTraining)
                     }
                     
-                    HStack { Text("Early Stop on Average Reward"); InfoButton(isPresented: $showEarlyStopInfo, title: "Early Stop", description: "Automatically stop training when the moving average reward exceeds the threshold.", icon: "info.circle"); Spacer(); Toggle("", isOn: $runner.earlyStopEnabled).labelsHidden().disabled(runner.isTraining) }
+                    HStack {
+                        Text("Early Stop")
+                            .lineLimit(1)
+                        InfoButton(isPresented: $showEarlyStopInfo, title: "Early Stop", description: "Automatically stop training when the moving average reward exceeds the threshold.", icon: "info.circle")
+                        Spacer()
+                        Toggle("", isOn: $runner.earlyStopEnabled)
+                            .labelsHidden()
+                            .fixedSize()
+                            .disabled(runner.isTraining)
+                    }
                     HStack {
                         Text("Window (episodes)")
                         Spacer()
@@ -228,7 +185,16 @@ struct CartPoleConfigurationView: View {
                             .disabled(!runner.earlyStopEnabled || runner.isTraining)
                     }
                     
-                    HStack { Text("Clip Reward"); InfoButton(isPresented: $showClipInfo, title: "Clip Reward", description: "Clamp rewards into a fixed range to improve stability.", icon: "info.circle"); Spacer(); Toggle("", isOn: $runner.clipReward).labelsHidden().disabled(runner.isTraining) }
+                    HStack {
+                        Text("Clip Reward")
+                            .lineLimit(1)
+                        InfoButton(isPresented: $showClipInfo, title: "Clip Reward", description: "Clamp rewards into a fixed range to improve stability.", icon: "info.circle")
+                        Spacer()
+                        Toggle("", isOn: $runner.clipReward)
+                            .labelsHidden()
+                            .fixedSize()
+                            .disabled(runner.isTraining)
+                    }
                     HStack {
                         Text("Min")
                         Spacer()
@@ -246,22 +212,21 @@ struct CartPoleConfigurationView: View {
                     
                     let gradClipBinding = doubleBinding(for: $runner.gradClipNorm, range: 1...1000, step: 1)
                     VStack(alignment: .leading) {
-                        HStack { Text("Grad Clip Norm").lineLimit(1).minimumScaleFactor(0.9); InfoButton(isPresented: $showGradClipInfo, title: "Gradient Clipping", description: "Clamp the global gradient norm to this maximum to prevent exploding gradients.", icon: "info.circle"); Spacer(); DoubleInputField(value: gradClipBinding, decimals: 0).disabled(runner.isTraining) }
-                        Slider(value: gradClipBinding, in: 1...1000).disabled(runner.isTraining)
+                        HStack {
+                            Text("Grad Clip Norm")
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.9)
+                            InfoButton(isPresented: $showGradClipInfo, title: "Gradient Clipping", description: "Clamp the global gradient norm to this maximum to prevent exploding gradients.", icon: "info.circle")
+                            Spacer()
+                            DoubleInputField(value: gradClipBinding, decimals: 0)
+                                .disabled(runner.isTraining)
+                        }
+                        Slider(value: gradClipBinding, in: 1...1000)
+                            .disabled(runner.isTraining)
                     }
                 }
                 .padding(.top, 6)
             }
-        }
-        .alert("Switch render mode?", isPresented: $showRenderConfirm) {
-            Button("Cancel", role: .cancel) {}
-            Button("Switch", role: .destructive) {
-                runner.stopTraining()
-                runner.renderEnabled = proposedRenderEnabled
-                runner.setupEnvironment()
-            }
-        } message: {
-            Text("This will reset the environment and stop the current run.")
         }
         .padding()
         #if os(iOS)
@@ -281,19 +246,6 @@ struct CartPoleConfigurationView: View {
                     newValue = (newValue / step).rounded() * step
                 }
                 floatBinding.wrappedValue = min(max(newValue, range.lowerBound), range.upperBound)
-            }
-        )
-    }
-
-    private func clampedDoubleBinding(_ binding: Binding<Double>, range: ClosedRange<Double>, step: Double? = nil) -> Binding<Double> {
-        Binding<Double>(
-            get: { min(max(binding.wrappedValue, range.lowerBound), range.upperBound) },
-            set: {
-                var newValue = $0
-                if let step = step {
-                    newValue = (newValue / step).rounded() * step
-                }
-                binding.wrappedValue = min(max(newValue, range.lowerBound), range.upperBound)
             }
         )
     }

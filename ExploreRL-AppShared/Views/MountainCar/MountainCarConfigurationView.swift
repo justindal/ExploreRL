@@ -15,28 +15,6 @@ struct MountainCarConfigurationView: View {
     @State private var showBatchSizeInfo = false
     @State private var showEpsilonMinInfo = false
     
-    @State private var showRenderConfirm = false
-    @State private var proposedRenderEnabled = true
-    
-    private var renderSegment: Binding<Int> {
-        Binding(
-            get: { runner.renderEnabled ? 1 : 0 },
-            set: { newVal in
-                let newEnabled = (newVal == 1)
-                guard newEnabled != runner.renderEnabled else { return }
-                
-                if runner.isTraining {
-                    proposedRenderEnabled = newEnabled
-                    showRenderConfirm = true
-                } else {
-                    runner.stopTraining()
-                    runner.renderEnabled = newEnabled
-                    runner.setupEnvironment()
-                }
-            }
-        )
-    }
-    
     var body: some View {
         VStack(alignment: .leading, spacing: 15) {
             HStack {
@@ -51,61 +29,23 @@ struct MountainCarConfigurationView: View {
                 .buttonStyle(.bordered)
             }
             
-            VStack(alignment: .leading) {
-                Text("Speed & Run Control")
-                    .font(.headline)
-                Picker("Render", selection: renderSegment) {
-                    Text("Off").tag(0)
-                    Text("On").tag(1)
+            SpeedControlSection(
+                renderEnabled: $runner.renderEnabled,
+                targetFPS: $runner.targetFPS,
+                turboMode: $runner.turboMode,
+                isTraining: runner.isTraining,
+                onRenderChange: {
+                    runner.stopTraining()
+                    runner.setupEnvironment()
                 }
-                .pickerStyle(.segmented)
-                HStack(spacing: 6) {
-                    Image(systemName: "info.circle")
-                    Text("Switching render mode resets the environment.")
-                }
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-                if runner.renderEnabled {
-                    Toggle("Turbo Mode", isOn: $runner.turboMode)
-                }
-                if runner.renderEnabled && !runner.turboMode {
-                    let fpsBinding = clampedDoubleBinding($runner.targetFPS, range: 1...120, step: 1)
-                    HStack {
-                        Text("Target FPS")
-                        Spacer()
-                        DoubleInputField(value: fpsBinding, decimals: 0, width: 70)
-                    }
-                    Slider(value: fpsBinding, in: 1...120)
-                }
-                
-                let episodesBinding = Binding<Double>(
-                    get: { Double(runner.episodesPerRun) },
-                    set: { runner.episodesPerRun = max(1, Int($0.rounded())) }
-                )
-                HStack {
-                    Text("Episodes Per Run")
-                    Spacer()
-                    TextField("500", value: $runner.episodesPerRun, formatter: NumberFormatter())
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 90)
-                        .disabled(runner.isTraining)
-                }
-                Slider(value: episodesBinding, in: 10...5000)
-                    .disabled(runner.isTraining)
-                
-                let maxStepsBinding = Binding<Double>(
-                    get: { Double(runner.maxStepsPerEpisode) },
-                    set: { runner.maxStepsPerEpisode = Int($0) }
-                )
-                HStack {
-                    Text("Max Steps / Episode")
-                    Spacer()
-                    Text("\(runner.maxStepsPerEpisode)")
-                        .monospacedDigit()
-                }
-                Slider(value: maxStepsBinding, in: 100...1000, step: 50)
-                    .disabled(runner.isTraining)
-            }
+            )
+            
+            TrainingLimitsSection(
+                episodesPerRun: $runner.episodesPerRun,
+                maxStepsPerEpisode: $runner.maxStepsPerEpisode,
+                isTraining: runner.isTraining,
+                episodesRange: 10...5000
+            )
             
             VStack(alignment: .leading, spacing: 10) {
                 Text("Hyperparameters (DQN)")
@@ -116,7 +56,7 @@ struct MountainCarConfigurationView: View {
                     Group {
                         let lrBinding = doubleBinding(for: $runner.learningRate, range: 0.0001...0.1, step: 0.0001)
                         VStack(alignment: .leading) {
-                            HStack { Text("Learning Rate").lineLimit(1).minimumScaleFactor(0.9); InfoButton(isPresented: $showLearningRateInfo, title: "Learning Rate", description: "Step size for network weight updates.", icon: "bolt.horizontal"); Spacer(); DoubleInputField(value: lrBinding, decimals: 4).disabled(runner.isTraining) }
+                            HStack { Text("Learning Rate").lineLimit(1).minimumScaleFactor(0.9); InfoButton(isPresented: $showLearningRateInfo, title: "Learning Rate", description: "Step size for network weight updates.", icon: "bolt.horizontal"); Spacer(); DoubleInputField(value: lrBinding, decimals: 5).disabled(runner.isTraining) }
                             Slider(value: lrBinding, in: 0.0001...0.1).disabled(runner.isTraining)
                         }
                         
@@ -190,16 +130,6 @@ struct MountainCarConfigurationView: View {
                 EnvironmentInfoRow(label: "Reward", value: "-1 per step")
                 EnvironmentInfoRow(label: "Goal Position", value: "≥ 0.5")
             }
-        }
-        .alert("Switch render mode?", isPresented: $showRenderConfirm) {
-            Button("Cancel", role: .cancel) {}
-            Button("Switch", role: .destructive) {
-                runner.stopTraining()
-                runner.renderEnabled = proposedRenderEnabled
-                runner.setupEnvironment()
-            }
-        } message: {
-            Text("This will reset the environment and stop the current run.")
         }
         .padding()
         #if os(iOS)

@@ -11,25 +11,6 @@ struct FrozenLakeConfigurationView: View {
     @State private var showGammaInfo = false
     @State private var showEpsilonInfo = false
     @State private var showDecayInfo = false
-    @State private var showRenderConfirm = false
-    @State private var proposedRenderEnabled = true
-    
-    private var renderBinding: Binding<Bool> {
-        Binding(
-            get: { runner.renderEnabled },
-            set: { newVal in
-                guard newVal != runner.renderEnabled else { return }
-                
-                if runner.isTraining {
-                    proposedRenderEnabled = newVal
-                    showRenderConfirm = true
-                } else {
-                    runner.renderEnabled = newVal
-                    runner.reset()
-                }
-            }
-        )
-    }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 15) {
@@ -51,7 +32,7 @@ struct FrozenLakeConfigurationView: View {
                     .font(.headline)
                 
                 Picker("Algorithm", selection: $runner.selectedAlgorithm) {
-                    ForEach(RLAlgorithm.allCases) { algo in
+                    ForEach(TabularAlgorithm.allCases) { algo in
                         Text(algo.rawValue).tag(algo)
                     }
                 }
@@ -64,41 +45,16 @@ struct FrozenLakeConfigurationView: View {
             }
             .disabled(runner.isTraining)
             
-            VStack(alignment: .leading) {
-                Text("Speed Control")
-                    .font(.headline)
-                
-                Toggle("Render Environment", isOn: renderBinding)
-                
-                Toggle("Turbo Mode", isOn: $runner.turboMode)
-                    .disabled(!runner.renderEnabled)
-                
-                if !runner.turboMode && runner.renderEnabled {
-                    let fpsBinding = clampedDoubleBinding($runner.targetFPS, range: 1...120, step: 1)
-                    HStack {
-                        Text("Target FPS")
-                        Spacer()
-                        DoubleInputField(value: fpsBinding, decimals: 0, width: 70)
-                    }
-                    Slider(value: fpsBinding, in: 1...120)
-                }
-                
-                if !runner.renderEnabled {
-                    Text("Environment visualization is off. Charts will be shown instead.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .alert("Change Render Mode?", isPresented: $showRenderConfirm) {
-                Button("Cancel", role: .cancel) {}
-                Button("Switch", role: .destructive) {
+            SpeedControlSection(
+                renderEnabled: $runner.renderEnabled,
+                targetFPS: $runner.targetFPS,
+                turboMode: $runner.turboMode,
+                isTraining: runner.isTraining,
+                onRenderChange: {
                     runner.stopTraining()
-                    runner.renderEnabled = proposedRenderEnabled
                     runner.reset()
                 }
-            } message: {
-                Text("This will reset the environment and stop the current training run.")
-            }
+            )
             
             Group {
                 VStack(alignment: .leading) {
@@ -184,30 +140,38 @@ struct FrozenLakeConfigurationView: View {
                     Slider(value: decayBinding, in: 0.9...0.9999)
                 }
                 
-            VStack(alignment: .leading) {
-                Text("Training Limits")
-                    .font(.headline)
+                TrainingLimitsSection(
+                    episodesPerRun: $runner.episodesPerRun,
+                    maxStepsPerEpisode: $runner.maxStepsPerEpisode,
+                    isTraining: runner.isTraining,
+                    episodesRange: 100...10000,
+                    stepsRange: 10...1000
+                )
                 
-                let episodeBinding = clampedIntBinding($runner.episodesPerRun, range: 100...10000)
-                HStack(spacing: 12) {
-                    Text("Episodes per Run")
-                    Spacer()
-                    IntInputField(value: episodeBinding, width: 90)
-                    Stepper("", value: episodeBinding, in: 100...10000, step: 100)
-                        .labelsHidden()
-                }
-                
-                let stepBinding = clampedIntBinding($runner.maxStepsPerEpisode, range: 10...1000)
-                HStack(spacing: 12) {
-                    Text("Max Steps per Episode")
-                    Spacer()
-                    IntInputField(value: stepBinding, width: 90)
-                    Stepper("", value: stepBinding, in: 10...1000, step: 10)
-                        .labelsHidden()
+                DisclosureGroup("Advanced") {
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            Text("Use Seed")
+                            Spacer()
+                            Toggle("", isOn: $runner.useSeed)
+                                .labelsHidden()
+                        }
+                        .fixedSize(horizontal: false, vertical: true)
+                        
+                        HStack {
+                            Text("Seed")
+                            Spacer()
+                            TextField("0", value: $runner.seed, formatter: NumberFormatter())
+                                .textFieldStyle(.roundedBorder)
+                                .frame(width: 90)
+                                .disabled(!runner.useSeed)
+                        }
+                        .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(.top, 8)
                 }
             }
-        }
-        .disabled(runner.isTraining)
+            .disabled(runner.isTraining)
         
         Divider()
         

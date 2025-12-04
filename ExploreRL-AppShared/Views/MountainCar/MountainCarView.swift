@@ -139,22 +139,27 @@ struct MountainCarView: View {
     
     private var regularLayout: some View {
         HStack(spacing: 0) {
-            VStack(spacing: 20) {
-                EnvironmentHeader()
-                EnvironmentCanvas()
-                EnvironmentControls()
-                Spacer()
+            ScrollView {
+                VStack(spacing: 20) {
+                    EnvironmentHeader()
+                    EnvironmentCanvas()
+                    EnvironmentControls()
+                    Spacer()
+                }
+                .padding()
             }
-            .padding()
-            .frame(minWidth: 400)
+            .frame(maxWidth: .infinity)
             
             if showInspector {
-                VStack(spacing: 0) {
-                    InspectorView()
-                }
-                .frame(width: 350)
-                .background(Color.gray.opacity(0.05))
-                .border(Color.gray.opacity(0.2), width: 1)
+                Divider()
+                
+                InspectorView()
+                    .frame(width: 320)
+                    #if os(macOS)
+                    .background(.background)
+                    #else
+                    .background(Color(UIColor.secondarySystemBackground))
+                    #endif
             }
         }
     }
@@ -305,7 +310,6 @@ struct MountainCarView: View {
             .frame(maxWidth: 700)
         }
         .frame(maxWidth: .infinity)
-        .background(Color.gray.opacity(0.1))
         .cornerRadius(12)
     }
     
