@@ -207,6 +207,9 @@ struct SpeedControlSection: View {
     let showTurboMode: Bool
     let onRenderChange: (() -> Void)?
     
+    @State private var showRenderConfirm = false
+    @State private var proposedRenderEnabled = true
+    
     init(
         renderEnabled: Binding<Bool>,
         targetFPS: Binding<Double>,
@@ -224,23 +227,18 @@ struct SpeedControlSection: View {
     }
     
     var body: some View {
-        VStack(alignment: .leading) {
+        VStack(alignment: .leading, spacing: 12) {
             Text("Speed & Run Control")
                 .font(.headline)
             
-            Picker("Render", selection: Binding(
-                get: { renderEnabled ? 1 : 0 },
-                set: { newVal in
-                    let newEnabled = (newVal == 1)
-                    guard newEnabled != renderEnabled else { return }
-                    renderEnabled = newEnabled
-                    onRenderChange?()
+            Toggle("Render Mode", isOn: Binding(
+                get: { renderEnabled },
+                set: { newValue in
+                    guard newValue != renderEnabled else { return }
+                    proposedRenderEnabled = newValue
+                    showRenderConfirm = true
                 }
-            )) {
-                Text("Off").tag(0)
-                Text("On").tag(1)
-            }
-            .pickerStyle(.segmented)
+            ))
             
             HStack(spacing: 6) {
                 Image(systemName: "info.circle")
@@ -263,6 +261,15 @@ struct SpeedControlSection: View {
                 }
                 Slider(value: $targetFPS, in: 1...120, step: 1)
             }
+        }
+        .alert("Switch Render Mode?", isPresented: $showRenderConfirm) {
+            Button("Cancel", role: .cancel) {}
+            Button("Switch", role: .destructive) {
+                renderEnabled = proposedRenderEnabled
+                onRenderChange?()
+            }
+        } message: {
+            Text("This will reset the environment and stop any current training. If you have unsaved progress, save your agent first.")
         }
     }
 }
@@ -293,12 +300,17 @@ struct TrainingLimitsSection: View {
     
     var body: some View {
         VStack(alignment: .leading) {
+            Text("Training Limits")
+                .font(.headline)
+            
             let episodesBinding = Binding<Double>(
                 get: { Double(episodesPerRun) },
                 set: { episodesPerRun = max(1, Int($0.rounded())) }
             )
             HStack {
-                Text("Episodes Per Run")
+                Text("Episodes / Run")
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
                 Spacer()
                 TextField("", value: $episodesPerRun, formatter: NumberFormatter())
                     .textFieldStyle(.roundedBorder)
@@ -313,7 +325,9 @@ struct TrainingLimitsSection: View {
                 set: { maxStepsPerEpisode = Int($0) }
             )
             HStack {
-                Text("Max Steps / Episode")
+                Text("Max Steps / Ep")
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
                 Spacer()
                 Text("\(maxStepsPerEpisode)")
                     .monospacedDigit()
