@@ -15,10 +15,10 @@ import MLXNN
     var currentStep = 0
     var episodeReward: Double = 0.0
     var isTraining = false
-    var renderEnabled: Bool = DQNDefaults.renderEnabled
+    var renderEnabled: Bool = TrainingDefaults.renderEnabled
     var episodeMetrics: [EpisodeMetrics] = []
-    var episodesPerRun: Int = DQNDefaults.episodesPerRun
-    var targetFPS: Double = DQNDefaults.targetFPS
+    var episodesPerRun: Int = TrainingDefaults.episodesPerRun
+    var targetFPS: Double = TrainingDefaults.targetFPS
     
     var loadedAgentId: UUID?
     var loadedAgentName: String?
@@ -55,39 +55,38 @@ import MLXNN
     static var category: EnvironmentCategory { .classicControl }
     
     var totalReward = 0.0
-    var turboMode: Bool = DQNDefaults.turboMode
+    var turboMode: Bool = TrainingDefaults.turboMode
     var movingAverageWindow = 50
     
-    // Hyperparameters
-    var learningRate: Double = DQNDefaults.learningRate
-    var gamma: Double = DQNDefaults.gamma
-    var epsilon: Double = DQNDefaults.epsilon
-    var epsilonDecaySteps: Int = DQNDefaults.epsilonDecaySteps
-    var epsilonMin: Double = DQNDefaults.epsilonMin
-    var batchSize: Int = DQNDefaults.batchSize
-    var tau: Double = DQNDefaults.tau
-    var warmupSteps: Int = DQNDefaults.warmupSteps
-    var gradClipNorm: Double = DQNDefaults.gradClipNorm
+    var learningRate: Double = Double(CartPoleDQN.Defaults.learningRate)
+    var gamma: Double = Double(CartPoleDQN.Defaults.gamma)
+    var epsilon: Double = Double(CartPoleDQN.Defaults.epsilonStart)
+    var epsilonDecaySteps: Int = CartPoleDQN.Defaults.epsilonDecaySteps
+    var epsilonMin: Double = Double(CartPoleDQN.Defaults.epsilonEnd)
+    var batchSize: Int = CartPoleDQN.Defaults.batchSize
+    var tau: Double = Double(CartPoleDQN.Defaults.tau)
+    var warmupSteps: Int = TrainingDefaults.warmupSteps
+    var gradClipNorm: Double = Double(CartPoleDQN.Defaults.gradClipNorm)
     
     // Environment settings
-    var useSeed: Bool = DQNDefaults.useSeed
-    var seed: Int = DQNDefaults.seed
-    var maxStepsPerEpisode: Int = DQNDefaults.maxStepsPerEpisode
+    var useSeed: Bool = TrainingDefaults.useSeed
+    var seed: Int = TrainingDefaults.seed
+    var maxStepsPerEpisode: Int = TrainingDefaults.maxStepsPerEpisode
     
     // Early stopping
-    var earlyStopEnabled: Bool = DQNDefaults.earlyStopEnabled
-    var earlyStopWindow: Int = DQNDefaults.earlyStopWindow
-    var earlyStopRewardThreshold: Double = DQNDefaults.earlyStopRewardThreshold
+    var earlyStopEnabled: Bool = TrainingDefaults.earlyStopEnabled
+    var earlyStopWindow: Int = TrainingDefaults.earlyStopWindow
+    var earlyStopRewardThreshold: Double = 195.0
     
     // Reward clipping
-    var clipReward: Bool = DQNDefaults.clipReward
-    var clipRewardMin: Double = DQNDefaults.clipRewardMin
-    var clipRewardMax: Double = DQNDefaults.clipRewardMax
+    var clipReward: Bool = TrainingDefaults.clipReward
+    var clipRewardMin: Double = TrainingDefaults.clipRewardMin
+    var clipRewardMax: Double = TrainingDefaults.clipRewardMax
     
     private var episodesCompletedInRun: Int = 0
     private var env: (any Env<MLXArray, Int>)?
     private var rngKey: MLXArray
-    private var agent: DQNAgent?
+    private var agent: CartPoleDQN?
     private var totalSteps: Int = 0
     
     
@@ -128,25 +127,17 @@ import MLXNN
             self.rngKey = MLX.key(0)
         }
         
-        if let obsSpace = env.observation_space as? Box,
-           let actSpace = env.action_space as? Discrete {
-            self.agent = DQNAgent(
-                observationSpace: obsSpace,
-                actionSpace: actSpace,
-                hiddenDimensions: 128,
+        self.agent = CartPoleDQN(
                 learningRate: Float(learningRate),
                 gamma: Float(gamma),
-                epsilon: Float(epsilon),
+            epsilonStart: Float(epsilon),
                 epsilonEnd: Float(epsilonMin),
                 epsilonDecaySteps: epsilonDecaySteps,
                 tau: Float(tau),
                 batchSize: batchSize,
-                bufferSize: 10_000,
+            bufferCapacity: 10_000,
                 gradClipNorm: Float(gradClipNorm)
             )
-        } else {
-            self.agent = nil
-        }
         
         episodeMetrics.removeAll()
         totalReward = 0
@@ -180,7 +171,7 @@ import MLXNN
     func reset() {
         stopTraining()
         
-        epsilon = DQNDefaults.epsilon 
+        epsilon = Double(CartPoleDQN.Defaults.epsilonStart)
         loadedAgentId = nil
         loadedAgentName = nil
         hasTrainedSinceLoad = false
@@ -192,29 +183,30 @@ import MLXNN
     }
     
     func resetToDefaults() {
-        learningRate = DQNDefaults.learningRate
-        gamma = DQNDefaults.gamma
-        epsilon = DQNDefaults.epsilon
-        epsilonDecaySteps = DQNDefaults.epsilonDecaySteps
-        epsilonMin = DQNDefaults.epsilonMin
-        batchSize = DQNDefaults.batchSize
-        tau = DQNDefaults.tau
-        warmupSteps = DQNDefaults.warmupSteps
-        renderEnabled = DQNDefaults.renderEnabled
-        episodesPerRun = DQNDefaults.episodesPerRun
+        learningRate = Double(CartPoleDQN.Defaults.learningRate)
+        gamma = Double(CartPoleDQN.Defaults.gamma)
+        epsilon = Double(CartPoleDQN.Defaults.epsilonStart)
+        epsilonDecaySteps = CartPoleDQN.Defaults.epsilonDecaySteps
+        epsilonMin = Double(CartPoleDQN.Defaults.epsilonEnd)
+        batchSize = CartPoleDQN.Defaults.batchSize
+        tau = Double(CartPoleDQN.Defaults.tau)
+        gradClipNorm = Double(CartPoleDQN.Defaults.gradClipNorm)
+        
+        warmupSteps = TrainingDefaults.warmupSteps
+        renderEnabled = TrainingDefaults.renderEnabled
+        episodesPerRun = TrainingDefaults.episodesPerRun
         episodesCompletedInRun = 0
-        useSeed = DQNDefaults.useSeed
-        seed = DQNDefaults.seed
-        maxStepsPerEpisode = DQNDefaults.maxStepsPerEpisode
-        earlyStopEnabled = DQNDefaults.earlyStopEnabled
-        earlyStopWindow = DQNDefaults.earlyStopWindow
-        earlyStopRewardThreshold = DQNDefaults.earlyStopRewardThreshold
-        clipReward = DQNDefaults.clipReward
-        clipRewardMin = DQNDefaults.clipRewardMin
-        clipRewardMax = DQNDefaults.clipRewardMax
-        gradClipNorm = DQNDefaults.gradClipNorm
-        targetFPS = DQNDefaults.targetFPS
-        turboMode = DQNDefaults.turboMode
+        useSeed = TrainingDefaults.useSeed
+        seed = TrainingDefaults.seed
+        maxStepsPerEpisode = TrainingDefaults.maxStepsPerEpisode
+        earlyStopEnabled = TrainingDefaults.earlyStopEnabled
+        earlyStopWindow = TrainingDefaults.earlyStopWindow
+        earlyStopRewardThreshold = 195.0
+        clipReward = TrainingDefaults.clipReward
+        clipRewardMin = TrainingDefaults.clipRewardMin
+        clipRewardMax = TrainingDefaults.clipRewardMax
+        targetFPS = TrainingDefaults.targetFPS
+        turboMode = TrainingDefaults.turboMode
     }
     
     
@@ -363,6 +355,42 @@ import MLXNN
     private func runTrainingLoop() async {
         var lastUIUpdate = Date()
         let uiUpdateInterval: TimeInterval = 1.0 / 30.0 
+        
+        guard var env = self.env, let agent = self.agent else { return }
+        guard let actSpace = env.action_space as? Discrete else { return }
+        
+        // Warmup
+        if warmupSteps > 0 && totalSteps < warmupSteps {
+            var warmupEnv = env
+            let warmupResult = warmupEnv.reset()
+            var warmupState = warmupResult.obs
+            
+            let samplesToCollect = warmupSteps - totalSteps
+            
+            for _ in 0..<samplesToCollect {
+                let randomAction = Int32.random(in: 0..<Int32(actSpace.n))
+                let stepResult = warmupEnv.step(Int(randomAction))
+                
+                agent.store(
+                    state: warmupState,
+                    action: MLXArray([randomAction]).reshaped([1, 1]),
+                    reward: Float(stepResult.reward),
+                    nextState: stepResult.obs,
+                    terminated: stepResult.terminated
+                )
+                
+                warmupState = stepResult.obs
+                totalSteps += 1
+                
+                if stepResult.terminated || stepResult.truncated {
+                    let resetResult = warmupEnv.reset()
+                    warmupState = resetResult.obs
+                }
+            }
+            
+            env = warmupEnv
+            self.env = env
+        }
         
         while isTraining {
             guard var env = self.env, let agent = self.agent else { break }

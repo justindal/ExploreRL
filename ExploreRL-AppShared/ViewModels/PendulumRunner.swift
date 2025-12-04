@@ -14,10 +14,10 @@ import MLXNN
     var currentStep = 0
     var episodeReward: Double = 0.0
     var isTraining = false
-    var renderEnabled: Bool = true
+    var renderEnabled: Bool = TrainingDefaults.renderEnabled
     var episodeMetrics: [EpisodeMetrics] = []
-    var episodesPerRun: Int = 500
-    var targetFPS: Double = 30.0
+    var episodesPerRun: Int = TrainingDefaults.episodesPerRun
+    var targetFPS: Double = TrainingDefaults.targetFPS
     
     var loadedAgentId: UUID?
     var loadedAgentName: String?
@@ -55,22 +55,26 @@ import MLXNN
     
     var isRunning = false
     var totalReward = 0.0
+    var turboMode: Bool = TrainingDefaults.turboMode
     
-    var learningRate: Double = 0.0003
-    var gamma: Double = 0.99
-    var tau: Double = 0.005
-    var alpha: Double = 0.2
-    var batchSize: Int = 256
-    var bufferSize: Int = 100000
-    var warmupSteps: Int = 256
-    var maxStepsPerEpisode: Int = 200
+    var useSeed: Bool = TrainingDefaults.useSeed
+    var seed: Int = TrainingDefaults.seed
+    
+    var learningRate: Double = Double(PendulumSAC.Defaults.learningRate)
+    var gamma: Double = Double(PendulumSAC.Defaults.gamma)
+    var tau: Double = Double(PendulumSAC.Defaults.tau)
+    var alpha: Double = Double(PendulumSAC.Defaults.alpha)
+    var batchSize: Int = PendulumSAC.Defaults.batchSize
+    var bufferSize: Int = PendulumSAC.Defaults.bufferSize
+    var warmupSteps: Int = TrainingDefaults.warmupSteps > 0 ? TrainingDefaults.warmupSteps : PendulumSAC.Defaults.batchSize
+    var maxStepsPerEpisode: Int = TrainingDefaults.maxStepsPerEpisode
     
     var theta: Float = 0.0
     var thetaDot: Float = 0.0
     
     private var env: (any Env<MLXArray, MLXArray>)?
     private var rngKey: MLXArray
-    private var agent: SACAgentVmap?
+    private var agent: PendulumSAC?
     private var totalSteps: Int = 0
     
     
@@ -99,17 +103,18 @@ import MLXNN
         _ = self.env?.reset()
         updateSnapshot()
         
-        if agent == nil, let obsSpace = env?.observation_space as? Box,
-           let actSpace = env?.action_space as? Box {
-            agent = SACAgentVmap(
-                observationSpace: obsSpace,
-                actionSpace: actSpace,
-                hiddenSize: 256,
+        if useSeed {
+            self.rngKey = MLX.key(UInt64(seed))
+        } else {
+            self.rngKey = MLX.key(0)
+        }
+        
+        if agent == nil {
+            agent = PendulumSAC(
                 learningRate: Float(learningRate),
                 gamma: Float(gamma),
                 tau: Float(tau),
                 alpha: Float(alpha),
-                autotune: true,
                 batchSize: batchSize,
                 bufferSize: bufferSize
             )

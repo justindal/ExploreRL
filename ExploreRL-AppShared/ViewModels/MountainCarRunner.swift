@@ -14,10 +14,10 @@ import MLXNN
     var currentStep = 0
     var episodeReward: Double = 0.0
     var isTraining = false
-    var renderEnabled: Bool = true
+    var renderEnabled: Bool = TrainingDefaults.renderEnabled
     var episodeMetrics: [EpisodeMetrics] = []
-    var episodesPerRun: Int = 1000
-    var targetFPS: Double = 30.0
+    var episodesPerRun: Int = TrainingDefaults.episodesPerRun
+    var targetFPS: Double = TrainingDefaults.targetFPS
     
     var loadedAgentId: UUID?
     var loadedAgentName: String?
@@ -37,7 +37,7 @@ import MLXNN
     
     var averageReward: Double {
         guard !episodeMetrics.isEmpty else { return 0 }
-        let recent = episodeMetrics.suffix(50)
+        let recent = episodeMetrics.suffix(movingAverageWindow)
         return recent.map { $0.reward }.reduce(0, +) / Double(recent.count)
     }
     
@@ -55,27 +55,47 @@ import MLXNN
     
     var isRunning = false
     var totalReward = 0.0
-    var turboMode: Bool = false
+    var turboMode: Bool = TrainingDefaults.turboMode
+    var movingAverageWindow = 50
     
-    var learningRate: Double = 0.001
-    var gamma: Double = 0.99
-    var epsilon: Double = 1.0
-    var epsilonDecaySteps: Int = 50000
-    var epsilonMin: Double = 0.01
-    var batchSize: Int = 64
-    var tau: Double = 0.005
-    var warmupSteps: Int = 0
-    var bufferSize: Int = 50000
-    var gradClipNorm: Double = 10.0
+    var learningRate: Double = Double(MountainCarDQN.Defaults.learningRate)
+    var gamma: Double = Double(MountainCarDQN.Defaults.gamma)
+    var epsilon: Double = Double(MountainCarDQN.Defaults.epsilonStart)
+    var epsilonDecaySteps: Int = MountainCarDQN.Defaults.epsilonDecaySteps
+    var epsilonMin: Double = Double(MountainCarDQN.Defaults.epsilonEnd)
+    var batchSize: Int = MountainCarDQN.Defaults.batchSize
+    var tau: Double = Double(MountainCarDQN.Defaults.tau)
+    var warmupSteps: Int = TrainingDefaults.warmupSteps
+    var bufferSize: Int = MountainCarDQN.Defaults.bufferCapacity
+    var gradClipNorm: Double = Double(MountainCarDQN.Defaults.gradClipNorm)
+    
+    var useSeed: Bool = TrainingDefaults.useSeed
+    var seed: Int = TrainingDefaults.seed
     var maxStepsPerEpisode: Int = 200
+    
+    var earlyStopEnabled: Bool = TrainingDefaults.earlyStopEnabled
+    var earlyStopWindow: Int = TrainingDefaults.earlyStopWindow
+    var earlyStopRewardThreshold: Double = -110
+    
+    var clipReward: Bool = TrainingDefaults.clipReward
+    var clipRewardMin: Double = TrainingDefaults.clipRewardMin
+    var clipRewardMax: Double = TrainingDefaults.clipRewardMax
     
     var position: Float = -0.5
     var velocity: Float = 0.0
     
+    private var episodesCompletedInRun: Int = 0
     private var env: (any Env<MLXArray, Int>)?
     private var rngKey: MLXArray
-    private var agent: DQNAgent?
+    private var agent: MountainCarDQN?
     private var totalSteps: Int = 0
+    
+    var successRate: Double {
+        guard !episodeMetrics.isEmpty else { return 0 }
+        let recentEpisodes = episodeMetrics.suffix(movingAverageWindow)
+        let successes = recentEpisodes.filter { $0.success }.count
+        return Double(successes) / Double(recentEpisodes.count)
+    }
     
     
     init() {
@@ -103,28 +123,33 @@ import MLXNN
         _ = self.env?.reset()
         updateSnapshot()
         
-        if agent == nil, let obsSpace = env?.observation_space as? Box,
-           let actSpace = env?.action_space as? Discrete {
-            agent = DQNAgent(
-                observationSpace: obsSpace,
-                actionSpace: actSpace,
-                hiddenDimensions: 128,
+        if useSeed {
+            self.rngKey = MLX.key(UInt64(seed))
+        } else {
+            self.rngKey = MLX.key(0)
+        }
+        
+        if agent == nil {
+            agent = MountainCarDQN(
                 learningRate: Float(learningRate),
                 gamma: Float(gamma),
-                epsilon: Float(epsilon),
+                epsilonStart: Float(epsilon),
                 epsilonEnd: Float(epsilonMin),
                 epsilonDecaySteps: epsilonDecaySteps,
                 tau: Float(tau),
                 batchSize: batchSize,
-                bufferSize: bufferSize,
+                bufferCapacity: bufferSize,
                 gradClipNorm: Float(gradClipNorm)
             )
         }
         
+        episodeMetrics.removeAll()
+        totalReward = 0
         episodeCount = 1
         currentStep = 0
-        totalReward = 0
         episodeReward = 0
+        totalSteps = 0
+        episodesCompletedInRun = 0
     }
     
     private func updateSnapshot() {
@@ -141,7 +166,7 @@ import MLXNN
         agent = nil
         episodeMetrics = []
         totalSteps = 0
-        epsilon = 1.0
+        epsilon = Double(MountainCarDQN.Defaults.epsilonStart)
         loadedAgentId = nil
         loadedAgentName = nil
         hasTrainedSinceLoad = false
@@ -151,15 +176,41 @@ import MLXNN
         setupEnvironment()
     }
     
+    func resetToDefaults() {
+        learningRate = Double(MountainCarDQN.Defaults.learningRate)
+        gamma = Double(MountainCarDQN.Defaults.gamma)
+        epsilon = Double(MountainCarDQN.Defaults.epsilonStart)
+        epsilonDecaySteps = MountainCarDQN.Defaults.epsilonDecaySteps
+        epsilonMin = Double(MountainCarDQN.Defaults.epsilonEnd)
+        batchSize = MountainCarDQN.Defaults.batchSize
+        tau = Double(MountainCarDQN.Defaults.tau)
+        gradClipNorm = Double(MountainCarDQN.Defaults.gradClipNorm)
+        bufferSize = MountainCarDQN.Defaults.bufferCapacity
+        
+        warmupSteps = TrainingDefaults.warmupSteps
+        renderEnabled = TrainingDefaults.renderEnabled
+        episodesPerRun = TrainingDefaults.episodesPerRun
+        episodesCompletedInRun = 0
+        useSeed = TrainingDefaults.useSeed
+        seed = TrainingDefaults.seed
+        maxStepsPerEpisode = 200
+        earlyStopEnabled = TrainingDefaults.earlyStopEnabled
+        earlyStopWindow = TrainingDefaults.earlyStopWindow
+        earlyStopRewardThreshold = -110
+        clipReward = TrainingDefaults.clipReward
+        clipRewardMin = TrainingDefaults.clipRewardMin
+        clipRewardMax = TrainingDefaults.clipRewardMax
+        targetFPS = TrainingDefaults.targetFPS
+        turboMode = TrainingDefaults.turboMode
+    }
+    
     func startTraining() {
         guard !isTraining else { return }
         guard !TrainingState.shared.isTraining else { return }
         
         isTraining = true
         trainingCompletedNormally = false
-        if loadedAgentId != nil {
-            hasTrainedSinceLoad = true
-        }
+        hasTrainedSinceLoad = true
         TrainingState.shared.startTraining(environment: Self.displayName)
         
         Task.detached { [weak self] in
@@ -270,7 +321,6 @@ import MLXNN
         
         agent = nil
         setupEnvironment()
-        
 
         let weightsDict = try AgentStorage.shared.loadNetworkWeights(for: savedAgent)
         
@@ -294,6 +344,7 @@ import MLXNN
         
         episodeMetrics = []
         episodeCount = savedAgent.episodesTrained + 1
+        episodesCompletedInRun = 0
         
         loadedAgentId = savedAgent.id
         loadedAgentName = savedAgent.name
@@ -392,12 +443,43 @@ import MLXNN
             return
         }
         
-        var episodesCompleted = 0
+        // Warmup
+        if warmupSteps > 0 && totalSteps < warmupSteps {
+            var warmupEnv = env
+            let warmupResult = warmupEnv.reset()
+            var warmupState = warmupResult.obs
+            
+            let samplesToCollect = warmupSteps - totalSteps
+            
+            for _ in 0..<samplesToCollect {
+                let randomAction = Int32.random(in: 0..<Int32(actSpace.n))
+                let stepResult = warmupEnv.step(Int(randomAction))
+                
+                dqnAgent.store(
+                    state: warmupState,
+                    action: MLXArray([randomAction]).reshaped([1, 1]),
+                    reward: Float(stepResult.reward),
+                    nextState: stepResult.obs,
+                    terminated: stepResult.terminated
+                )
+                
+                warmupState = stepResult.obs
+                totalSteps += 1
+                
+                if stepResult.terminated || stepResult.truncated {
+                    let resetResult = warmupEnv.reset()
+                    warmupState = resetResult.obs
+                }
+            }
+            
+            env = warmupEnv
+            self.env = env
+        }
         
         var lastUIUpdate = Date()
         let uiUpdateInterval: TimeInterval = 1.0 / 30.0
         
-        while isTraining && episodesCompleted < episodesPerRun {
+        while isTraining && episodesCompletedInRun < episodesPerRun {
             let result = env.reset()
             var state = result.obs
             self.env = env
@@ -444,10 +526,12 @@ import MLXNN
                     reward += 100.0
                 }
                 
+                let usedReward = clipReward ? min(max(Double(reward), clipRewardMin), clipRewardMax) : Double(reward)
+                
                 dqnAgent.store(
                     state: state,
                     action: actionArray,
-                    reward: reward,
+                    reward: Float(usedReward),
                     nextState: nextState,
                     terminated: terminated
                 )
@@ -511,13 +595,13 @@ import MLXNN
                 }
             }
             
-            episodesCompleted += 1
+            episodesCompletedInRun += 1
             
             let avgLoss = lossCount > 0 ? totalLoss / Double(lossCount) : nil
             let avgMaxQ = lossCount > 0 ? totalMeanQ / Double(lossCount) : 0.0
             let avgGradNorm = lossCount > 0 ? totalGradNorm / Double(lossCount) : nil
             let avgTdError = lossCount > 0 ? totalTdError / Double(lossCount) : 0.0
-            let recentRewards = episodeMetrics.suffix(50).map { $0.reward }
+            let recentRewards = episodeMetrics.suffix(movingAverageWindow).map { $0.reward }
             let movingAvg = recentRewards.isEmpty ? episodeRewardLocal : recentRewards.reduce(0, +) / Double(recentRewards.count)
             
             let completedEpisodeNumber = await MainActor.run { loadedEpisodeCount + episodeMetrics.count + 1 }
@@ -549,6 +633,26 @@ import MLXNN
                 if !self.renderEnabled {
                     self.updateSnapshot()
                 }
+            }
+            
+            if earlyStopEnabled {
+                let window = max(1, earlyStopWindow)
+                let recent = self.episodeMetrics.suffix(window)
+                if !recent.isEmpty {
+                    let avg = recent.map { $0.reward }.reduce(0, +) / Double(recent.count)
+                    if avg >= earlyStopRewardThreshold {
+                        await MainActor.run {
+                            self.trainingCompletedNormally = true
+                            self.isTraining = false
+                            TrainingState.shared.stopTraining()
+                        }
+                        break
+                    }
+                }
+            }
+            
+            if turboMode {
+                await Task.yield()
             }
         }
         

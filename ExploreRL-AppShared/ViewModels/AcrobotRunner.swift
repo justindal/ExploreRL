@@ -15,10 +15,10 @@ import MLXNN
     var currentStep = 0
     var episodeReward: Double = 0.0
     var isTraining = false
-    var renderEnabled: Bool = DQNDefaults.renderEnabled
+    var renderEnabled: Bool = TrainingDefaults.renderEnabled
     var episodeMetrics: [EpisodeMetrics] = []
-    var episodesPerRun: Int = DQNDefaults.episodesPerRun
-    var targetFPS: Double = DQNDefaults.targetFPS
+    var episodesPerRun: Int = TrainingDefaults.episodesPerRun
+    var targetFPS: Double = TrainingDefaults.targetFPS
     
     var loadedAgentId: UUID?
     var loadedAgentName: String?
@@ -55,39 +55,38 @@ import MLXNN
     static var category: EnvironmentCategory { .classicControl }
     
     var totalReward = 0.0
-    var turboMode: Bool = DQNDefaults.turboMode
+    var turboMode: Bool = TrainingDefaults.turboMode
     var movingAverageWindow = 50
     
-    // Hyperparameters
-    var learningRate: Double = DQNDefaults.learningRate
-    var gamma: Double = DQNDefaults.gamma
-    var epsilon: Double = DQNDefaults.epsilon
-    var epsilonDecaySteps: Int = DQNDefaults.epsilonDecaySteps
-    var epsilonMin: Double = DQNDefaults.epsilonMin
-    var batchSize: Int = DQNDefaults.batchSize
-    var tau: Double = DQNDefaults.tau
-    var warmupSteps: Int = DQNDefaults.warmupSteps
-    var gradClipNorm: Double = DQNDefaults.gradClipNorm
+    var learningRate: Double = Double(AcrobotDQN.Defaults.learningRate)
+    var gamma: Double = Double(AcrobotDQN.Defaults.gamma)
+    var epsilon: Double = Double(AcrobotDQN.Defaults.epsilonStart)
+    var epsilonDecaySteps: Int = AcrobotDQN.Defaults.epsilonDecaySteps
+    var epsilonMin: Double = Double(AcrobotDQN.Defaults.epsilonEnd)
+    var batchSize: Int = AcrobotDQN.Defaults.batchSize
+    var tau: Double = Double(AcrobotDQN.Defaults.tau)
+    var warmupSteps: Int = TrainingDefaults.warmupSteps
+    var gradClipNorm: Double = Double(AcrobotDQN.Defaults.gradClipNorm)
     
     // Environment settings
-    var useSeed: Bool = DQNDefaults.useSeed
-    var seed: Int = DQNDefaults.seed
+    var useSeed: Bool = TrainingDefaults.useSeed
+    var seed: Int = TrainingDefaults.seed
     var maxStepsPerEpisode: Int = 500
     
     // Early stopping
-    var earlyStopEnabled: Bool = DQNDefaults.earlyStopEnabled
-    var earlyStopWindow: Int = DQNDefaults.earlyStopWindow
+    var earlyStopEnabled: Bool = TrainingDefaults.earlyStopEnabled
+    var earlyStopWindow: Int = TrainingDefaults.earlyStopWindow
     var earlyStopRewardThreshold: Double = -100
     
     // Reward clipping
-    var clipReward: Bool = DQNDefaults.clipReward
-    var clipRewardMin: Double = DQNDefaults.clipRewardMin
-    var clipRewardMax: Double = DQNDefaults.clipRewardMax
+    var clipReward: Bool = TrainingDefaults.clipReward
+    var clipRewardMin: Double = TrainingDefaults.clipRewardMin
+    var clipRewardMax: Double = TrainingDefaults.clipRewardMax
     
     private var episodesCompletedInRun: Int = 0
     private var env: (any Env<MLXArray, Int>)?
     private var rngKey: MLXArray
-    private var agent: DQNAgent?
+    private var agent: AcrobotDQN?
     private var totalSteps: Int = 0
     
     
@@ -128,25 +127,17 @@ import MLXNN
             self.rngKey = MLX.key(0)
         }
         
-        if let obsSpace = env.observation_space as? Box,
-           let actSpace = env.action_space as? Discrete {
-            self.agent = DQNAgent(
-                observationSpace: obsSpace,
-                actionSpace: actSpace,
-                hiddenDimensions: 128,
+        self.agent = AcrobotDQN(
                 learningRate: Float(learningRate),
                 gamma: Float(gamma),
-                epsilon: Float(epsilon),
+            epsilonStart: Float(epsilon),
                 epsilonEnd: Float(epsilonMin),
                 epsilonDecaySteps: epsilonDecaySteps,
                 tau: Float(tau),
                 batchSize: batchSize,
-                bufferSize: 10_000,
+            bufferCapacity: 10_000,
                 gradClipNorm: Float(gradClipNorm)
             )
-        } else {
-            self.agent = nil
-        }
         
         episodeMetrics.removeAll()
         totalReward = 0
@@ -180,7 +171,7 @@ import MLXNN
     func reset() {
         stopTraining()
         
-        epsilon = DQNDefaults.epsilon 
+        epsilon = Double(AcrobotDQN.Defaults.epsilonStart)
         loadedAgentId = nil
         loadedAgentName = nil
         hasTrainedSinceLoad = false
@@ -192,29 +183,30 @@ import MLXNN
     }
     
     func resetToDefaults() {
-        learningRate = DQNDefaults.learningRate
-        gamma = DQNDefaults.gamma
-        epsilon = DQNDefaults.epsilon
-        epsilonDecaySteps = DQNDefaults.epsilonDecaySteps
-        epsilonMin = DQNDefaults.epsilonMin
-        batchSize = DQNDefaults.batchSize
-        tau = DQNDefaults.tau
-        warmupSteps = DQNDefaults.warmupSteps
-        renderEnabled = DQNDefaults.renderEnabled
-        episodesPerRun = DQNDefaults.episodesPerRun
+        learningRate = Double(AcrobotDQN.Defaults.learningRate)
+        gamma = Double(AcrobotDQN.Defaults.gamma)
+        epsilon = Double(AcrobotDQN.Defaults.epsilonStart)
+        epsilonDecaySteps = AcrobotDQN.Defaults.epsilonDecaySteps
+        epsilonMin = Double(AcrobotDQN.Defaults.epsilonEnd)
+        batchSize = AcrobotDQN.Defaults.batchSize
+        tau = Double(AcrobotDQN.Defaults.tau)
+        gradClipNorm = Double(AcrobotDQN.Defaults.gradClipNorm)
+        
+        warmupSteps = TrainingDefaults.warmupSteps
+        renderEnabled = TrainingDefaults.renderEnabled
+        episodesPerRun = TrainingDefaults.episodesPerRun
         episodesCompletedInRun = 0
-        useSeed = DQNDefaults.useSeed
-        seed = DQNDefaults.seed
+        useSeed = TrainingDefaults.useSeed
+        seed = TrainingDefaults.seed
         maxStepsPerEpisode = 500
-        earlyStopEnabled = DQNDefaults.earlyStopEnabled
-        earlyStopWindow = DQNDefaults.earlyStopWindow
+        earlyStopEnabled = TrainingDefaults.earlyStopEnabled
+        earlyStopWindow = TrainingDefaults.earlyStopWindow
         earlyStopRewardThreshold = -100
-        clipReward = DQNDefaults.clipReward
-        clipRewardMin = DQNDefaults.clipRewardMin
-        clipRewardMax = DQNDefaults.clipRewardMax
-        gradClipNorm = DQNDefaults.gradClipNorm
-        targetFPS = DQNDefaults.targetFPS
-        turboMode = DQNDefaults.turboMode
+        clipReward = TrainingDefaults.clipReward
+        clipRewardMin = TrainingDefaults.clipRewardMin
+        clipRewardMax = TrainingDefaults.clipRewardMax
+        targetFPS = TrainingDefaults.targetFPS
+        turboMode = TrainingDefaults.turboMode
     }
     
     
@@ -363,6 +355,41 @@ import MLXNN
     private func runTrainingLoop() async {
         var lastUIUpdate = Date()
         let uiUpdateInterval: TimeInterval = 1.0 / 30.0 
+        
+        guard var env = self.env, let agent = self.agent else { return }
+        guard let actSpace = env.action_space as? Discrete else { return }
+        
+        if warmupSteps > 0 && totalSteps < warmupSteps {
+            var warmupEnv = env
+            let warmupResult = warmupEnv.reset()
+            var warmupState = warmupResult.obs
+            
+            let samplesToCollect = warmupSteps - totalSteps
+            
+            for _ in 0..<samplesToCollect {
+                let randomAction = Int32.random(in: 0..<Int32(actSpace.n))
+                let stepResult = warmupEnv.step(Int(randomAction))
+                
+                agent.store(
+                    state: warmupState,
+                    action: MLXArray([randomAction]).reshaped([1, 1]),
+                    reward: Float(stepResult.reward),
+                    nextState: stepResult.obs,
+                    terminated: stepResult.terminated
+                )
+                
+                warmupState = stepResult.obs
+                totalSteps += 1
+                
+                if stepResult.terminated || stepResult.truncated {
+                    let resetResult = warmupEnv.reset()
+                    warmupState = resetResult.obs
+                }
+            }
+            
+            env = warmupEnv
+            self.env = env
+        }
         
         while isTraining {
             guard var env = self.env, let agent = self.agent else { break }

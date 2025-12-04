@@ -13,10 +13,10 @@ import MLX
     var currentStep = 0
     var episodeReward: Double = 0.0
     var isTraining = false
-    var renderEnabled: Bool = true
+    var renderEnabled: Bool = TrainingDefaults.renderEnabled
     var episodeMetrics: [EpisodeMetrics] = []
-    var episodesPerRun: Int = 2000
-    var targetFPS: Double = 60.0
+    var episodesPerRun: Int = TrainingDefaults.episodesPerRun
+    var targetFPS: Double = TrainingDefaults.targetFPS
     
     var loadedAgentId: UUID?
     var loadedAgentName: String?
@@ -55,7 +55,10 @@ import MLX
     var currentPolicy: [Int]?
     var totalReward = 0.0
     var currentMap: [String] = []
-    var turboMode: Bool = false
+    var turboMode: Bool = TrainingDefaults.turboMode
+    
+    var useSeed: Bool = TrainingDefaults.useSeed
+    var seed: Int = TrainingDefaults.seed
     var mapName: String = "4x4"
     var customMapSize: Int = 8
     var isSlippery: Bool = false
@@ -63,7 +66,7 @@ import MLX
     var maxStepsPerEpisode: Int = 100
     var movingAverageWindow = 100
     
-    var selectedAlgorithm: RLAlgorithm = .qLearning {
+    var selectedAlgorithm: TabularAlgorithm = .qLearning {
         didSet {
             guard !isLoadingAgent else { return }
             resetToDefaults()
@@ -152,7 +155,11 @@ import MLX
         kwargs["desc"] = desc
         self.currentMap = desc
         
-        self.rngKey = MLX.key(UInt64(Date().timeIntervalSince1970))
+        if useSeed {
+            self.rngKey = MLX.key(UInt64(seed))
+        } else {
+            self.rngKey = MLX.key(UInt64(Date().timeIntervalSince1970))
+        }
         
         guard let madeEnv = Gymnazo.make(
             "FrozenLake-v1",
@@ -342,7 +349,7 @@ import MLX
         isLoadingAgent = true
         defer { isLoadingAgent = false }
         
-        if let algorithm = RLAlgorithm(rawValue: savedAgent.algorithmType) {
+        if let algorithm = TabularAlgorithm(rawValue: savedAgent.algorithmType) {
             selectedAlgorithm = algorithm
         }
         
