@@ -36,27 +36,27 @@ import MLXNN
     // CartPole
     var cartPoleSnapshot: CartPoleSnapshot?
     private var cartPoleEnv: (any Env<MLXArray, Int>)?
-    private var cartPoleAgent: DQNAgent?
+    private var cartPoleAgent: CartPoleDQN?
     
     // MountainCar
     var mountainCarSnapshot: MountainCarSnapshot?
     private var mountainCarEnv: (any Env<MLXArray, Int>)?
-    private var mountainCarAgent: DQNAgent?
+    private var mountainCarAgent: MountainCarDQN?
     
     // MountainCarContinuous
     var mountainCarContinuousSnapshot: MountainCarSnapshot?
     private var mountainCarContinuousEnv: (any Env<MLXArray, MLXArray>)?
-    private var mountainCarContinuousAgent: SACAgentVmap?
+    private var mountainCarContinuousAgent: MountainCarContinuousSAC?
     
     // Acrobot
     var acrobotSnapshot: AcrobotSnapshot?
     private var acrobotEnv: (any Env<MLXArray, Int>)?
-    private var acrobotAgent: DQNAgent?
+    private var acrobotAgent: AcrobotDQN?
     
     // Pendulum
     var pendulumSnapshot: PendulumSnapshot?
     private var pendulumEnv: (any Env<MLXArray, MLXArray>)?
-    private var pendulumAgent: SACAgentVmap?
+    private var pendulumAgent: PendulumSAC?
     
     private var rngKey: MLXArray = MLX.key(0)
     
@@ -171,23 +171,15 @@ import MLXNN
         _ = env.reset()
         cartPoleEnv = env
         
-        guard let obsSpace = env.observation_space as? Box,
-              let actSpace = env.action_space as? Discrete else {
-            throw AgentStorageError.dataCorrupted
-        }
-        
-        let dqnAgent = DQNAgent(
-            observationSpace: obsSpace,
-            actionSpace: actSpace,
-            hiddenDimensions: 128,
+        let dqnAgent = CartPoleDQN(
             learningRate: 0,
             gamma: 0.99,
-            epsilon: 0,
+            epsilonStart: 0,
             epsilonEnd: 0,
             epsilonDecaySteps: 1,
             tau: 0,
             batchSize: 64,
-            bufferSize: 1000,
+            bufferCapacity: 1000,
             gradClipNorm: 100
         )
         
@@ -223,23 +215,15 @@ import MLXNN
         _ = env.reset()
         mountainCarEnv = env
         
-        guard let obsSpace = env.observation_space as? Box,
-              let actSpace = env.action_space as? Discrete else {
-            throw AgentStorageError.dataCorrupted
-        }
-        
-        let dqnAgent = DQNAgent(
-            observationSpace: obsSpace,
-            actionSpace: actSpace,
-            hiddenDimensions: 128,
+        let dqnAgent = MountainCarDQN(
             learningRate: 0,
             gamma: 0.99,
-            epsilon: 0,
+            epsilonStart: 0,
             epsilonEnd: 0,
             epsilonDecaySteps: 1,
             tau: 0,
             batchSize: 64,
-            bufferSize: 1000,
+            bufferCapacity: 1000,
             gradClipNorm: 100
         )
         
@@ -275,20 +259,11 @@ import MLXNN
         _ = env.reset()
         mountainCarContinuousEnv = env
         
-        guard let obsSpace = env.observation_space as? Box,
-              let actSpace = env.action_space as? Box else {
-            throw AgentStorageError.dataCorrupted
-        }
-        
-        let sacAgent = SACAgentVmap(
-            observationSpace: obsSpace,
-            actionSpace: actSpace,
-            hiddenSize: 256,
+        let sacAgent = MountainCarContinuousSAC(
             learningRate: 0,
             gamma: 0.99,
             tau: 0.005,
             alpha: Float(agent.finalEpsilon),
-            autotune: false,
             batchSize: 256,
             bufferSize: 1000
         )
@@ -341,23 +316,15 @@ import MLXNN
         _ = env.reset()
         acrobotEnv = env
         
-        guard let obsSpace = env.observation_space as? Box,
-              let actSpace = env.action_space as? Discrete else {
-            throw AgentStorageError.dataCorrupted
-        }
-        
-        let dqnAgent = DQNAgent(
-            observationSpace: obsSpace,
-            actionSpace: actSpace,
-            hiddenDimensions: 128,
+        let dqnAgent = AcrobotDQN(
             learningRate: 0,
             gamma: 0.99,
-            epsilon: 0,
+            epsilonStart: 0,
             epsilonEnd: 0,
             epsilonDecaySteps: 1,
             tau: 0,
             batchSize: 64,
-            bufferSize: 1000,
+            bufferCapacity: 1000,
             gradClipNorm: 100
         )
         
@@ -393,20 +360,11 @@ import MLXNN
         _ = env.reset()
         pendulumEnv = env
         
-        guard let obsSpace = env.observation_space as? Box,
-              let actSpace = env.action_space as? Box else {
-            throw AgentStorageError.dataCorrupted
-        }
-        
-        let sacAgent = SACAgentVmap(
-            observationSpace: obsSpace,
-            actionSpace: actSpace,
-            hiddenSize: 256,
+        let sacAgent = PendulumSAC(
             learningRate: 0,
             gamma: 0.99,
             tau: 0.005,
             alpha: Float(agent.finalEpsilon),
-            autotune: false,
             batchSize: 256,
             bufferSize: 1000
         )
