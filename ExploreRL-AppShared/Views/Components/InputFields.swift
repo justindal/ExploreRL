@@ -10,7 +10,7 @@ struct DoubleInputField: View {
     var width: CGFloat = 80
     
     private var format: FloatingPointFormatStyle<Double> {
-        FloatingPointFormatStyle<Double>.number.precision(.fractionLength(decimals))
+        FloatingPointFormatStyle<Double>.number.precision(.fractionLength(0...decimals))
     }
     
     var body: some View {
