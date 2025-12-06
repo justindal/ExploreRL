@@ -122,6 +122,18 @@ struct EvaluationContentView: View {
                             .aspectRatio(1.0, contentMode: .fit)
                             .cornerRadius(12)
                     }
+                case .lunarLander:
+                    if let snapshot = runner.lunarLanderSnapshot {
+                        LunarLanderViewAdapter(snapshot: snapshot)
+                            .aspectRatio(600/400, contentMode: .fit)
+                            .cornerRadius(12)
+                    }
+                case .lunarLanderContinuous:
+                    if let snapshot = runner.lunarLanderContinuousSnapshot {
+                        LunarLanderContinuousViewAdapter(snapshot: snapshot)
+                            .aspectRatio(600/400, contentMode: .fit)
+                            .cornerRadius(12)
+                    }
                 }
             }
         }

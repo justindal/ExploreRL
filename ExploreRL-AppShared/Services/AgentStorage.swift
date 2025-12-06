@@ -490,7 +490,7 @@ import Gymnazo
     }
     
     func loadNetworkWeights(for agent: SavedAgent) throws -> [String: MLXArray] {
-        guard agent.environmentType == .cartPole || agent.environmentType == .mountainCar || agent.environmentType == .acrobot else {
+        guard agent.environmentType == .cartPole || agent.environmentType == .mountainCar || agent.environmentType == .acrobot || agent.environmentType == .lunarLander else {
             throw AgentStorageError.wrongEnvironmentType
         }
         let dataPath = agentsDirectory.appendingPathComponent(agent.agentDataPath)
@@ -866,6 +866,247 @@ import Gymnazo
     
     func loadPendulumWeights(for agent: SavedAgent) throws -> [String: [String: MLXArray]] {
         guard agent.environmentType == .pendulum else {
+            throw AgentStorageError.wrongEnvironmentType
+        }
+        let dataPath = agentsDirectory.appendingPathComponent(agent.agentDataPath)
+        let allWeights = try MLX.loadArrays(url: dataPath)
+        
+        var actorWeights: [String: MLXArray] = [:]
+        var qEnsembleWeights: [String: MLXArray] = [:]
+        
+        for (key, value) in allWeights {
+            if key.hasPrefix("actor.") {
+                let strippedKey = String(key.dropFirst("actor.".count))
+                actorWeights[strippedKey] = value
+            } else if key.hasPrefix("qEnsemble.") {
+                let strippedKey = String(key.dropFirst("qEnsemble.".count))
+                qEnsembleWeights[strippedKey] = value
+            }
+        }
+        
+        return [
+            "actor": actorWeights,
+            "qEnsemble": qEnsembleWeights
+        ]
+    }
+    
+    
+    // MARK: - LunarLander (DQN)
+    
+    func saveLunarLanderAgent(
+        name: String,
+        policyNetwork: Module,
+        episodesTrained: Int,
+        epsilon: Double,
+        bestReward: Double,
+        averageReward: Double,
+        hyperparameters: [String: Double],
+        environmentConfig: [String: String]
+    ) throws -> SavedAgent {
+        let id = UUID()
+        let now = Date()
+        let dataFileName = "\(id.uuidString)_lunarlander_weights.safetensors"
+        let dataPath = agentsDirectory.appendingPathComponent(dataFileName)
+        
+        let weights = policyNetwork.parameters()
+        let flatWeights = weights.flattened()
+        var weightsDict: [String: MLXArray] = [:]
+        for (key, value) in flatWeights {
+            weightsDict[key] = value
+        }
+        try MLX.save(arrays: weightsDict, url: dataPath)
+        
+        let agent = SavedAgent(
+            id: id,
+            name: name,
+            environmentType: .lunarLander,
+            algorithmType: "DQN",
+            createdAt: now,
+            updatedAt: now,
+            episodesTrained: episodesTrained,
+            finalEpsilon: epsilon,
+            bestReward: bestReward,
+            averageReward: averageReward,
+            successRate: nil,
+            hyperparameters: hyperparameters,
+            environmentConfig: environmentConfig,
+            agentDataPath: dataFileName
+        )
+        
+        let metadataPath = agentsDirectory.appendingPathComponent("\(id.uuidString)_metadata.json")
+        let data = try encoder.encode(agent)
+        try data.write(to: metadataPath)
+        
+        loadAgentList()
+        return agent
+    }
+    
+    func updateLunarLanderAgent(
+        id: UUID,
+        newName: String,
+        policyNetwork: Module,
+        episodesTrained: Int,
+        epsilon: Double,
+        bestReward: Double,
+        averageReward: Double,
+        hyperparameters: [String: Double]
+    ) throws {
+        let agent = try loadAgent(id: id)
+        
+        let dataPath = agentsDirectory.appendingPathComponent(agent.agentDataPath)
+        let weights = policyNetwork.parameters()
+        let flatWeights = weights.flattened()
+        var weightsDict: [String: MLXArray] = [:]
+        for (key, value) in flatWeights {
+            weightsDict[key] = value
+        }
+        try MLX.save(arrays: weightsDict, url: dataPath)
+        
+        let updatedAgent = SavedAgent(
+            id: agent.id,
+            name: newName,
+            environmentType: agent.environmentType,
+            algorithmType: agent.algorithmType,
+            createdAt: agent.createdAt,
+            updatedAt: Date(),
+            episodesTrained: episodesTrained,
+            finalEpsilon: epsilon,
+            bestReward: bestReward,
+            averageReward: averageReward,
+            successRate: nil,
+            hyperparameters: hyperparameters,
+            environmentConfig: agent.environmentConfig,
+            agentDataPath: agent.agentDataPath
+        )
+        
+        let metadataPath = agentsDirectory.appendingPathComponent("\(id.uuidString)_metadata.json")
+        let data = try encoder.encode(updatedAgent)
+        try data.write(to: metadataPath)
+        
+        loadAgentList()
+    }
+    
+    func loadLunarLanderWeights(for agent: SavedAgent) throws -> [String: MLXArray] {
+        guard agent.environmentType == .lunarLander else {
+            throw AgentStorageError.wrongEnvironmentType
+        }
+        let dataPath = agentsDirectory.appendingPathComponent(agent.agentDataPath)
+        return try MLX.loadArrays(url: dataPath)
+    }
+    
+    
+    // MARK: - LunarLander Continuous (SAC)
+    
+    func saveLunarLanderContinuousAgent(
+        name: String,
+        actor: Module,
+        qEnsemble: Module,
+        episodesTrained: Int,
+        alpha: Double,
+        bestReward: Double,
+        averageReward: Double,
+        hyperparameters: [String: Double],
+        environmentConfig: [String: String]
+    ) throws -> SavedAgent {
+        let id = UUID()
+        let now = Date()
+        let dataFileName = "\(id.uuidString)_lunarlander_cont_sac_weights.safetensors"
+        let dataPath = agentsDirectory.appendingPathComponent(dataFileName)
+        
+        var combinedWeights: [String: MLXArray] = [:]
+        
+        let actorWeights = actor.parameters().flattened()
+        for (key, value) in actorWeights {
+            combinedWeights["actor.\(key)"] = value
+        }
+        
+        let qEnsembleWeights = qEnsemble.parameters().flattened()
+        for (key, value) in qEnsembleWeights {
+            combinedWeights["qEnsemble.\(key)"] = value
+        }
+        
+        try MLX.save(arrays: combinedWeights, url: dataPath)
+        
+        let agent = SavedAgent(
+            id: id,
+            name: name,
+            environmentType: .lunarLanderContinuous,
+            algorithmType: "SAC",
+            createdAt: now,
+            updatedAt: now,
+            episodesTrained: episodesTrained,
+            finalEpsilon: alpha,
+            bestReward: bestReward,
+            averageReward: averageReward,
+            successRate: nil,
+            hyperparameters: hyperparameters,
+            environmentConfig: environmentConfig,
+            agentDataPath: dataFileName
+        )
+        
+        let metadataPath = agentsDirectory.appendingPathComponent("\(id.uuidString)_metadata.json")
+        let data = try encoder.encode(agent)
+        try data.write(to: metadataPath)
+        
+        loadAgentList()
+        return agent
+    }
+    
+    func updateLunarLanderContinuousAgent(
+        id: UUID,
+        newName: String,
+        actor: Module,
+        qEnsemble: Module,
+        episodesTrained: Int,
+        alpha: Double,
+        bestReward: Double,
+        averageReward: Double,
+        hyperparameters: [String: Double]
+    ) throws {
+        let agent = try loadAgent(id: id)
+        
+        let dataPath = agentsDirectory.appendingPathComponent(agent.agentDataPath)
+        
+        var combinedWeights: [String: MLXArray] = [:]
+        
+        let actorWeights = actor.parameters().flattened()
+        for (key, value) in actorWeights {
+            combinedWeights["actor.\(key)"] = value
+        }
+        
+        let qEnsembleWeights = qEnsemble.parameters().flattened()
+        for (key, value) in qEnsembleWeights {
+            combinedWeights["qEnsemble.\(key)"] = value
+        }
+        
+        try MLX.save(arrays: combinedWeights, url: dataPath)
+        
+        let updatedAgent = SavedAgent(
+            id: agent.id,
+            name: newName,
+            environmentType: agent.environmentType,
+            algorithmType: agent.algorithmType,
+            createdAt: agent.createdAt,
+            updatedAt: Date(),
+            episodesTrained: episodesTrained,
+            finalEpsilon: alpha,
+            bestReward: bestReward,
+            averageReward: averageReward,
+            successRate: nil,
+            hyperparameters: hyperparameters,
+            environmentConfig: agent.environmentConfig,
+            agentDataPath: agent.agentDataPath
+        )
+        
+        let metadataPath = agentsDirectory.appendingPathComponent("\(id.uuidString)_metadata.json")
+        let data = try encoder.encode(updatedAgent)
+        try data.write(to: metadataPath)
+        
+        loadAgentList()
+    }
+    
+    func loadLunarLanderContinuousWeights(for agent: SavedAgent) throws -> [String: [String: MLXArray]] {
+        guard agent.environmentType == .lunarLanderContinuous else {
             throw AgentStorageError.wrongEnvironmentType
         }
         let dataPath = agentsDirectory.appendingPathComponent(agent.agentDataPath)

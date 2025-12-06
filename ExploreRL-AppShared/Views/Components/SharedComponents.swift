@@ -239,13 +239,15 @@ extension EnvironmentType {
         case .mountainCarContinuous: return .purple
         case .acrobot: return .red
         case .pendulum: return .indigo
+        case .lunarLander: return .blue
+        case .lunarLanderContinuous: return .teal
         }
     }
     
     var accessibleForeground: Color {
         switch self {
         case .frozenLake, .mountainCar: return .black
-        case .cartPole, .mountainCarContinuous, .acrobot, .pendulum: return .white
+        case .cartPole, .mountainCarContinuous, .acrobot, .pendulum, .lunarLander, .lunarLanderContinuous: return .white
         }
     }
 }
