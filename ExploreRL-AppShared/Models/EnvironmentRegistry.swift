@@ -80,6 +80,26 @@ struct EnvironmentRegistry {
             accentColor: .indigo,
             category: .classicControl,
             description: "Swing up and balance an inverted pendulum using continuous torque."
+        ),
+        
+        // Box2D
+        EnvironmentInfo(
+            type: .lunarLander,
+            displayName: "Lunar Lander",
+            algorithmName: "DQN",
+            icon: "airplane",
+            accentColor: .blue,
+            category: .box2d,
+            description: "Land a rocket on the moon by controlling main and side thrusters."
+        ),
+        EnvironmentInfo(
+            type: .lunarLanderContinuous,
+            displayName: "Lunar Lander Continuous",
+            algorithmName: "SAC",
+            icon: "airplane.circle.fill",
+            accentColor: .teal,
+            category: .box2d,
+            description: "Land a rocket with continuous throttle control for main and side engines."
         )
     ]
     
@@ -118,7 +138,9 @@ extension EnvironmentRegistry {
         mountainCarRunner: MountainCarRunner,
         mountainCarContinuousRunner: MountainCarContinuousRunner,
         acrobotRunner: AcrobotRunner,
-        pendulumRunner: PendulumRunner
+        pendulumRunner: PendulumRunner,
+        lunarLanderRunner: LunarLanderRunner,
+        lunarLanderContinuousRunner: LunarLanderContinuousRunner
     ) -> some View {
         switch type {
         case .frozenLake:
@@ -133,6 +155,10 @@ extension EnvironmentRegistry {
             AcrobotView(runner: acrobotRunner)
         case .pendulum:
             PendulumView(runner: pendulumRunner)
+        case .lunarLander:
+            LunarLanderView(runner: lunarLanderRunner)
+        case .lunarLanderContinuous:
+            LunarLanderContinuousView(runner: lunarLanderContinuousRunner)
         }
     }
 }

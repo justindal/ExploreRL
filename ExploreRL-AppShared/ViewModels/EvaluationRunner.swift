@@ -58,6 +58,16 @@ import MLXNN
     private var pendulumEnv: (any Env<MLXArray, MLXArray>)?
     private var pendulumAgent: PendulumSAC?
     
+    // LunarLander
+    var lunarLanderSnapshot: LunarLanderSnapshot?
+    private var lunarLanderEnv: (any Env<MLXArray, Int>)?
+    private var lunarLanderAgent: LunarLanderDQN?
+    
+    // LunarLanderContinuous
+    var lunarLanderContinuousSnapshot: LunarLanderSnapshot?
+    private var lunarLanderContinuousEnv: (any Env<MLXArray, MLXArray>)?
+    private var lunarLanderContinuousAgent: LunarLanderContinuousSAC?
+    
     private var rngKey: MLXArray = MLX.key(0)
     
     var averageReward: Double {
@@ -96,6 +106,10 @@ import MLXNN
             try setupAcrobot(agent)
         case .pendulum:
             try setupPendulum(agent)
+        case .lunarLander:
+            try setupLunarLander(agent)
+        case .lunarLanderContinuous:
+            try setupLunarLanderContinuous(agent)
         }
     }
     
@@ -392,6 +406,98 @@ import MLXNN
         }
     }
     
+    private func setupLunarLander(_ agent: SavedAgent) throws {
+        let maxSteps = Int(agent.environmentConfig["maxStepsPerEpisode"] ?? "1000") ?? 1000
+        
+        let kwargs: [String: Any] = showVisualization ? ["render_mode": "human"] : [:]
+        
+        guard var env = Gymnazo.make(
+            "LunarLander-v3",
+            maxEpisodeSteps: maxSteps,
+            kwargs: kwargs
+        ) as? any Env<MLXArray, Int> else {
+            throw AgentStorageError.dataCorrupted
+        }
+        
+        _ = env.reset()
+        lunarLanderEnv = env
+        
+        let dqnAgent = LunarLanderDQN(
+            learningRate: 0,
+            gamma: 0.99,
+            epsilonStart: 0,
+            epsilonEnd: 0,
+            epsilonDecaySteps: 1,
+            tau: 0,
+            batchSize: 64,
+            bufferCapacity: 1000,
+            gradClipNorm: 100
+        )
+        
+        let weightsDict = try AgentStorage.shared.loadLunarLanderWeights(for: agent)
+        let weightsTuples = weightsDict.map { ($0.key, $0.value) }
+        let newParams = NestedDictionary<String, MLXArray>.unflattened(weightsTuples)
+        dqnAgent.policyNetwork.update(parameters: newParams)
+        eval(dqnAgent.policyNetwork)
+        
+        lunarLanderAgent = dqnAgent
+        
+        if let lander = env.unwrapped as? LunarLander {
+            lunarLanderSnapshot = lander.currentSnapshot
+        }
+    }
+    
+    private func setupLunarLanderContinuous(_ agent: SavedAgent) throws {
+        let maxSteps = Int(agent.environmentConfig["maxStepsPerEpisode"] ?? "1000") ?? 1000
+        
+        var kwargs: [String: Any] = [:]
+        if showVisualization {
+            kwargs["render_mode"] = "human"
+        }
+        
+        guard var env = Gymnazo.make(
+            "LunarLanderContinuous-v3",
+            maxEpisodeSteps: maxSteps,
+            kwargs: kwargs
+        ) as? any Env<MLXArray, MLXArray> else {
+            throw AgentStorageError.dataCorrupted
+        }
+        
+        _ = env.reset()
+        lunarLanderContinuousEnv = env
+        
+        let sacAgent = LunarLanderContinuousSAC(
+            learningRate: 0,
+            gamma: 0.99,
+            tau: 0.005,
+            alpha: Float(agent.finalEpsilon),
+            batchSize: 256,
+            bufferSize: 1000
+        )
+        
+        let weightsDict = try AgentStorage.shared.loadLunarLanderContinuousWeights(for: agent)
+        
+        if let actorWeights = weightsDict["actor"] {
+            let actorTuples = actorWeights.map { ($0.key, $0.value) }
+            let actorParams = NestedDictionary<String, MLXArray>.unflattened(actorTuples)
+            sacAgent.actor.update(parameters: actorParams)
+        }
+        
+        if let qEnsembleWeights = weightsDict["qEnsemble"] {
+            let qTuples = qEnsembleWeights.map { ($0.key, $0.value) }
+            let qParams = NestedDictionary<String, MLXArray>.unflattened(qTuples)
+            sacAgent.qEnsemble.update(parameters: qParams)
+        }
+        
+        eval(sacAgent.actor, sacAgent.qEnsemble)
+        
+        lunarLanderContinuousAgent = sacAgent
+        
+        if let lander = env.unwrapped as? LunarLanderContinuous {
+            lunarLanderContinuousSnapshot = lander.currentSnapshot
+        }
+    }
+    
     func startEvaluation() {
         guard !isRunning, loadedAgent != nil else { return }
         isRunning = true
@@ -452,6 +558,16 @@ import MLXNN
         pendulumSnapshot = nil
         pendulumEnv = nil
         pendulumAgent = nil
+        
+        // LunarLander
+        lunarLanderSnapshot = nil
+        lunarLanderEnv = nil
+        lunarLanderAgent = nil
+        
+        // LunarLanderContinuous
+        lunarLanderContinuousSnapshot = nil
+        lunarLanderContinuousEnv = nil
+        lunarLanderContinuousAgent = nil
     }
     
     private func runEvaluationLoop() async {
@@ -477,6 +593,10 @@ import MLXNN
                 await runAcrobotEpisode()
             case .pendulum:
                 await runPendulumEpisode()
+            case .lunarLander:
+                await runLunarLanderEpisode()
+            case .lunarLanderContinuous:
+                await runLunarLanderContinuousEpisode()
             }
         }
         
@@ -783,6 +903,117 @@ import MLXNN
             
             // Pendulum: good performance if reward > -500
             if reward > -500 {
+                self.successCount += 1
+            }
+        }
+    }
+    
+    private func runLunarLanderEpisode() async {
+        guard var env = lunarLanderEnv, let agent = lunarLanderAgent else { return }
+        
+        let resetResult = env.reset()
+        var state = resetResult.obs
+        var terminated = false
+        var truncated = false
+        var steps = 0
+        var reward = 0.0
+        
+        let maxSteps = 1000
+        
+        while !terminated && !truncated && isRunning && steps < maxSteps {
+            let qValues = agent.policyNetwork(state.expandedDimensions(axis: 0))
+            let action = Int(MLX.argMax(qValues, axis: 1).item(Int32.self))
+            
+            let result = env.step(action)
+            state = result.obs
+            terminated = result.terminated
+            truncated = result.truncated
+            reward += result.reward
+            steps += 1
+            
+            await MainActor.run {
+                self.currentStep = steps
+                self.episodeReward = reward
+            }
+            
+            if showVisualization {
+                if let lander = env.unwrapped as? LunarLander {
+                    await MainActor.run {
+                        self.lunarLanderSnapshot = lander.currentSnapshot
+                    }
+                }
+                
+                let delayNs = UInt64(1_000_000_000 / targetFPS)
+                try? await Task.sleep(nanoseconds: delayNs)
+            }
+        }
+        
+        lunarLanderEnv = env
+        
+        await MainActor.run {
+            self.episodeRewards.append(reward)
+            self.episodeSteps.append(steps)
+            self.totalReward += reward
+            
+            // LunarLander: successful landing if reward >= 200
+            if reward >= 200 {
+                self.successCount += 1
+            }
+        }
+    }
+    
+    private func runLunarLanderContinuousEpisode() async {
+        guard var env = lunarLanderContinuousEnv, let agent = lunarLanderContinuousAgent else { return }
+        
+        let resetResult = env.reset()
+        var state = resetResult.obs
+        var terminated = false
+        var truncated = false
+        var steps = 0
+        var reward = 0.0
+        
+        let maxSteps = 1000
+        
+        while !terminated && !truncated && isRunning && steps < maxSteps {
+            var key = rngKey
+            let action = agent.chooseAction(state: state, key: &key, deterministic: true)
+            rngKey = key
+            
+            eval(action)
+            
+            let result = env.step(action)
+            state = result.obs
+            terminated = result.terminated
+            truncated = result.truncated
+            reward += result.reward
+            steps += 1
+            
+            await MainActor.run {
+                self.currentStep = steps
+                self.episodeReward = reward
+            }
+            
+            if showVisualization {
+                if let lander = env.unwrapped as? LunarLanderContinuous {
+                    await MainActor.run {
+                        self.lunarLanderContinuousSnapshot = lander.currentSnapshot
+                    }
+                }
+                
+                let delayNs = UInt64(1_000_000_000 / targetFPS)
+                try? await Task.sleep(nanoseconds: delayNs)
+            }
+        }
+        
+        lunarLanderContinuousEnv = env
+        
+        await MainActor.run {
+            self.episodeRewards.append(reward)
+            self.episodeSteps.append(steps)
+            self.totalReward += reward
+            
+            // LunarLander Continuous: successful landing if reward >= 200
+            if reward >= 200 {
                 self.successCount += 1
             }
         }
