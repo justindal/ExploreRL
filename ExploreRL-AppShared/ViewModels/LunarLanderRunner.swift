@@ -99,12 +99,19 @@ import MLXNN
     }
     
     func setupEnvironment() {
-        let renderMode: String? = renderEnabled ? "human" : nil
-        var env = Gymnazo.make(
+        var kwargs: [String: Any] = [:]
+        if renderEnabled {
+            kwargs["render_mode"] = "human"
+        }
+        
+        guard var env = Gymnazo.make(
             "LunarLander-v3",
             maxEpisodeSteps: maxStepsPerEpisode,
-            kwargs: ["render_mode": renderMode as Any]
-        ) as! any Env<MLXArray, Int>
+            kwargs: kwargs
+        ) as? any Env<MLXArray, Int> else {
+            print("Failed to create LunarLander environment")
+            return
+        }
         
         let _ = env.reset()
         
