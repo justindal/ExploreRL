@@ -7,43 +7,14 @@ import SwiftUI
 struct FrozenLakeConfigurationView: View {
     @Bindable var runner: FrozenLakeRunner
     
-    @State private var showLearningRateInfo = false
-    @State private var showGammaInfo = false
-    @State private var showEpsilonInfo = false
-    @State private var showDecayInfo = false
-    
     var body: some View {
         VStack(alignment: .leading, spacing: 15) {
-            HStack {
-                Text("Configuration")
-                    .font(.title3)
-                    .bold()
-                Spacer()
-                Button("Reset to Defaults") {
-                    runner.resetToDefaults()
-                    runner.reset()
-                }
-                .font(.caption)
-                .buttonStyle(.bordered)
+            ConfigurationHeader {
+                runner.resetToDefaults()
+                runner.reset()
             }
             
-            VStack(alignment: .leading) {
-                Text("Algorithm")
-                    .font(.headline)
-                
-                Picker("Algorithm", selection: $runner.selectedAlgorithm) {
-                    ForEach(TabularAlgorithm.allCases) { algo in
-                        Text(algo.rawValue).tag(algo)
-                    }
-                }
-                .pickerStyle(.segmented)
-                
-                Text(runner.selectedAlgorithm.description)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .disabled(runner.isTraining)
+            algorithmSection
             
             SpeedControlSection(
                 renderEnabled: $runner.renderEnabled,
@@ -56,125 +27,173 @@ struct FrozenLakeConfigurationView: View {
                 }
             )
             
-            Group {
-                VStack(alignment: .leading) {
-                    Text("Environment")
-                        .font(.headline)
-                    
-                    Toggle("Show Policy Arrows", isOn: $runner.showPolicy)
-                    
-                    Picker("Map Size", selection: $runner.mapName) {
-                        Text("4x4").tag("4x4")
-                        Text("8x8").tag("8x8")
-                        Text("Custom").tag("Custom")
-                    }
-                    .pickerStyle(.segmented)
-                    .onChange(of: runner.mapName) { _, _ in
-                        guard !runner.isLoadingAgent else { return }
-                        runner.reset()
-                    }
-                    
-                    if runner.mapName == "Custom" {
-                        let mapBinding = clampedIntBinding($runner.customMapSize, range: 4...20)
-                        HStack(spacing: 12) {
-                            Text("Size")
-                            Spacer()
-                            IntInputField(value: mapBinding, width: 70)
-                            Stepper("", value: mapBinding, in: 4...20)
-                                .labelsHidden()
-                        }
-                        .onChange(of: runner.customMapSize) { _, _ in
-                            guard !runner.isLoadingAgent else { return }
-                            runner.reset()
-                        }
-                        Text("(range 4-20)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    
-                    Toggle("Slippery", isOn: $runner.isSlippery)
-                        .onChange(of: runner.isSlippery) { _, _ in
-                            guard !runner.isLoadingAgent else { return }
-                            runner.reset()
-                        }
-                }
-                
-                VStack(alignment: .leading) {
-                    Text("Hyperparameters")
-                        .font(.headline)
-                    
-                    let lrBinding = doubleBinding(for: $runner.learningRate, range: 0.01...1.0, step: 0.01)
-                    HStack {
-                        Text("Learning Rate")
-                        InfoButton(isPresented: $showLearningRateInfo, title: "Learning Rate", description: "Controls how much the agent updates its knowledge based on new information. High values mean faster learning but can be unstable.", icon: "bolt.horizontal")
-                        Spacer()
-                        DoubleInputField(value: lrBinding, decimals: 3)
-                    }
-                    Slider(value: lrBinding, in: 0.01...1.0)
-                    
-                    let gammaBinding = doubleBinding(for: $runner.gamma, range: 0.8...0.999, step: 0.001)
-                    HStack {
-                        Text("Gamma (Discount)")
-                        InfoButton(isPresented: $showGammaInfo, title: "Gamma (Discount)", description: "Determines the importance of future rewards. A value near 0 considers only immediate rewards, while a value near 1 strives for long-term high reward.", icon: "clock.arrow.circlepath")
-                        Spacer()
-                        DoubleInputField(value: gammaBinding, decimals: 3)
-                    }
-                    Slider(value: gammaBinding, in: 0.8...0.999)
-                    
-                    let epsilonBinding = doubleBinding(for: $runner.epsilon, range: 0.0...1.0, step: 0.01)
-                    HStack {
-                        Text("Epsilon (Exploration)")
-                        InfoButton(isPresented: $showEpsilonInfo, title: "Epsilon (Exploration)", description: "The probability that the agent will explore a random action rather than exploiting its current knowledge.", icon: "die.face.5")
-                        Spacer()
-                        DoubleInputField(value: epsilonBinding, decimals: 2)
-                    }
-                    Slider(value: epsilonBinding, in: 0.0...1.0)
-                    
-                    let decayBinding = doubleBinding(for: $runner.epsilonDecay, range: 0.9...0.9999, step: 0.0001)
-                    HStack {
-                        Text("Epsilon Decay")
-                        InfoButton(isPresented: $showDecayInfo, title: "Epsilon Decay", description: "Multiplies epsilon by this value after every episode. Allows high exploration early on and exploitation later.", icon: "arrow.down.right.circle")
-                        Spacer()
-                        DoubleInputField(value: decayBinding, decimals: 4)
-                    }
-                    Slider(value: decayBinding, in: 0.9...0.9999)
-                }
-                
-                TrainingLimitsSection(
-                    episodesPerRun: $runner.episodesPerRun,
-                    maxStepsPerEpisode: $runner.maxStepsPerEpisode,
-                    isTraining: runner.isTraining,
-                    episodesRange: 100...10000,
-                    stepsRange: 10...1000
-                )
-                
-                DisclosureGroup("Advanced") {
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack {
-                            Text("Use Seed")
-                            Spacer()
-                            Toggle("", isOn: $runner.useSeed)
-                                .labelsHidden()
-                        }
-                        .fixedSize(horizontal: false, vertical: true)
-                        
-                        HStack {
-                            Text("Seed")
-                            Spacer()
-                            TextField("0", value: $runner.seed, formatter: NumberFormatter())
-                                .textFieldStyle(.roundedBorder)
-                                .frame(width: 90)
-                                .disabled(!runner.useSeed)
-                        }
-                        .fixedSize(horizontal: false, vertical: true)
-                    }
-                    .padding(.top, 8)
+            environmentSection
+            
+            hyperparametersSection
+            
+            TrainingLimitsSection(
+                episodesPerRun: $runner.episodesPerRun,
+                maxStepsPerEpisode: $runner.maxStepsPerEpisode,
+                isTraining: runner.isTraining,
+                episodesRange: 100...10000,
+                stepsRange: 10...1000
+            )
+            
+            advancedSection
+            
+            Divider()
+            
+            environmentInfoSection
+        }
+        .padding()
+        #if os(iOS)
+        .background(Color(UIColor.secondarySystemBackground))
+        #else
+        .background(Color.gray.opacity(0.1))
+        #endif
+        .cornerRadius(10)
+    }
+    
+    private var algorithmSection: some View {
+        VStack(alignment: .leading) {
+            Text("Algorithm")
+                .font(.headline)
+            
+            Picker("Algorithm", selection: $runner.selectedAlgorithm) {
+                ForEach(TabularAlgorithm.allCases) { algo in
+                    Text(algo.rawValue).tag(algo)
                 }
             }
-            .disabled(runner.isTraining)
-        
-        Divider()
-        
+            .pickerStyle(.segmented)
+            
+            Text(runner.selectedAlgorithm.description)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .disabled(runner.isTraining)
+    }
+    
+    private var environmentSection: some View {
+        VStack(alignment: .leading) {
+            Text("Environment")
+                .font(.headline)
+            
+            Toggle("Show Policy Arrows", isOn: $runner.showPolicy)
+            
+            Picker("Map Size", selection: $runner.mapName) {
+                Text("4x4").tag("4x4")
+                Text("8x8").tag("8x8")
+                Text("Custom").tag("Custom")
+            }
+            .pickerStyle(.segmented)
+            .onChange(of: runner.mapName) { _, _ in
+                guard !runner.isLoadingAgent else { return }
+                runner.reset()
+            }
+            
+            if runner.mapName == "Custom" {
+                HStack(spacing: 12) {
+                    Text("Size")
+                    Spacer()
+                    IntInputField(value: $runner.customMapSize, width: 70)
+                    Stepper("", value: $runner.customMapSize, in: 4...20)
+                        .labelsHidden()
+                }
+                .onChange(of: runner.customMapSize) { _, _ in
+                    guard !runner.isLoadingAgent else { return }
+                    runner.reset()
+                }
+                Text("(range 4-20)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            
+            Toggle("Slippery", isOn: $runner.isSlippery)
+                .onChange(of: runner.isSlippery) { _, _ in
+                    guard !runner.isLoadingAgent else { return }
+                    runner.reset()
+                }
+        }
+        .disabled(runner.isTraining)
+    }
+    
+    @State private var showLearningRateInfo = false
+    @State private var showGammaInfo = false
+    @State private var showEpsilonInfo = false
+    @State private var showDecayInfo = false
+    
+    private var hyperparametersSection: some View {
+        VStack(alignment: .leading) {
+            Text("Hyperparameters")
+                .font(.headline)
+            
+            let lrBinding = clampedBinding(for: $runner.learningRate, range: 0.01...1.0, step: 0.01)
+            HStack {
+                Text("Learning Rate")
+                InfoButton(isPresented: $showLearningRateInfo, title: "Learning Rate", description: "Controls how much the agent updates its knowledge based on new information.", icon: "bolt.horizontal")
+                Spacer()
+                DoubleInputField(value: lrBinding, decimals: 3)
+            }
+            Slider(value: lrBinding, in: 0.01...1.0)
+            
+            let gammaBinding = clampedBinding(for: $runner.gamma, range: 0.8...0.999, step: 0.001)
+            HStack {
+                Text("Gamma (Discount)")
+                InfoButton(isPresented: $showGammaInfo, title: "Gamma (Discount)", description: "Determines the importance of future rewards.", icon: "clock.arrow.circlepath")
+                Spacer()
+                DoubleInputField(value: gammaBinding, decimals: 3)
+            }
+            Slider(value: gammaBinding, in: 0.8...0.999)
+            
+            let epsilonBinding = clampedBinding(for: $runner.epsilon, range: 0.0...1.0, step: 0.01)
+            HStack {
+                Text("Epsilon (Exploration)")
+                InfoButton(isPresented: $showEpsilonInfo, title: "Epsilon (Exploration)", description: "The probability of taking a random action.", icon: "die.face.5")
+                Spacer()
+                DoubleInputField(value: epsilonBinding, decimals: 2)
+            }
+            Slider(value: epsilonBinding, in: 0.0...1.0)
+            
+            let decayBinding = clampedBinding(for: $runner.epsilonDecay, range: 0.9...0.9999, step: 0.0001)
+            HStack {
+                Text("Epsilon Decay")
+                InfoButton(isPresented: $showDecayInfo, title: "Epsilon Decay", description: "Multiplies epsilon by this value after every episode.", icon: "arrow.down.right.circle")
+                Spacer()
+                DoubleInputField(value: decayBinding, decimals: 4)
+            }
+            Slider(value: decayBinding, in: 0.9...0.9999)
+        }
+        .disabled(runner.isTraining)
+    }
+    
+    private var advancedSection: some View {
+        DisclosureGroup("Advanced") {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Text("Use Seed")
+                    Spacer()
+                    Toggle("", isOn: $runner.useSeed)
+                        .labelsHidden()
+                }
+                .fixedSize(horizontal: false, vertical: true)
+                
+                HStack {
+                    Text("Seed")
+                    Spacer()
+                    TextField("0", value: $runner.seed, formatter: NumberFormatter())
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 90)
+                        .disabled(!runner.useSeed)
+                }
+                .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.top, 8)
+        }
+        .disabled(runner.isTraining)
+    }
+    
+    private var environmentInfoSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Environment Info")
                 .font(.headline)
@@ -192,63 +211,5 @@ struct FrozenLakeConfigurationView: View {
                 EnvironmentInfoRow(label: "Dynamics", value: "Deterministic")
             }
         }
-        }
-        .padding()
-        #if os(iOS)
-        .background(Color(UIColor.secondarySystemBackground))
-        #else
-        .background(Color.gray.opacity(0.1))
-        #endif
-        .cornerRadius(10)
-    }
-    
-    private func doubleBinding(for floatBinding: Binding<Float>, range: ClosedRange<Double>, step: Double? = nil) -> Binding<Double> {
-        Binding<Double>(
-            get: { Double(floatBinding.wrappedValue) },
-            set: {
-                var newValue = $0
-                if let step = step {
-                    newValue = (newValue / step).rounded() * step
-                }
-                floatBinding.wrappedValue = Float(min(max(newValue, range.lowerBound), range.upperBound))
-            }
-        )
-    }
-
-    private func clampedDoubleBinding(_ binding: Binding<Double>, range: ClosedRange<Double>, step: Double? = nil) -> Binding<Double> {
-        Binding<Double>(
-            get: { min(max(binding.wrappedValue, range.lowerBound), range.upperBound) },
-            set: {
-                var newValue = $0
-                if let step = step {
-                    newValue = (newValue / step).rounded() * step
-                }
-                binding.wrappedValue = min(max(newValue, range.lowerBound), range.upperBound)
-            }
-        )
-    }
-
-    private func clampedIntBinding(_ binding: Binding<Int>, range: ClosedRange<Int>) -> Binding<Int> {
-        Binding<Int>(
-            get: { min(max(binding.wrappedValue, range.lowerBound), range.upperBound) },
-            set: { binding.wrappedValue = min(max($0, range.lowerBound), range.upperBound) }
-        )
     }
 }
-
-private struct EnvironmentInfoRow: View {
-    let label: String
-    let value: String
-    
-    var body: some View {
-        HStack {
-            Text(label)
-                .foregroundStyle(.secondary)
-            Spacer()
-            Text(value)
-                .font(.system(.body, design: .monospaced))
-        }
-        .font(.caption)
-    }
-}
-
