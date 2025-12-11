@@ -484,6 +484,8 @@ import MLXNN
                 }
             }
             
+            _ = agent.update()
+            
             env = warmupEnv
             self.env = env
             await MainActor.run { self.isWarmingUp = false }
