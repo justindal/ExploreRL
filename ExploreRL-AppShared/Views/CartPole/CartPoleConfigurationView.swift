@@ -10,8 +10,8 @@ struct CartPoleConfigurationView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 15) {
             ConfigurationHeader {
-                runner.resetToDefaults()
-                runner.reset()
+                    runner.resetToDefaults()
+                    runner.reset()
             }
             
             SpeedControlSection(
@@ -40,7 +40,9 @@ struct CartPoleConfigurationView: View {
                 epsilonMin: $runner.epsilonMin,
                 tau: $runner.tau,
                 batchSize: $runner.batchSize,
-                isTraining: runner.isTraining
+                isTraining: runner.isTraining,
+                warmupSteps: $runner.warmupSteps,
+                showWarmup: true
             )
             
             Divider()

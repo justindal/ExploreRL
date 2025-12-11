@@ -107,12 +107,18 @@ struct EnvironmentView<Runner: SavableEnvironmentRunner, CanvasView: View, Confi
             }
         }
         .overlay(alignment: .top) {
-            if showTrainingCompleteBanner {
+            if runner.isWarmingUp {
+                WarmupBanner(progress: runner.warmupProgress, color: accentColor)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .padding(.top, 8)
+                    .animation(.easeInOut, value: runner.warmupProgress)
+            } else if showTrainingCompleteBanner {
                 TrainingCompleteBanner()
                     .transition(.move(edge: .top).combined(with: .opacity))
                     .padding(.top, 8)
             }
         }
+        .animation(.easeInOut, value: runner.isWarmingUp)
         #if os(iOS)
         .navigationBarBackButtonHidden(runner.isTraining || hasUnsavedChanges)
         .toolbar {

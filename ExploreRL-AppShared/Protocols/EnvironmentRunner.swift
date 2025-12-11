@@ -22,6 +22,9 @@ protocol EnvironmentRunner: AnyObject, Observable {
     
     var totalEpisodesTrained: Int { get }
     
+    var isWarmingUp: Bool { get }
+    var warmupProgress: Double { get }
+    
     func startTraining()
     func stopTraining()
     func reset()
@@ -134,6 +137,9 @@ extension EnvironmentRunner {
         guard episodesPerRun > 0 else { return 0 }
         return Double(episodeMetrics.count) / Double(episodesPerRun)
     }
+    
+    var isWarmingUp: Bool { false }
+    var warmupProgress: Double { 1.0 }
 }
 
 extension SavableEnvironmentRunner {

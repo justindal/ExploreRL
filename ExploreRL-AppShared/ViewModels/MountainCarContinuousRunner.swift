@@ -77,6 +77,11 @@ import MLXNN
     private var agent: MountainCarContinuousSAC?
     private var totalSteps: Int = 0
     
+    var isWarmingUp: Bool = false
+    var warmupProgress: Double {
+        guard warmupSteps > 0 else { return 1.0 }
+        return min(1.0, Double(totalSteps) / Double(warmupSteps))
+    }
     
     init() {
         self.rngKey = MLX.key(0)
@@ -392,13 +397,15 @@ import MLXNN
         var episodesCompleted = 0
         
         if totalSteps < warmupSteps {
+            await MainActor.run { self.isWarmingUp = true }
+            
             var warmupEnv = env
             let warmupResult = warmupEnv.reset()
             var warmupState = warmupResult.obs
             
             let samplesToCollect = warmupSteps - totalSteps
             
-            for _ in 0..<samplesToCollect {
+            for i in 0..<samplesToCollect {
                 let action = sacAgent.chooseAction(state: warmupState, key: &rngKey, deterministic: false)
                 let stepResult = warmupEnv.step(action)
                 
@@ -417,11 +424,16 @@ import MLXNN
                     let resetResult = warmupEnv.reset()
                     warmupState = resetResult.obs
                 }
+                
+                if i % 100 == 0 {
+                    await Task.yield()
+                }
             }
             
             _ = sacAgent.update()
             
             env = warmupEnv
+            await MainActor.run { self.isWarmingUp = false }
             self.env = env
         }
         

@@ -42,7 +42,9 @@ struct AcrobotConfigurationView: View {
                 epsilonMin: $runner.epsilonMin,
                 tau: $runner.tau,
                 batchSize: $runner.batchSize,
-                isTraining: runner.isTraining
+                isTraining: runner.isTraining,
+                warmupSteps: $runner.warmupSteps,
+                showWarmup: true
             )
             
             Divider()

@@ -90,6 +90,12 @@ import MLXNN
     private var agent: MountainCarDQN?
     private var totalSteps: Int = 0
     
+    var isWarmingUp: Bool = false
+    var warmupProgress: Double {
+        guard warmupSteps > 0 else { return 1.0 }
+        return min(1.0, Double(totalSteps) / Double(warmupSteps))
+    }
+    
     var successRate: Double {
         guard !episodeMetrics.isEmpty else { return 0 }
         let recentEpisodes = episodeMetrics.suffix(movingAverageWindow)
@@ -445,13 +451,15 @@ import MLXNN
         
         // Warmup
         if warmupSteps > 0 && totalSteps < warmupSteps {
+            await MainActor.run { self.isWarmingUp = true }
+            
             var warmupEnv = env
             let warmupResult = warmupEnv.reset()
             var warmupState = warmupResult.obs
             
             let samplesToCollect = warmupSteps - totalSteps
             
-            for _ in 0..<samplesToCollect {
+            for i in 0..<samplesToCollect {
                 let randomAction = Int32.random(in: 0..<Int32(actSpace.n))
                 let stepResult = warmupEnv.step(Int(randomAction))
                 
@@ -470,10 +478,15 @@ import MLXNN
                     let resetResult = warmupEnv.reset()
                     warmupState = resetResult.obs
                 }
+                
+                if i % 100 == 0 {
+                    await Task.yield()
+                }
             }
             
             env = warmupEnv
             self.env = env
+            await MainActor.run { self.isWarmingUp = false }
         }
         
         var lastUIUpdate = Date()

@@ -39,6 +39,49 @@ struct TrainingCompleteBanner: View {
     }
 }
 
+struct WarmupBanner: View {
+    let progress: Double
+    let color: Color
+    
+    var body: some View {
+        HStack(spacing: 10) {
+            ProgressView()
+                .scaleEffect(0.8)
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Warming up replay buffer...")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                
+                GeometryReader { geometry in
+                    ZStack(alignment: .leading) {
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(Color.gray.opacity(0.3))
+                            .frame(height: 4)
+                        
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(color)
+                            .frame(width: geometry.size.width * progress, height: 4)
+                    }
+                }
+                .frame(height: 4)
+            }
+            
+            Text("\(Int(progress * 100))%")
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .monospacedDigit()
+                .frame(width: 40, alignment: .trailing)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .frame(minWidth: 220)
+        .background(.ultraThinMaterial)
+        .cornerRadius(20)
+        .shadow(radius: 5)
+    }
+}
+
 struct TrainingProgressView: View {
     let current: Int
     let total: Int

@@ -229,6 +229,35 @@ struct DQNHyperparametersSection: View {
     @Binding var batchSize: Int
     let isTraining: Bool
     
+    @Binding var warmupSteps: Int
+    let showWarmup: Bool
+    
+    init(
+        learningRate: Binding<Double>,
+        learningRateRange: ClosedRange<Double>,
+        gamma: Binding<Double>,
+        epsilon: Binding<Double>,
+        epsilonDecaySteps: Binding<Int>,
+        epsilonMin: Binding<Double>,
+        tau: Binding<Double>,
+        batchSize: Binding<Int>,
+        isTraining: Bool,
+        warmupSteps: Binding<Int> = .constant(0),
+        showWarmup: Bool = false
+    ) {
+        self._learningRate = learningRate
+        self.learningRateRange = learningRateRange
+        self._gamma = gamma
+        self._epsilon = epsilon
+        self._epsilonDecaySteps = epsilonDecaySteps
+        self._epsilonMin = epsilonMin
+        self._tau = tau
+        self._batchSize = batchSize
+        self.isTraining = isTraining
+        self._warmupSteps = warmupSteps
+        self.showWarmup = showWarmup
+    }
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Hyperparameters (DQN)")
@@ -302,9 +331,32 @@ struct DQNHyperparametersSection: View {
                     )
                     
                     BatchSizePicker(batchSize: $batchSize, isDisabled: isTraining)
+                    
+                    if showWarmup {
+                        warmupSlider
+                    }
                 }
             }
         }
+    }
+    
+    private var warmupSlider: some View {
+        let warmupBinding = Binding<Double>(
+            get: { Double(warmupSteps) },
+            set: { warmupSteps = max(0, Int($0.rounded())) }
+        )
+        
+        return HyperparameterSlider(
+            title: "Warmup Steps",
+            value: warmupBinding,
+            range: 0...10_000,
+            step: 100,
+            decimals: 0,
+            infoTitle: "Warmup Steps",
+            infoDescription: "Number of random action steps to fill replay buffer before training begins.",
+            infoIcon: "flame",
+            isDisabled: isTraining
+        )
     }
     
     private var epsilonDecaySlider: some View {
