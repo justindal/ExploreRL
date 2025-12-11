@@ -22,9 +22,22 @@
 		B954BCE52ECA7A380081CE3F /* ExploreRL-macOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "ExploreRL-macOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		B9INFOPLIST0001 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = B954BCD52ECA7A260081CE3F /* ExploreRL-iOS */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		B954BCD72ECA7A260081CE3F /* ExploreRL-iOS */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				B9INFOPLIST0001 /* PBXFileSystemSynchronizedBuildFileExceptionSet */,
+			);
 			path = "ExploreRL-iOS";
 			sourceTree = "<group>";
 		};
@@ -355,6 +368,7 @@
 				DEVELOPMENT_TEAM = T7HWJDJCX8;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "ExploreRL-iOS/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = ExploreRL;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -390,6 +404,7 @@
 				DEVELOPMENT_TEAM = T7HWJDJCX8;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "ExploreRL-iOS/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = ExploreRL;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
