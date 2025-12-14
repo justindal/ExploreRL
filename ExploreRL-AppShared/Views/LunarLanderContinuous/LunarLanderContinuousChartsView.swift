@@ -12,7 +12,7 @@ struct LunarLanderContinuousChartsView: View {
         LazyVGrid(columns: columns.isEmpty ? [GridItem(.flexible())] : columns, spacing: 10) {
             MetricChart(
                 title: "Episode Rewards",
-                data: Array(runner.episodeMetrics.suffix(500)),
+                data: runner.episodeMetrics,
                 xValue: { $0.episode },
                 yValue: { $0.reward },
                 color: .teal,
@@ -21,7 +21,7 @@ struct LunarLanderContinuousChartsView: View {
             
             MetricChart(
                 title: "Steps (Duration)",
-                data: Array(runner.episodeMetrics.suffix(500)),
+                data: runner.episodeMetrics,
                 xValue: { $0.episode },
                 yValue: { Double($0.steps) },
                 color: .blue,
@@ -30,7 +30,7 @@ struct LunarLanderContinuousChartsView: View {
             
             MetricChart(
                 title: "Alpha (Entropy)",
-                data: Array(runner.episodeMetrics.suffix(500)),
+                data: runner.episodeMetrics,
                 xValue: { $0.episode },
                 yValue: { $0.epsilon },
                 color: .purple,
@@ -39,7 +39,7 @@ struct LunarLanderContinuousChartsView: View {
             
             MetricChart(
                 title: "Reward Moving Avg",
-                data: Array(runner.episodeMetrics.suffix(500).filter { $0.rewardMovingAverage != nil }),
+                data: runner.episodeMetrics.filter { $0.rewardMovingAverage != nil },
                 xValue: { $0.episode },
                 yValue: { $0.rewardMovingAverage ?? 0 },
                 color: .green,

@@ -13,9 +13,62 @@ struct MetricChart<DataPoint: Identifiable>: View {
     let color: Color
     let averageValue: Double?
     
+    let maxPlotPoints: Int
+    
+    init(
+        title: String,
+        data: [DataPoint],
+        xValue: @escaping (DataPoint) -> Int,
+        yValue: @escaping (DataPoint) -> Double,
+        color: Color,
+        averageValue: Double? = nil,
+        maxPlotPoints: Int = 900
+    ) {
+        self.title = title
+        self.data = data
+        self.xValue = xValue
+        self.yValue = yValue
+        self.color = color
+        self.averageValue = averageValue
+        self.maxPlotPoints = maxPlotPoints
+    }
+    
     private var currentValue: Double? {
         guard let last = data.last else { return nil }
         return yValue(last)
+    }
+    
+    private var sortedSeries: [(x: Int, y: Double)] {
+        data
+            .map { (x: xValue($0), y: yValue($0)) }
+            .sorted { $0.x < $1.x }
+    }
+    
+    private var downsampledSeries: [(x: Int, y: Double)] {
+        downsample(series: sortedSeries, maxPoints: maxPlotPoints)
+    }
+    
+    private var downsampledRunningAverageSeries: [(x: Int, y: Double)] {
+        let raw = sortedSeries
+        guard !raw.isEmpty else { return [] }
+        
+        var running: [(x: Int, y: Double)] = []
+        running.reserveCapacity(raw.count)
+        
+        var sum = 0.0
+        for (i, p) in raw.enumerated() {
+            sum += p.y
+            let avg = sum / Double(i + 1)
+            running.append((x: p.x, y: avg))
+        }
+        
+        return downsample(series: running, maxPoints: maxPlotPoints)
+    }
+    
+    private var averageLineSeries: [(x: Int, y: Double)] {
+        guard let first = sortedSeries.first, let last = sortedSeries.last else { return [] }
+        let avg = averageValue ?? (sortedSeries.map(\.y).reduce(0, +) / Double(max(1, sortedSeries.count)))
+        return [(x: first.x, y: avg), (x: last.x, y: avg)]
     }
     
     var body: some View {
@@ -36,35 +89,44 @@ struct MetricChart<DataPoint: Identifiable>: View {
             }
             
             Chart {
-                ForEach(data) { point in
-                    PointMark(
-                        x: .value("X", xValue(point)),
-                        y: .value("Y", yValue(point))
+                ForEach(downsampledSeries, id: \.x) { p in
+                    LineMark(
+                        x: .value("Episode", p.x),
+                        y: .value("Value", p.y)
                     )
-                    .symbolSize(15)
-                    .foregroundStyle(color.opacity(0.25))
+                    .foregroundStyle(by: .value("Series", "Value"))
+                    .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+                    .interpolationMethod(.linear)
                 }
                 
-                if data.count > 1 {
-                    let trendData = calculateMovingAverage(data: data, windowSize: min(20, max(3, data.count / 5)))
-                    ForEach(trendData.indices, id: \.self) { index in
-                        let point = trendData[index]
+                ForEach(downsampledRunningAverageSeries, id: \.x) { p in
+                    LineMark(
+                        x: .value("Episode", p.x),
+                        y: .value("Average", p.y)
+                    )
+                    .foregroundStyle(by: .value("Series", "Avg"))
+                    .lineStyle(StrokeStyle(lineWidth: 2, dash: [5, 4], lineCap: .round, lineJoin: .round))
+                    .interpolationMethod(.linear)
+                }
+                
+                if averageLineSeries.count == 2 {
+                    ForEach(averageLineSeries, id: \.x) { p in
                         LineMark(
-                            x: .value("X", point.x),
-                            y: .value("Trend", point.y)
+                            x: .value("Episode", p.x),
+                            y: .value("Average Level", p.y)
                         )
-                        .foregroundStyle(color)
-                        .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
-                        .interpolationMethod(.catmullRom)
+                        .foregroundStyle(by: .value("Series", "Mean"))
+                        .lineStyle(StrokeStyle(lineWidth: 1.25, dash: [2, 3]))
+                        .interpolationMethod(.linear)
                     }
                 }
-                
-                if let avg = averageValue {
-                    RuleMark(y: .value("Average", avg))
-                        .foregroundStyle(color.opacity(0.5))
-                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
-                }
             }
+            .chartForegroundStyleScale([
+                "Value": color,
+                "Avg": color.opacity(0.65),
+                "Mean": Color.gray.opacity(0.7)
+            ])
+            .chartLegend(position: .top, alignment: .leading)
             .chartXAxis {
                 AxisMarks(values: .automatic(desiredCount: 4)) { value in
                     AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
@@ -110,16 +172,31 @@ struct MetricChart<DataPoint: Identifiable>: View {
         }
     }
     
-    private func calculateMovingAverage(data: [DataPoint], windowSize: Int) -> [(x: Int, y: Double)] {
-        var result: [(x: Int, y: Double)] = []
-        for i in 0..<data.count {
-            let start = max(0, i - windowSize + 1)
-            let window = data[start...i]
-            let sum = window.reduce(0.0) { $0 + yValue($1) }
-            let avg = sum / Double(window.count)
-            result.append((x: xValue(data[i]), y: avg))
+    private func downsample(series: [(x: Int, y: Double)], maxPoints: Int) -> [(x: Int, y: Double)] {
+        guard maxPoints > 2 else { return series.prefix(2).map { $0 } }
+        guard series.count > maxPoints else { return series }
+        
+        let n = series.count
+        let target = maxPoints
+        let stride = Double(n - 1) / Double(target - 1)
+        
+        var sampled: [(x: Int, y: Double)] = []
+        sampled.reserveCapacity(target)
+        
+        var lastIndex = -1
+        for i in 0..<target {
+            let idx = Int((Double(i) * stride).rounded(.down))
+            if idx != lastIndex {
+                sampled.append(series[idx])
+                lastIndex = idx
+            }
         }
-        return result
+        
+        if sampled.last?.x != series.last?.x {
+            sampled.append(series.last!)
+        }
+        
+        return sampled
     }
 }
 

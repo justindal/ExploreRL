@@ -12,16 +12,16 @@ struct MountainCarContinuousChartsView: View {
         LazyVGrid(columns: columns.isEmpty ? [GridItem(.flexible())] : columns, spacing: 10) {
             MetricChart(
                 title: "Episode Rewards",
-                data: Array(runner.episodeMetrics.suffix(500)),
+                data: runner.episodeMetrics,
                 xValue: { $0.episode },
                 yValue: { $0.reward },
                 color: .blue,
-                averageValue: runner.episodeMetrics.suffix(50).map { $0.reward }.reduce(0, +) / max(1, Double(runner.episodeMetrics.suffix(50).count))
+                averageValue: nil
             )
             
             MetricChart(
                 title: "Steps (Duration)",
-                data: Array(runner.episodeMetrics.suffix(500)),
+                data: runner.episodeMetrics,
                 xValue: { $0.episode },
                 yValue: { Double($0.steps) },
                 color: .orange,
@@ -30,7 +30,7 @@ struct MountainCarContinuousChartsView: View {
             
             MetricChart(
                 title: "Alpha (Entropy)",
-                data: Array(runner.episodeMetrics.suffix(500)),
+                data: runner.episodeMetrics,
                 xValue: { $0.episode },
                 yValue: { $0.epsilon },
                 color: .purple,
@@ -39,7 +39,7 @@ struct MountainCarContinuousChartsView: View {
             
             MetricChart(
                 title: "Success Rate",
-                data: Array(runner.episodeMetrics.suffix(500)),
+                data: runner.episodeMetrics,
                 xValue: { $0.episode },
                 yValue: { $0.success ? 1.0 : 0.0 },
                 color: .green,

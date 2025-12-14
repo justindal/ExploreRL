@@ -12,7 +12,7 @@ struct CartPoleChartsView: View {
         LazyVGrid(columns: columns.isEmpty ? [GridItem(.flexible())] : columns, spacing: 10) {
             MetricChart(
                 title: "Episode Rewards",
-                data: Array(runner.episodeMetrics.suffix(500)),
+                data: runner.episodeMetrics,
                 xValue: { $0.episode },
                 yValue: { $0.reward },
                 color: .blue,
@@ -21,7 +21,7 @@ struct CartPoleChartsView: View {
             
             MetricChart(
                 title: "Steps (Duration)",
-                data: Array(runner.episodeMetrics.suffix(500)),
+                data: runner.episodeMetrics,
                 xValue: { $0.episode },
                 yValue: { Double($0.steps) },
                 color: .orange,
@@ -30,7 +30,7 @@ struct CartPoleChartsView: View {
             
             MetricChart(
                 title: "Loss",
-                data: Array(runner.episodeMetrics.suffix(500).filter { $0.averageLoss != nil }),
+                data: runner.episodeMetrics.filter { $0.averageLoss != nil },
                 xValue: { $0.episode },
                 yValue: { $0.averageLoss ?? 0 },
                 color: .red,
@@ -39,7 +39,7 @@ struct CartPoleChartsView: View {
             
             MetricChart(
                 title: "Max Q-Value",
-                data: Array(runner.episodeMetrics.suffix(500).filter { $0.averageMaxQ != 0 }),
+                data: runner.episodeMetrics.filter { $0.averageMaxQ != 0 },
                 xValue: { $0.episode },
                 yValue: { $0.averageMaxQ },
                 color: .purple,
@@ -48,7 +48,7 @@ struct CartPoleChartsView: View {
             
             MetricChart(
                 title: "TD Error",
-                data: Array(runner.episodeMetrics.suffix(500)),
+                data: runner.episodeMetrics,
                 xValue: { $0.episode },
                 yValue: { $0.averageTDError },
                 color: .pink,
@@ -57,7 +57,7 @@ struct CartPoleChartsView: View {
             
             MetricChart(
                 title: "Gradient Norm",
-                data: Array(runner.episodeMetrics.suffix(500).filter { $0.averageGradNorm != nil }),
+                data: runner.episodeMetrics.filter { $0.averageGradNorm != nil },
                 xValue: { $0.episode },
                 yValue: { $0.averageGradNorm ?? 0 },
                 color: .cyan,

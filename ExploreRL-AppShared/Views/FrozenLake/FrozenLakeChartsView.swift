@@ -12,7 +12,7 @@ struct FrozenLakeChartsView: View {
         LazyVGrid(columns: columns.isEmpty ? [GridItem(.flexible())] : columns, spacing: 10) {
             MetricChart(
                 title: "Success Rate",
-                data: Array(runner.episodeMetrics.suffix(500)),
+                data: runner.episodeMetrics,
                 xValue: { $0.episode },
                 yValue: { $0.success ? 1.0 : 0.0 },
                 color: .green,
@@ -21,7 +21,7 @@ struct FrozenLakeChartsView: View {
             
             MetricChart(
                 title: "Episode Rewards",
-                data: Array(runner.episodeMetrics.suffix(500)),
+                data: runner.episodeMetrics,
                 xValue: { $0.episode },
                 yValue: { $0.reward },
                 color: .blue,
@@ -30,7 +30,7 @@ struct FrozenLakeChartsView: View {
             
             MetricChart(
                 title: "Steps per Episode",
-                data: Array(runner.episodeMetrics.suffix(500)),
+                data: runner.episodeMetrics,
                 xValue: { $0.episode },
                 yValue: { Double($0.steps) },
                 color: .orange,
@@ -39,7 +39,7 @@ struct FrozenLakeChartsView: View {
             
             MetricChart(
                 title: "TD Error",
-                data: Array(runner.episodeMetrics.suffix(500)),
+                data: runner.episodeMetrics,
                 xValue: { $0.episode },
                 yValue: { $0.averageTDError },
                 color: .purple,
@@ -48,7 +48,7 @@ struct FrozenLakeChartsView: View {
             
             MetricChart(
                 title: "Max Q-Value",
-                data: Array(runner.episodeMetrics.suffix(500)),
+                data: runner.episodeMetrics,
                 xValue: { $0.episode },
                 yValue: { $0.averageMaxQ },
                 color: .pink,
@@ -57,7 +57,7 @@ struct FrozenLakeChartsView: View {
             
             MetricChart(
                 title: "Epsilon",
-                data: Array(runner.episodeMetrics.suffix(500)),
+                data: runner.episodeMetrics,
                 xValue: { $0.episode },
                 yValue: { $0.epsilon },
                 color: .cyan,
