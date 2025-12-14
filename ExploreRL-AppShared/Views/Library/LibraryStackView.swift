@@ -18,6 +18,7 @@ struct LibraryStackView: View {
     @State private var showBatchDeleteConfirmation = false
     @State private var agentToDuplicate: SavedAgentSummary?
     @State private var showDuplicateConfirmation = false
+    @State private var showSettings = false
     
     var filteredAgents: [SavedAgentSummary] {
         var agents: [SavedAgentSummary]
@@ -68,6 +69,9 @@ struct LibraryStackView: View {
                 }
             }
             .navigationTitle("Library")
+            .navigationDestination(isPresented: $showSettings) {
+                LibrarySettingsView()
+            }
             .navigationDestination(for: SavedAgentSummary.self) { agent in
                 LibraryAgentDetailView(agentSummary: agent)
             }
@@ -96,6 +100,7 @@ struct LibraryStackView: View {
                         } label: {
                             Image(systemName: "line.3.horizontal.decrease.circle")
                         }
+                        .padding(.trailing, isSelecting ? 8 : 0)
                     }
                     
                     ToolbarItem(placement: .automatic) {
@@ -122,10 +127,22 @@ struct LibraryStackView: View {
                                 .fontWeight(.semibold)
                             }
                         } else {
-                            Button("Select") {
+                            Button {
                                 withAnimation {
                                     isSelecting = true
                                 }
+                            } label: {
+                                Image(systemName: "checkmark.circle")
+                            }
+                        }
+                    }
+                    
+                    if !isSelecting {
+                        ToolbarItem(placement: .automatic) {
+                            Button {
+                                showSettings = true
+                            } label: {
+                                Image(systemName: "gearshape")
                             }
                         }
                     }

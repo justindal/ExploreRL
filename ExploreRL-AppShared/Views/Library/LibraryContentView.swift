@@ -19,6 +19,7 @@ struct LibraryContentView: View {
     @State private var showBatchDeleteConfirmation = false
     @State private var agentToDuplicate: SavedAgentSummary?
     @State private var showDuplicateConfirmation = false
+    @State private var showSettings = false
     
     var filteredAgents: [SavedAgentSummary] {
         var agents: [SavedAgentSummary]
@@ -56,27 +57,32 @@ struct LibraryContentView: View {
     }
     
     var body: some View {
-        GeometryReader { geometry in
-            HStack(spacing: 0) {
-                VStack(spacing: 0) {
-                    agentListContent
-                }
-                .frame(width: min(max(geometry.size.width * 0.4, 350), 500))
-                .clipped()
-                
-                Divider()
-                
-                if let agent = selectedAgent {
-                    LibraryAgentDetailView(agentSummary: agent)
-                        .frame(maxWidth: .infinity)
-                } else {
-                    ContentUnavailableView {
-                        Label("Select an Agent", systemImage: "tray")
-                    } description: {
-                        Text("Choose an agent from the list to view its details.")
+        NavigationStack {
+            GeometryReader { geometry in
+                HStack(spacing: 0) {
+                    VStack(spacing: 0) {
+                        agentListContent
                     }
-                    .frame(maxWidth: .infinity)
+                    .frame(width: min(max(geometry.size.width * 0.4, 350), 500))
+                    .clipped()
+                    
+                    Divider()
+                    
+                    if let agent = selectedAgent {
+                        LibraryAgentDetailView(agentSummary: agent)
+                            .frame(maxWidth: .infinity)
+                    } else {
+                        ContentUnavailableView {
+                            Label("Select an Agent", systemImage: "tray")
+                        } description: {
+                            Text("Choose an agent from the list to view its details.")
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
                 }
+            }
+            .navigationDestination(isPresented: $showSettings) {
+                LibrarySettingsView()
             }
         }
         .sheet(item: $agentToRename) { agent in
@@ -157,6 +163,7 @@ struct LibraryContentView: View {
                         Image(systemName: "line.3.horizontal.decrease.circle")
                     }
                     .menuStyle(.borderlessButton)
+                    .padding(.trailing, isSelecting ? 8 : 0)
                     
                     if isSelecting {
                         Button {
@@ -190,8 +197,14 @@ struct LibraryContentView: View {
                                 isSelecting = true
                             }
                         } label: {
-                            Text("Select")
-                                .font(.subheadline)
+                            Image(systemName: "checkmark.circle")
+                        }
+                        .buttonStyle(.borderless)
+                        
+                        Button {
+                            showSettings = true
+                        } label: {
+                            Image(systemName: "gearshape")
                         }
                         .buttonStyle(.borderless)
                     }
