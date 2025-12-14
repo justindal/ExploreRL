@@ -146,6 +146,9 @@ public class SACAgent<Actor: SACActorProtocol, Critic: SACCriticProtocol>: Conti
     
     public let minLogAlpha: Float
     public let maxLogAlpha: Float
+    private let minLogAlphaArray: MLXArray
+    private let maxLogAlphaArray: MLXArray
+    private let alphaSyncInterval: Int = 50
     
     public var steps: Int = 0
     
@@ -193,6 +196,8 @@ public class SACAgent<Actor: SACActorProtocol, Critic: SACCriticProtocol>: Conti
         
         self.minLogAlpha = minLogAlpha
         self.maxLogAlpha = maxLogAlpha
+        self.minLogAlphaArray = MLXArray(minLogAlpha)
+        self.maxLogAlphaArray = MLXArray(maxLogAlpha)
         
         self.targetEntropy = -Float(actionSize)
         self.targetEntropyArray = MLXArray(-Float(actionSize))
@@ -209,24 +214,26 @@ public class SACAgent<Actor: SACActorProtocol, Critic: SACCriticProtocol>: Conti
         let stateRow = state.count == stateSize ? state.reshaped([1, stateSize]) : state
         
         if deterministic {
-            return actor.getDeterministicAction(obs: stateRow).reshaped([actionSize])
+            let action = actor.getDeterministicAction(obs: stateRow).reshaped([actionSize])
+            eval(action)
+            return action
         }
         
         let (k1, k2) = MLX.split(key: key)
         key = k2
         let (action, _, _) = actor.sample(obs: stateRow, key: k1)
-        return action.reshaped([actionSize])
+        let actionVec = action.reshaped([actionSize])
+        eval(actionVec)
+        return actionVec
     }
     
     public func store(state: MLXArray, action: MLXArray, reward: Float, nextState: MLXArray, terminated: Bool) {
-        eval(state, action, nextState)
-        
         let exp = SACExperience(
             observation: state,
             nextObservation: nextState,
             action: action,
-            reward: MLXArray(reward),
-            terminated: MLXArray(terminated ? 1.0 : 0.0)
+            reward: MLXArray(Float32(reward)),
+            terminated: MLXArray(Float32(terminated ? 1.0 : 0.0))
         )
         memory.push(exp)
     }
@@ -287,7 +294,7 @@ public class SACAgent<Actor: SACActorProtocol, Critic: SACCriticProtocol>: Conti
         return (actorLossValue, meanLogPi)
     }
     
-    public func update() -> (qLoss: Float, actorLoss: Float, alphaLoss: Float)? {
+    private func updateInternal(syncScalars: Bool) -> (qLoss: Float, actorLoss: Float, alphaLoss: Float)? {
         guard memory.count >= batchSize else { return nil }
         
         steps += 1
@@ -328,20 +335,32 @@ public class SACAgent<Actor: SACActorProtocol, Critic: SACCriticProtocol>: Conti
         let (alphaLossArray, alphaGrads) = alphaLossAndGrad(logAlphaModule, meanLogPi, targetEntropyArray)
         alphaOptimizer.update(model: logAlphaModule, gradients: alphaGrads)
         
-        eval(
-            totalQLoss, actorLossValue, alphaLossArray,
-            actor.parameters(), qf1.parameters(), qf2.parameters(),
-            qf1Target.parameters(), qf2Target.parameters(),
-            logAlphaModule.parameters()
-        )
+        logAlphaModule.value = minimum(maximum(logAlphaModule.value, minLogAlphaArray), maxLogAlphaArray)
         
-        // Clamp log_alpha using configurable bounds
-        let clampedLogAlpha = min(max(logAlphaModule.item, minLogAlpha), maxLogAlpha)
-        let newAlphaParams = NestedDictionary<String, MLXArray>.unflattened([("value", MLXArray(clampedLogAlpha))])
-        logAlphaModule.update(parameters: newAlphaParams)
-        alpha = exp(clampedLogAlpha)
+        eval(totalQLoss, actorLossValue, alphaLossArray, actor, qf1, qf2, qf1Target, qf2Target, logAlphaModule)
         
-        return (totalQLoss.item(Float.self), actorLossValue.item(Float.self), alphaLossArray.item(Float.self))
+        if syncScalars {
+            let alphaArray = exp(logAlphaModule.value)
+            eval(alphaArray)
+            alpha = alphaArray.item(Float.self)
+            
+            return (totalQLoss.item(Float.self), actorLossValue.item(Float.self), alphaLossArray.item(Float.self))
+        } else {
+            if steps % alphaSyncInterval == 0 {
+                let alphaArray = exp(logAlphaModule.value)
+                eval(alphaArray)
+                alpha = alphaArray.item(Float.self)
+            }
+            return nil
+        }
+    }
+    
+    public func updateNoSync() {
+        _ = updateInternal(syncScalars: false)
+    }
+    
+    public func update() -> (qLoss: Float, actorLoss: Float, alphaLoss: Float)? {
+        updateInternal(syncScalars: true)
     }
     
     private func softUpdateTargetNetworks() {
@@ -374,6 +393,9 @@ public class SACAgentVmap<Actor: SACActorProtocol, Ensemble: SACEnsembleCriticPr
     
     public let minLogAlpha: Float
     public let maxLogAlpha: Float
+    private let minLogAlphaArray: MLXArray
+    private let maxLogAlphaArray: MLXArray
+    private let alphaSyncInterval: Int = 50
     
     public var steps: Int = 0
     
@@ -418,6 +440,8 @@ public class SACAgentVmap<Actor: SACActorProtocol, Ensemble: SACEnsembleCriticPr
         // Alpha bounds
         self.minLogAlpha = minLogAlpha
         self.maxLogAlpha = maxLogAlpha
+        self.minLogAlphaArray = MLXArray(minLogAlpha)
+        self.maxLogAlphaArray = MLXArray(maxLogAlpha)
         
         // Automatic entropy tuning
         self.targetEntropy = -Float(actionSize)
@@ -436,24 +460,26 @@ public class SACAgentVmap<Actor: SACActorProtocol, Ensemble: SACEnsembleCriticPr
         let stateRow = state.count == stateSize ? state.reshaped([1, stateSize]) : state
         
         if deterministic {
-            return actor.getDeterministicAction(obs: stateRow).reshaped([actionSize])
+            let action = actor.getDeterministicAction(obs: stateRow).reshaped([actionSize])
+            eval(action)
+            return action
         }
         
         let (k1, k2) = MLX.split(key: key)
         key = k2
         let (action, _, _) = actor.sample(obs: stateRow, key: k1)
-        return action.reshaped([actionSize])
+        let actionVec = action.reshaped([actionSize])
+        eval(actionVec)
+        return actionVec
     }
     
     public func store(state: MLXArray, action: MLXArray, reward: Float, nextState: MLXArray, terminated: Bool) {
-        eval(state, action, nextState)
-        
         let exp = SACExperience(
             observation: state,
             nextObservation: nextState,
             action: action,
-            reward: MLXArray(reward),
-            terminated: MLXArray(terminated ? 1.0 : 0.0)
+            reward: MLXArray(Float32(reward)),
+            terminated: MLXArray(Float32(terminated ? 1.0 : 0.0))
         )
         memory.push(exp)
     }
@@ -508,7 +534,7 @@ public class SACAgentVmap<Actor: SACActorProtocol, Ensemble: SACEnsembleCriticPr
         return (actorLossValue, meanLogPi)
     }
     
-    public func update() -> (qLoss: Float, actorLoss: Float, alphaLoss: Float)? {
+    private func updateInternal(syncScalars: Bool) -> (qLoss: Float, actorLoss: Float, alphaLoss: Float)? {
         guard memory.count >= batchSize else { return nil }
         
         steps += 1
@@ -549,19 +575,32 @@ public class SACAgentVmap<Actor: SACActorProtocol, Ensemble: SACEnsembleCriticPr
         let (alphaLossArray, alphaGrads) = alphaLossAndGrad(logAlphaModule, meanLogPi, targetEntropyArray)
         alphaOptimizer.update(model: logAlphaModule, gradients: alphaGrads)
         
-        eval(
-            totalQLoss, actorLossValue, alphaLossArray,
-            actor.parameters(), qEnsemble.parameters(), qEnsembleTarget.parameters(),
-            logAlphaModule.parameters()
-        )
+        logAlphaModule.value = minimum(maximum(logAlphaModule.value, minLogAlphaArray), maxLogAlphaArray)
         
-        // Clamp log_alpha using configurable bounds
-        let clampedLogAlpha = min(max(logAlphaModule.item, minLogAlpha), maxLogAlpha)
-        let newAlphaParams = NestedDictionary<String, MLXArray>.unflattened([("value", MLXArray(clampedLogAlpha))])
-        logAlphaModule.update(parameters: newAlphaParams)
-        alpha = exp(clampedLogAlpha)
+        eval(totalQLoss, actorLossValue, alphaLossArray, actor, qEnsemble, qEnsembleTarget, logAlphaModule)
         
-        return (totalQLoss.item(Float.self), actorLossValue.item(Float.self), alphaLossArray.item(Float.self))
+        if syncScalars {
+            let alphaArray = exp(logAlphaModule.value)
+            eval(alphaArray)
+            alpha = alphaArray.item(Float.self)
+            
+            return (totalQLoss.item(Float.self), actorLossValue.item(Float.self), alphaLossArray.item(Float.self))
+        } else {
+            if steps % alphaSyncInterval == 0 {
+                let alphaArray = exp(logAlphaModule.value)
+                eval(alphaArray)
+                alpha = alphaArray.item(Float.self)
+            }
+            return nil
+        }
+    }
+    
+    public func updateNoSync() {
+        _ = updateInternal(syncScalars: false)
+    }
+    
+    public func update() -> (qLoss: Float, actorLoss: Float, alphaLoss: Float)? {
+        updateInternal(syncScalars: true)
     }
     
     private func softUpdateTargetNetwork() {

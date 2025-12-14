@@ -452,7 +452,7 @@ import MLXNN
                 }
             }
             
-            _ = sacAgent.update()
+            sacAgent.updateNoSync()
             
             env = warmupEnv
             await MainActor.run { self.isWarmingUp = false }
@@ -544,7 +544,7 @@ import MLXNN
             
             let updatesPerEpisode = max(1, steps / 10)
             for i in 0..<updatesPerEpisode {
-                _ = sacAgent.update()
+                sacAgent.updateNoSync()
                 if i % 5 == 0 {
                     await Task.yield()
                 }
