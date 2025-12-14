@@ -169,7 +169,7 @@ import MLX
         }
         
         guard let madeEnv = Gymnazo.make(
-            "FrozenLake-v1",
+            "FrozenLake",
             kwargs: kwargs
         ) as? any Env<Int, Int> else {
             print("Failed to create FrozenLake environment")

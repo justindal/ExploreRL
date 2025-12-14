@@ -138,7 +138,7 @@ import MLXNN
         kwargs["desc"] = desc
         frozenLakeMap = desc
         
-        guard let env = Gymnazo.make("FrozenLake-v1", kwargs: kwargs) as? any Env<Int, Int> else {
+        guard let env = Gymnazo.make("FrozenLake", kwargs: kwargs) as? any Env<Int, Int> else {
             throw AgentStorageError.dataCorrupted
         }
         frozenLakeEnv = env
@@ -175,7 +175,7 @@ import MLXNN
         
         let renderMode: String? = showVisualization ? "human" : nil
         guard var env = Gymnazo.make(
-            "CartPole-v1",
+            "CartPole",
             maxEpisodeSteps: maxSteps,
             kwargs: ["render_mode": renderMode as Any]
         ) as? any Env<MLXArray, Int> else {
@@ -219,7 +219,7 @@ import MLXNN
         }
         
         guard var env = Gymnazo.make(
-            "MountainCar-v0",
+            "MountainCar",
             maxEpisodeSteps: maxSteps,
             kwargs: kwargs
         ) as? any Env<MLXArray, Int> else {
@@ -263,7 +263,7 @@ import MLXNN
         }
         
         guard var env = Gymnazo.make(
-            "MountainCarContinuous-v0",
+            "MountainCarContinuous",
             maxEpisodeSteps: maxSteps,
             kwargs: kwargs
         ) as? any Env<MLXArray, MLXArray> else {
@@ -320,7 +320,7 @@ import MLXNN
         
         let renderMode: String? = showVisualization ? "human" : nil
         guard var env = Gymnazo.make(
-            "Acrobot-v1",
+            "Acrobot",
             maxEpisodeSteps: maxSteps,
             kwargs: ["render_mode": renderMode as Any]
         ) as? any Env<MLXArray, Int> else {
@@ -364,7 +364,7 @@ import MLXNN
         }
         
         guard var env = Gymnazo.make(
-            "Pendulum-v1",
+            "Pendulum",
             maxEpisodeSteps: maxSteps,
             kwargs: kwargs
         ) as? any Env<MLXArray, MLXArray> else {
@@ -412,7 +412,7 @@ import MLXNN
         let kwargs: [String: Any] = showVisualization ? ["render_mode": "human"] : [:]
         
         guard var env = Gymnazo.make(
-            "LunarLander-v3",
+            "LunarLander",
             maxEpisodeSteps: maxSteps,
             kwargs: kwargs
         ) as? any Env<MLXArray, Int> else {
@@ -456,7 +456,7 @@ import MLXNN
         }
         
         guard var env = Gymnazo.make(
-            "LunarLanderContinuous-v3",
+            "LunarLanderContinuous",
             maxEpisodeSteps: maxSteps,
             kwargs: kwargs
         ) as? any Env<MLXArray, MLXArray> else {

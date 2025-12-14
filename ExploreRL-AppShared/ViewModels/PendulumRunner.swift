@@ -103,7 +103,7 @@ import MLXNN
         }
         
         guard let madeEnv = Gymnazo.make(
-            "Pendulum-v1",
+            "Pendulum",
             maxEpisodeSteps: maxStepsPerEpisode,
             kwargs: kwargs
         ) as? any Env<MLXArray, MLXArray> else {

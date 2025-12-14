@@ -57,7 +57,7 @@ struct CartPoleConfigurationView: View {
                 EnvironmentInfoRow(label: "Actions", value: "Left (0), Right (1)")
                 EnvironmentInfoRow(label: "Reward", value: "+1 per step alive")
                 EnvironmentInfoRow(label: "Termination", value: "|θ| > 12° or |x| > 2.4")
-                EnvironmentInfoRow(label: "Max Steps", value: "500 (CartPole-v1)")
+                EnvironmentInfoRow(label: "Max Steps", value: "500 (CartPole)")
             }
             
             DQNAdvancedSection(

@@ -2,7 +2,7 @@
 //  MountainCarContinuousSAC.swift
 //  ExploreRL
 //
-//  SAC agent specialized for MountainCarContinuous-v0 environment
+//  SAC agent specialized for MountainCarContinuous environment
 //  Observation space: 2 (position, velocity)
 //  Action space: 1 (force in [-1, 1])
 //
@@ -172,7 +172,7 @@ nonisolated public class MountainCarContinuousEnsembleQNetwork: Module, SACEnsem
 
 public class MountainCarContinuousSAC: SACAgentVmap<MountainCarContinuousActorNetwork, MountainCarContinuousEnsembleQNetwork> {
     
-    // MountainCarContinuous-v0 environment constants
+    // MountainCarContinuous environment constants
     public static let observationSize = 2
     public static let actionCount = 1
     public static let actionLow: Float = -1.0

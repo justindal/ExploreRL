@@ -2,7 +2,7 @@
 //  MountainCarDQN.swift
 //  ExploreRL
 //
-//  DQN agent specialized for MountainCar-v0 environment
+//  DQN agent specialized for MountainCar environment
 //  Observation space: 2 (position, velocity)
 //  Action space: 3 (push left, no push, push right)
 //
@@ -38,7 +38,7 @@ nonisolated public class MountainCarQNetwork: Module, QNetworkProtocol {
 
 public class MountainCarDQN: DQNAgent<MountainCarQNetwork> {
     
-    // MountainCar-v0 environment constants
+    // MountainCar environment constants
     public static let observationSize = 2
     public static let actionCount = 3
     

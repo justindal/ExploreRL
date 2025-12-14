@@ -119,7 +119,7 @@ import MLXNN
     func setupEnvironment() {
         let renderMode: String? = renderEnabled ? "human" : nil
         var env = Gymnazo.make(
-            "CartPole-v1",
+            "CartPole",
             maxEpisodeSteps: maxStepsPerEpisode,
             kwargs: ["render_mode": renderMode as Any]
         ) as! any Env<MLXArray, Int>

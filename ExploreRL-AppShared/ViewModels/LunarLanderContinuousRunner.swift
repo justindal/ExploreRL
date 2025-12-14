@@ -108,7 +108,7 @@ import MLXNN
         }
         
         guard var env = Gymnazo.make(
-            "LunarLanderContinuous-v3",
+            "LunarLanderContinuous",
             maxEpisodeSteps: maxStepsPerEpisode,
             kwargs: kwargs
         ) as? any Env<MLXArray, MLXArray> else {

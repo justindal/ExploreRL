@@ -1,7 +1,7 @@
 //
 //  LunarLanderDQN.swift
 //
-//  DQN agent specialized for LunarLander-v3 environment
+//  DQN agent specialized for LunarLander environment
 //  Observation space: 8 (x, y, vx, vy, angle, angular velocity, left leg contact, right leg contact)
 //  Action space: 4 (do nothing, fire left, fire main, fire right)
 //

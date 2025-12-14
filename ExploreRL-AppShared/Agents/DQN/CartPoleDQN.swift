@@ -2,7 +2,7 @@
 //  CartPoleDQN.swift
 //  ExploreRL
 //
-//  DQN agent specialized for CartPole-v1 environment
+//  DQN agent specialized for CartPole environment
 //  Observation space: 4 (cart position, cart velocity, pole angle, pole angular velocity)
 //  Action space: 2 (push left, push right)
 //
@@ -35,7 +35,7 @@ nonisolated public class CartPoleQNetwork: Module, QNetworkProtocol {
 
 public class CartPoleDQN: DQNAgent<CartPoleQNetwork> {
     
-    // CartPole-v1 environment constants
+    // CartPole environment constants
     public static let observationSize = 4
     public static let actionCount = 2
     

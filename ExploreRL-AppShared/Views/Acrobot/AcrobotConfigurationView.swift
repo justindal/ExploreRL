@@ -59,7 +59,7 @@ struct AcrobotConfigurationView: View {
                 EnvironmentInfoRow(label: "Actions", value: "-1, 0, +1 torque")
                 EnvironmentInfoRow(label: "Reward", value: "-1 per step, 0 on success")
                 EnvironmentInfoRow(label: "Termination", value: "Tip above target height")
-                EnvironmentInfoRow(label: "Max Steps", value: "500 (Acrobot-v1)")
+                EnvironmentInfoRow(label: "Max Steps", value: "500 (Acrobot)")
             }
             
             DQNAdvancedSection(

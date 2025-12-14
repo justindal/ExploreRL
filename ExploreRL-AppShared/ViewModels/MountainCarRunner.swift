@@ -124,7 +124,7 @@ import MLXNN
         }
         
         guard let madeEnv = Gymnazo.make(
-            "MountainCar-v0",
+            "MountainCar",
             maxEpisodeSteps: maxStepsPerEpisode,
             kwargs: kwargs
         ) as? any Env<MLXArray, Int> else {

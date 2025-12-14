@@ -1,7 +1,7 @@
 //
 //  LunarLanderContinuousSAC.swift
 //
-//  SAC agent specialized for LunarLanderContinuous-v3 environment
+//  SAC agent specialized for LunarLanderContinuous environment
 //  Observation space: 8 (x, y, vx, vy, angle, angular velocity, left leg contact, right leg contact)
 //  Action space: 2 (main throttle [-1, 1], lateral control [-1, 1])
 //

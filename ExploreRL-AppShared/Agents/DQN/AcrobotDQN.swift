@@ -2,7 +2,7 @@
 //  AcrobotDQN.swift
 //  ExploreRL
 //
-//  DQN agent specialized for Acrobot-v1 environment
+//  DQN agent specialized for Acrobot environment
 //  Observation space: 6 (cos(theta1), sin(theta1), cos(theta2), sin(theta2), theta1_dot, theta2_dot)
 //  Action space: 3 (torque -1, 0, +1)
 //
@@ -35,7 +35,7 @@ nonisolated public class AcrobotQNetwork: Module, QNetworkProtocol {
 
 public class AcrobotDQN: DQNAgent<AcrobotQNetwork> {
     
-    // Acrobot-v1 environment constants
+    // Acrobot environment constants
     public static let observationSize = 6
     public static let actionCount = 3
     

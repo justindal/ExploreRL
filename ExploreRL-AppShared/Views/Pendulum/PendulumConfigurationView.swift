@@ -58,7 +58,7 @@ struct PendulumConfigurationView: View {
                 EnvironmentInfoRow(label: "Action Range", value: "[-2.0, 2.0] torque")
                 EnvironmentInfoRow(label: "Reward", value: "-(θ² + 0.1θ̇² + 0.001τ²)")
                 EnvironmentInfoRow(label: "Goal", value: "Balance pendulum upright")
-                EnvironmentInfoRow(label: "Max Steps", value: "200 (Pendulum-v1)")
+                EnvironmentInfoRow(label: "Max Steps", value: "200 (Pendulum)")
             }
         }
         .padding()

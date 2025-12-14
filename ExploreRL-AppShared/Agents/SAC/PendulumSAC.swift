@@ -1,7 +1,7 @@
 //
 //  PendulumSAC.swift
 //
-//  SAC agent specialized for Pendulum-v1 environment
+//  SAC agent specialized for Pendulum environment
 //  Observation space: 3 (cos(theta), sin(theta), theta_dot)
 //  Action space: 1 (torque in [-2, 2])
 //
@@ -171,7 +171,7 @@ nonisolated public class PendulumEnsembleQNetwork: Module, SACEnsembleCriticProt
 
 public class PendulumSAC: SACAgentVmap<PendulumActorNetwork, PendulumEnsembleQNetwork> {
     
-    // Pendulum-v1 environment constants
+    // Pendulum environment constants
     public static let observationSize = 3
     public static let actionCount = 1
     public static let actionLow: Float = -2.0
