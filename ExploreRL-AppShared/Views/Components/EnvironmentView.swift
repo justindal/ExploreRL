@@ -7,6 +7,7 @@ import SwiftUI
 /// A generic environment view that handles all common UI logic for RL environment training.
 struct EnvironmentView<Runner: SavableEnvironmentRunner, CanvasView: View, ConfigView: View, ChartsView: View>: View {
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
+    @Environment(\.verticalSizeClass) var verticalSizeClass
     @Environment(\.dismiss) private var dismiss
     
     @Bindable var runner: Runner
@@ -69,7 +70,7 @@ struct EnvironmentView<Runner: SavableEnvironmentRunner, CanvasView: View, Confi
     
     var body: some View {
         Group {
-            if horizontalSizeClass == .compact {
+            if isCompactLayout {
                 compactLayout
             } else {
                 regularLayout
@@ -137,6 +138,18 @@ struct EnvironmentView<Runner: SavableEnvironmentRunner, CanvasView: View, Confi
         }
         #endif
         .interactiveDismissDisabled(runner.isTraining || hasUnsavedChanges)
+        #if os(iOS)
+        .navigationTitle(environmentName)
+        .navigationBarTitleDisplayMode(.inline)
+        #endif
+    }
+
+    private var isCompactLayout: Bool {
+        #if os(iOS)
+        return UIDevice.current.userInterfaceIdiom == .phone || horizontalSizeClass == .compact || verticalSizeClass == .compact
+        #else
+        return horizontalSizeClass == .compact
+        #endif
     }
     
     private var compactLayout: some View {
@@ -238,6 +251,22 @@ struct EnvironmentView<Runner: SavableEnvironmentRunner, CanvasView: View, Confi
     
     private var environmentHeader: some View {
         VStack(alignment: .leading, spacing: 8) {
+            #if os(iOS)
+            if UIDevice.current.userInterfaceIdiom != .phone {
+                HStack(alignment: .center) {
+                    Text(environmentName)
+                        .font(horizontalSizeClass == .compact ? .title : .largeTitle)
+                        .bold()
+                    
+                    if hasUnsavedChanges {
+                        Circle()
+                            .fill(Color.orange)
+                            .frame(width: 10, height: 10)
+                            .help("Unsaved changes")
+                    }
+                }
+            }
+            #else
             HStack(alignment: .center) {
                 Text(environmentName)
                     .font(horizontalSizeClass == .compact ? .title : .largeTitle)
@@ -250,6 +279,7 @@ struct EnvironmentView<Runner: SavableEnvironmentRunner, CanvasView: View, Confi
                         .help("Unsaved changes")
                 }
             }
+            #endif
             
             if let loadedName = runner.loadedAgentName {
                 HStack(spacing: 6) {
@@ -415,19 +445,18 @@ struct EnvironmentView<Runner: SavableEnvironmentRunner, CanvasView: View, Confi
             .padding(.top)
             
             ScrollView {
-                VStack(spacing: 20) {
-                    switch selectedTab {
-                    case .settings:
+                Group {
+                    if selectedTab == .settings {
                         configuration()
-                            .transition(.move(edge: .leading))
-                    case .charts:
+                    } else {
                         charts(nil)
-                            .transition(.move(edge: .trailing))
                     }
                 }
+                .id(selectedTab)
                 .padding()
-                .animation(.easeInOut(duration: 0.2), value: selectedTab)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .clipped()
         }
     }
 }
