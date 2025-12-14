@@ -27,6 +27,11 @@ struct CartPoleView: View {
             },
             charts: { columns in
                 CartPoleChartsView(runner: runner, columns: columns ?? [])
+            },
+            info: {
+                EnvironmentInfoTabView(
+                    model: EnvironmentInfoTabModels.cartPole(maxStepsPerEpisode: runner.maxStepsPerEpisode)
+                )
             }
         )
     }

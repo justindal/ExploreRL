@@ -27,6 +27,11 @@ struct LunarLanderView: View {
             },
             charts: { columns in
                 LunarLanderChartsView(runner: runner, columns: columns ?? [])
+            },
+            info: {
+                EnvironmentInfoTabView(
+                    model: EnvironmentInfoTabModels.lunarLander(maxStepsPerEpisode: runner.maxStepsPerEpisode)
+                )
             }
         )
     }

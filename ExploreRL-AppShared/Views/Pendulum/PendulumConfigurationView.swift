@@ -45,21 +45,6 @@ struct PendulumConfigurationView: View {
                 warmupSteps: $runner.warmupSteps,
                 showWarmup: true
             )
-            
-            Divider()
-            
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Environment Info")
-                    .font(.headline)
-                
-                EnvironmentInfoRow(label: "State Space", value: "Box(3,)")
-                EnvironmentInfoRow(label: "Observation", value: "[cos(θ), sin(θ), θ̇]")
-                EnvironmentInfoRow(label: "Action Space", value: "Box(1,)")
-                EnvironmentInfoRow(label: "Action Range", value: "[-2.0, 2.0] torque")
-                EnvironmentInfoRow(label: "Reward", value: "-(θ² + 0.1θ̇² + 0.001τ²)")
-                EnvironmentInfoRow(label: "Goal", value: "Balance pendulum upright")
-                EnvironmentInfoRow(label: "Max Steps", value: "200 (Pendulum)")
-            }
         }
         .padding()
         #if os(iOS)

@@ -33,6 +33,17 @@ struct FrozenLakeView: View {
             },
             charts: { columns in
                 FrozenLakeChartsView(runner: runner, columns: columns ?? [])
+            },
+            info: {
+                EnvironmentInfoTabView(
+                    model: EnvironmentInfoTabModels.frozenLake(
+                        algorithmName: runner.selectedAlgorithm.rawValue,
+                        mapName: runner.mapName,
+                        customMapSize: runner.customMapSize,
+                        isSlippery: runner.isSlippery,
+                        maxStepsPerEpisode: runner.maxStepsPerEpisode
+                    )
+                )
             }
         )
     }

@@ -27,6 +27,11 @@ struct LunarLanderContinuousView: View {
             },
             charts: { columns in
                 LunarLanderContinuousChartsView(runner: runner, columns: columns ?? [])
+            },
+            info: {
+                EnvironmentInfoTabView(
+                    model: EnvironmentInfoTabModels.lunarLanderContinuous(maxStepsPerEpisode: runner.maxStepsPerEpisode)
+                )
             }
         )
     }

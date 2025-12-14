@@ -44,22 +44,6 @@ struct MountainCarConfigurationView: View {
                 warmupSteps: $runner.warmupSteps,
                 showWarmup: true
             )
-            
-            Divider()
-            
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Environment Info")
-                    .font(.headline)
-                
-                EnvironmentInfoRow(label: "State Space", value: "Box(2,)")
-                EnvironmentInfoRow(label: "Observation", value: "[position, velocity]")
-                EnvironmentInfoRow(label: "Position Range", value: "[-1.2, 0.6]")
-                EnvironmentInfoRow(label: "Velocity Range", value: "[-0.07, 0.07]")
-                EnvironmentInfoRow(label: "Action Space", value: "Discrete(3)")
-                EnvironmentInfoRow(label: "Actions", value: "Left (0), None (1), Right (2)")
-                EnvironmentInfoRow(label: "Reward", value: "-1 per step")
-                EnvironmentInfoRow(label: "Goal Position", value: "≥ 0.5")
-            }
         }
         .padding()
         #if os(iOS)

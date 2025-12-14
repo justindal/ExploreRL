@@ -27,6 +27,11 @@ struct AcrobotView: View {
             },
             charts: { columns in
                 AcrobotChartsView(runner: runner, columns: columns ?? [])
+            },
+            info: {
+                EnvironmentInfoTabView(
+                    model: EnvironmentInfoTabModels.acrobot(maxStepsPerEpisode: runner.maxStepsPerEpisode)
+                )
             }
         )
     }

@@ -48,20 +48,6 @@ struct LunarLanderContinuousConfigurationView: View {
                 showBuffer: true
             )
             
-            Divider()
-            
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Environment Info")
-                    .font(.headline)
-                
-                EnvironmentInfoRow(label: "State Space", value: "Box(8,)")
-                EnvironmentInfoRow(label: "Observation", value: "[x, y, vx, vy, θ, ω, leg_l, leg_r]")
-                EnvironmentInfoRow(label: "Action Space", value: "Box(2,)")
-                EnvironmentInfoRow(label: "Actions", value: "[main_engine, lateral]")
-                EnvironmentInfoRow(label: "Reward", value: "~100-140 for landing")
-                EnvironmentInfoRow(label: "Termination", value: "Crash or successful land")
-            }
-            
             SeedSection(
                 useSeed: $runner.useSeed,
                 seed: $runner.seed,

@@ -47,21 +47,6 @@ struct AcrobotConfigurationView: View {
                 showWarmup: true
             )
             
-            Divider()
-            
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Environment Info")
-                    .font(.headline)
-                
-                EnvironmentInfoRow(label: "State Space", value: "Box(6,)")
-                EnvironmentInfoRow(label: "Observation", value: "[cos(θ₁), sin(θ₁), cos(θ₂), sin(θ₂), θ̇₁, θ̇₂]")
-                EnvironmentInfoRow(label: "Action Space", value: "Discrete(3)")
-                EnvironmentInfoRow(label: "Actions", value: "-1, 0, +1 torque")
-                EnvironmentInfoRow(label: "Reward", value: "-1 per step, 0 on success")
-                EnvironmentInfoRow(label: "Termination", value: "Tip above target height")
-                EnvironmentInfoRow(label: "Max Steps", value: "500 (Acrobot)")
-            }
-            
             DQNAdvancedSection(
                 useSeed: $runner.useSeed,
                 seed: $runner.seed,

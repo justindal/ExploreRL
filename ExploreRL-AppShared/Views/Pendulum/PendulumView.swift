@@ -27,6 +27,11 @@ struct PendulumView: View {
             },
             charts: { columns in
                 PendulumChartsView(runner: runner, columns: columns ?? [])
+            },
+            info: {
+                EnvironmentInfoTabView(
+                    model: EnvironmentInfoTabModels.pendulum(maxStepsPerEpisode: runner.maxStepsPerEpisode)
+                )
             }
         )
     }

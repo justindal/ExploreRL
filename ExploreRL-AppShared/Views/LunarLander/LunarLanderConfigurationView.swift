@@ -47,20 +47,6 @@ struct LunarLanderConfigurationView: View {
                 showWarmup: true
             )
             
-            Divider()
-            
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Environment Info")
-                    .font(.headline)
-                
-                EnvironmentInfoRow(label: "State Space", value: "Box(8,)")
-                EnvironmentInfoRow(label: "Observation", value: "[x, y, vx, vy, θ, ω, leg_l, leg_r]")
-                EnvironmentInfoRow(label: "Action Space", value: "Discrete(4)")
-                EnvironmentInfoRow(label: "Actions", value: "Noop, Left, Main, Right")
-                EnvironmentInfoRow(label: "Reward", value: "~100-140 for landing")
-                EnvironmentInfoRow(label: "Termination", value: "Crash or successful land")
-            }
-            
             DQNAdvancedSection(
                 useSeed: $runner.useSeed,
                 seed: $runner.seed,

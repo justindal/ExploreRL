@@ -40,10 +40,6 @@ struct FrozenLakeConfigurationView: View {
             )
             
             advancedSection
-            
-            Divider()
-            
-            environmentInfoSection
         }
         .padding()
         #if os(iOS)
@@ -193,23 +189,4 @@ struct FrozenLakeConfigurationView: View {
         .disabled(runner.isTraining)
     }
     
-    private var environmentInfoSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Environment Info")
-                .font(.headline)
-            
-            let mapSize = runner.mapName == "Custom" ? runner.customMapSize : (runner.mapName == "4x4" ? 4 : 8)
-            EnvironmentInfoRow(label: "State Space", value: "Discrete(\(mapSize * mapSize))")
-            EnvironmentInfoRow(label: "Action Space", value: "Discrete(4)")
-            EnvironmentInfoRow(label: "Actions", value: "←(0) ↓(1) →(2) ↑(3)")
-            EnvironmentInfoRow(label: "Reward (Goal)", value: "+1.0")
-            EnvironmentInfoRow(label: "Reward (Hole)", value: "0.0")
-            EnvironmentInfoRow(label: "Reward (Step)", value: "0.0")
-            if runner.isSlippery {
-                EnvironmentInfoRow(label: "Dynamics", value: "Stochastic (slippery)")
-            } else {
-                EnvironmentInfoRow(label: "Dynamics", value: "Deterministic")
-            }
-        }
-    }
 }

@@ -27,6 +27,11 @@ struct MountainCarView: View {
             },
             charts: { columns in
                 MountainCarChartsView(runner: runner, columns: columns ?? [])
+            },
+            info: {
+                EnvironmentInfoTabView(
+                    model: EnvironmentInfoTabModels.mountainCar(maxStepsPerEpisode: runner.maxStepsPerEpisode)
+                )
             }
         )
     }

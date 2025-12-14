@@ -27,6 +27,11 @@ struct MountainCarContinuousView: View {
             },
             charts: { columns in
                 MountainCarContinuousChartsView(runner: runner, columns: columns ?? [])
+            },
+            info: {
+                EnvironmentInfoTabView(
+                    model: EnvironmentInfoTabModels.mountainCarContinuous(maxStepsPerEpisode: runner.maxStepsPerEpisode)
+                )
             }
         )
     }
