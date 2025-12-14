@@ -1458,15 +1458,23 @@ struct AgentDataVisualizationView: View {
                         self.qTable = finalResult
                         self.isLoading = false
                     }
-                } else if agentCopy.environmentType == .mountainCarContinuous {
+                } else if agentCopy.environmentType == .mountainCarContinuous
+                            || agentCopy.environmentType == .pendulum
+                            || agentCopy.environmentType == .lunarLanderContinuous {
                     var allWeights: [String: [String: MLXArray]]
                     var isVmapFormat = false
                     
-                    if agentCopy.algorithmType == "SAC-Vmap" || agentCopy.agentDataPath.contains("vmap") {
-                        allWeights = try await AgentStorage.shared.loadSACVmapWeights(for: agentCopy)
-                        isVmapFormat = true
+                    if agentCopy.environmentType == .mountainCarContinuous {
+                        if agentCopy.algorithmType == "SAC-Vmap" || agentCopy.agentDataPath.contains("vmap") {
+                            allWeights = try await AgentStorage.shared.loadSACVmapWeights(for: agentCopy)
+                            isVmapFormat = true
+                        } else {
+                            allWeights = try await AgentStorage.shared.loadSACWeights(for: agentCopy)
+                        }
+                    } else if agentCopy.environmentType == .pendulum {
+                        allWeights = try await AgentStorage.shared.loadPendulumWeights(for: agentCopy)
                     } else {
-                        allWeights = try await AgentStorage.shared.loadSACWeights(for: agentCopy)
+                        allWeights = try await AgentStorage.shared.loadLunarLanderContinuousWeights(for: agentCopy)
                     }
                     
                     var networks: [String: [NetworkLayerInfo]] = [:]
@@ -1475,13 +1483,30 @@ struct AgentDataVisualizationView: View {
                     for (networkName, weights) in allWeights {
                         var layers: [NetworkLayerInfo] = []
                         
+                        let obsSize: Int
+                        let actionSize: Int
+                        switch agentCopy.environmentType {
+                        case .mountainCarContinuous:
+                            obsSize = 2
+                            actionSize = 1
+                        case .pendulum:
+                            obsSize = 3
+                            actionSize = 1
+                        case .lunarLanderContinuous:
+                            obsSize = 8
+                            actionSize = 2
+                        default:
+                            obsSize = 2
+                            actionSize = 1
+                        }
+                        
                         let inputSize: Int
                         if networkName == "actor" {
-                            inputSize = 2
+                            inputSize = obsSize
                         } else if networkName == "qEnsemble" || networkName == "qf1" || networkName == "qf2" {
-                            inputSize = 3
+                            inputSize = obsSize + actionSize
                         } else {
-                            inputSize = 2
+                            inputSize = obsSize
                         }
                         
                         layers.append(NetworkLayerInfo(

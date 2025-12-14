@@ -177,12 +177,12 @@ public class LunarLanderContinuousSAC: SACAgentVmap<LunarLanderContinuousActorNe
     
     public struct Defaults {
         public static let hiddenSize = 256
-        public static let learningRate: Float = 0.0003
+        public static let learningRate: Float = 0.00073
         public static let gamma: Float = 0.99
-        public static let tau: Float = 0.005
+        public static let tau: Float = 0.01
         public static let alpha: Float = 0.2
         public static let batchSize = 256
-        public static let bufferSize = 100000
+        public static let bufferSize = 1000000
         public static let minLogAlpha: Float = -5.0
         public static let maxLogAlpha: Float = 2.0
     }
