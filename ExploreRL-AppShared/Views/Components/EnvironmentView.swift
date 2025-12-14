@@ -5,7 +5,7 @@
 import SwiftUI
 
 /// A generic environment view that handles all common UI logic for RL environment training.
-struct EnvironmentView<Runner: SavableEnvironmentRunner, CanvasView: View, ConfigView: View, ChartsView: View>: View {
+struct EnvironmentView<Runner: SavableEnvironmentRunner, CanvasView: View, ConfigView: View, ChartsView: View, InfoView: View>: View {
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
     @Environment(\.verticalSizeClass) var verticalSizeClass
     @Environment(\.dismiss) private var dismiss
@@ -22,6 +22,7 @@ struct EnvironmentView<Runner: SavableEnvironmentRunner, CanvasView: View, Confi
     @ViewBuilder let canvas: (Runner.SnapshotType?) -> CanvasView
     @ViewBuilder let configuration: () -> ConfigView
     @ViewBuilder let charts: ([GridItem]?) -> ChartsView
+    @ViewBuilder let info: () -> InfoView
     
     var showPolicyOverlay: (() -> AnyView)? = nil
     
@@ -37,6 +38,7 @@ struct EnvironmentView<Runner: SavableEnvironmentRunner, CanvasView: View, Confi
     enum InspectorTab: String, CaseIterable, Identifiable {
         case settings = "Settings"
         case charts = "Charts"
+        case info = "Info"
         var id: String { rawValue }
     }
     
@@ -54,7 +56,8 @@ struct EnvironmentView<Runner: SavableEnvironmentRunner, CanvasView: View, Confi
         canvasMaxSize: CGSize,
         @ViewBuilder canvas: @escaping (Runner.SnapshotType?) -> CanvasView,
         @ViewBuilder configuration: @escaping () -> ConfigView,
-        @ViewBuilder charts: @escaping ([GridItem]?) -> ChartsView
+        @ViewBuilder charts: @escaping ([GridItem]?) -> ChartsView,
+        @ViewBuilder info: @escaping () -> InfoView
     ) {
         self.runner = runner
         self.environmentName = environmentName
@@ -66,6 +69,7 @@ struct EnvironmentView<Runner: SavableEnvironmentRunner, CanvasView: View, Confi
         self.canvas = canvas
         self.configuration = configuration
         self.charts = charts
+        self.info = info
     }
     
     var body: some View {
@@ -448,8 +452,10 @@ struct EnvironmentView<Runner: SavableEnvironmentRunner, CanvasView: View, Confi
                 Group {
                     if selectedTab == .settings {
                         configuration()
-                    } else {
+                    } else if selectedTab == .charts {
                         charts(nil)
+                    } else {
+                        info()
                     }
                 }
                 .id(selectedTab)

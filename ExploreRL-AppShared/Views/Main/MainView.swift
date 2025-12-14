@@ -8,11 +8,13 @@ enum NavItem: Hashable {
     case library
     case train(EnvironmentType)
     case evaluate
+    case explore
 }
 
 struct MainView: View {
     private var trainingState = TrainingState.shared
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @State private var columnVisibility: NavigationSplitViewVisibility = .all
     
     @State private var frozenLakeRunner = FrozenLakeRunner()
     @State private var cartPoleRunner = CartPoleRunner()
@@ -59,10 +61,14 @@ struct MainView: View {
     }
     
     private var sidebarView: some View {
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
             List(selection: $selectedItem) {
                 NavigationLink(value: NavItem.library) {
                     Label("Library", systemImage: "books.vertical")
+                }
+                
+                NavigationLink(value: NavItem.explore) {
+                    Label("Explore", systemImage: "sparkle.magnifyingglass")
                 }
                 
                 NavigationLink(value: NavItem.evaluate) {
@@ -92,6 +98,7 @@ struct MainView: View {
         } detail: {
             detailView
         }
+        .navigationSplitViewStyle(.balanced)
     }
     
     @ViewBuilder
@@ -99,6 +106,9 @@ struct MainView: View {
         switch selectedItem {
         case .library:
             LibraryView()
+        case .explore:
+            ExploreView()
+                .navigationTitle("Explore")
         case .train(let envType):
             trainView(for: envType)
         case .evaluate:
@@ -129,6 +139,16 @@ struct MainView: View {
             
             Tab("Evaluate", systemImage: "play.circle") {
                 EvaluateView(runner: evaluationRunner)
+            }
+            
+            Tab("Explore", systemImage: "sparkle.magnifyingglass") {
+                NavigationStack {
+                    ExploreView()
+                        .navigationTitle("Explore")
+                        #if os(iOS)
+                        .navigationBarTitleDisplayMode(.large)
+                        #endif
+                }
             }
         }
     }
