@@ -149,11 +149,20 @@ public class SACAgent<Actor: SACActorProtocol, Critic: SACCriticProtocol>: Conti
     private let minLogAlphaArray: MLXArray
     private let maxLogAlphaArray: MLXArray
     private let alphaSyncInterval: Int = 50
+    private let alphaLearningRate: MLXArray
     
     public var steps: Int = 0
     
     private let tauArray: MLXArray
     private let oneMinusTauArray: MLXArray
+    
+    public func syncAlpha() -> Float {
+        let alphaArray = exp(logAlphaModule.value)
+        eval(alphaArray)
+        let v = alphaArray.item(Float.self)
+        alpha = v
+        return v
+    }
     
     public init(
         actor: Actor,
@@ -203,6 +212,7 @@ public class SACAgent<Actor: SACActorProtocol, Critic: SACCriticProtocol>: Conti
         self.targetEntropyArray = MLXArray(-Float(actionSize))
         self.logAlphaModule = TrainableParameter(log(alpha))
         self.alphaOptimizer = Adam(learningRate: learningRate)
+        self.alphaLearningRate = MLXArray(learningRate)
         
         self.tauArray = MLXArray(tau)
         self.oneMinusTauArray = MLXArray(1.0 - tau)
@@ -327,29 +337,33 @@ public class SACAgent<Actor: SACActorProtocol, Critic: SACCriticProtocol>: Conti
         
         softUpdateTargetNetworks()
         
-        // Compute alpha loss
-        let alphaLossAndGrad = valueAndGrad(model: logAlphaModule) { (module: TrainableParameter, meanLogPiVal: MLXArray, targetEnt: MLXArray) -> MLXArray in
-            return -module.value * stopGradient(meanLogPiVal + targetEnt)
+        // L_alpha = -alpha * (log_pi + H_target), we optimize log_alpha
+        let entropyDiff = stopGradient(meanLogPi + targetEntropyArray)
+        
+        let alphaLossAndGrad = valueAndGrad { (inputs: [MLXArray]) -> [MLXArray] in
+            let logAlpha = inputs[0]
+            let alpha = exp(logAlpha)
+            let loss = -alpha * entropyDiff
+            return [loss]
         }
         
-        let (alphaLossArray, alphaGrads) = alphaLossAndGrad(logAlphaModule, meanLogPi, targetEntropyArray)
-        alphaOptimizer.update(model: logAlphaModule, gradients: alphaGrads)
+        let (alphaLossResults, alphaGradResults) = alphaLossAndGrad([logAlphaModule.value])
+        let alphaLossArray = alphaLossResults[0]
+        let logAlphaGrad = alphaGradResults[0]
+        
+        logAlphaModule.value = logAlphaModule.value - alphaLearningRate * logAlphaGrad
         
         logAlphaModule.value = minimum(maximum(logAlphaModule.value, minLogAlphaArray), maxLogAlphaArray)
         
         eval(totalQLoss, actorLossValue, alphaLossArray, actor, qf1, qf2, qf1Target, qf2Target, logAlphaModule)
         
         if syncScalars {
-            let alphaArray = exp(logAlphaModule.value)
-            eval(alphaArray)
-            alpha = alphaArray.item(Float.self)
+            _ = syncAlpha()
             
             return (totalQLoss.item(Float.self), actorLossValue.item(Float.self), alphaLossArray.item(Float.self))
         } else {
             if steps % alphaSyncInterval == 0 {
-                let alphaArray = exp(logAlphaModule.value)
-                eval(alphaArray)
-                alpha = alphaArray.item(Float.self)
+                _ = syncAlpha()
             }
             return nil
         }
@@ -396,12 +410,21 @@ public class SACAgentVmap<Actor: SACActorProtocol, Ensemble: SACEnsembleCriticPr
     private let minLogAlphaArray: MLXArray
     private let maxLogAlphaArray: MLXArray
     private let alphaSyncInterval: Int = 50
+    private let alphaLearningRate: MLXArray
     
     public var steps: Int = 0
     
     private let tauArray: MLXArray
     private let oneMinusTauArray: MLXArray
     private let gammaArray: MLXArray
+    
+    public func syncAlpha() -> Float {
+        let alphaArray = exp(logAlphaModule.value)
+        eval(alphaArray)
+        let v = alphaArray.item(Float.self)
+        alpha = v
+        return v
+    }
     
     public init(
         actor: Actor,
@@ -448,6 +471,7 @@ public class SACAgentVmap<Actor: SACActorProtocol, Ensemble: SACEnsembleCriticPr
         self.targetEntropyArray = MLXArray(-Float(actionSize))
         self.logAlphaModule = TrainableParameter(log(alpha))
         self.alphaOptimizer = Adam(learningRate: learningRate)
+        self.alphaLearningRate = MLXArray(learningRate)
         
         self.tauArray = MLXArray(tau)
         self.oneMinusTauArray = MLXArray(1.0 - tau)
@@ -567,29 +591,33 @@ public class SACAgentVmap<Actor: SACActorProtocol, Ensemble: SACEnsembleCriticPr
         
         softUpdateTargetNetwork()
         
-        // Compute alpha loss
-        let alphaLossAndGrad = valueAndGrad(model: logAlphaModule) { (module: TrainableParameter, meanLogPiVal: MLXArray, targetEnt: MLXArray) -> MLXArray in
-            return -module.value * stopGradient(meanLogPiVal + targetEnt)
+        // L_alpha = -alpha * (log_pi + H_target), we optimize log_alpha
+        let entropyDiff = stopGradient(meanLogPi + targetEntropyArray)
+        
+        let alphaLossAndGrad = valueAndGrad { (inputs: [MLXArray]) -> [MLXArray] in
+            let logAlpha = inputs[0]
+            let alpha = exp(logAlpha)
+            let loss = -alpha * entropyDiff
+            return [loss]
         }
         
-        let (alphaLossArray, alphaGrads) = alphaLossAndGrad(logAlphaModule, meanLogPi, targetEntropyArray)
-        alphaOptimizer.update(model: logAlphaModule, gradients: alphaGrads)
+        let (alphaLossResults, alphaGradResults) = alphaLossAndGrad([logAlphaModule.value])
+        let alphaLossArray = alphaLossResults[0]
+        let logAlphaGrad = alphaGradResults[0]
+        
+        logAlphaModule.value = logAlphaModule.value - alphaLearningRate * logAlphaGrad
         
         logAlphaModule.value = minimum(maximum(logAlphaModule.value, minLogAlphaArray), maxLogAlphaArray)
         
         eval(totalQLoss, actorLossValue, alphaLossArray, actor, qEnsemble, qEnsembleTarget, logAlphaModule)
         
         if syncScalars {
-            let alphaArray = exp(logAlphaModule.value)
-            eval(alphaArray)
-            alpha = alphaArray.item(Float.self)
+            _ = syncAlpha()
             
             return (totalQLoss.item(Float.self), actorLossValue.item(Float.self), alphaLossArray.item(Float.self))
         } else {
             if steps % alphaSyncInterval == 0 {
-                let alphaArray = exp(logAlphaModule.value)
-                eval(alphaArray)
-                alpha = alphaArray.item(Float.self)
+                _ = syncAlpha()
             }
             return nil
         }

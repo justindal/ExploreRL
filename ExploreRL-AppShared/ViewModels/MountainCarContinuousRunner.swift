@@ -506,7 +506,7 @@ import MLXNN
                 if renderEnabled {
                     let currentSteps = steps
                     let currentReward = episodeRewardLocal
-                    let currentAlpha = Double(sacAgent.alpha)
+                    let currentAlpha = Double(sacAgent.syncAlpha())
                     await MainActor.run {
                         self.currentStep = currentSteps
                         self.episodeReward = currentReward
@@ -519,7 +519,7 @@ import MLXNN
                 } else if now.timeIntervalSince(lastUIUpdate) >= uiUpdateInterval {
                     let currentSteps = steps
                     let currentReward = episodeRewardLocal
-                    let currentAlpha = Double(sacAgent.alpha)
+                    let currentAlpha = Double(sacAgent.syncAlpha())
                     await MainActor.run {
                         self.currentStep = currentSteps
                         self.episodeReward = currentReward
@@ -565,7 +565,7 @@ import MLXNN
                 averageTDError: 0,
                 averageLoss: nil,
                 averageMaxQ: 0,
-                epsilon: Double(sacAgent.alpha),
+                epsilon: Double(sacAgent.syncAlpha()),
                 averageGradNorm: nil,
                 rewardMovingAverage: movingAvg
             )
