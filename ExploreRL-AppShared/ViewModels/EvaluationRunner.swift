@@ -191,7 +191,7 @@ import MLXNN
             epsilonStart: 0,
             epsilonEnd: 0,
             epsilonDecaySteps: 1,
-            tau: 0,
+            targetUpdateFrequency: 1,
             batchSize: 64,
             bufferCapacity: 1000,
             gradClipNorm: 100
@@ -235,7 +235,7 @@ import MLXNN
             epsilonStart: 0,
             epsilonEnd: 0,
             epsilonDecaySteps: 1,
-            tau: 0,
+            targetUpdateFrequency: 1,
             batchSize: 64,
             bufferCapacity: 1000,
             gradClipNorm: 100
@@ -336,7 +336,7 @@ import MLXNN
             epsilonStart: 0,
             epsilonEnd: 0,
             epsilonDecaySteps: 1,
-            tau: 0,
+            targetUpdateFrequency: 1,
             batchSize: 64,
             bufferCapacity: 1000,
             gradClipNorm: 100
@@ -428,7 +428,7 @@ import MLXNN
             epsilonStart: 0,
             epsilonEnd: 0,
             epsilonDecaySteps: 1,
-            tau: 0,
+            targetUpdateFrequency: 1,
             batchSize: 64,
             bufferCapacity: 1000,
             gradClipNorm: 100

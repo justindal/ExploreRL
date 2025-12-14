@@ -64,7 +64,7 @@ import MLXNN
     var epsilonDecaySteps: Int = CartPoleDQN.Defaults.epsilonDecaySteps
     var epsilonMin: Double = Double(CartPoleDQN.Defaults.epsilonEnd)
     var batchSize: Int = CartPoleDQN.Defaults.batchSize
-    var tau: Double = Double(CartPoleDQN.Defaults.tau)
+    var targetUpdateFrequency: Int = CartPoleDQN.Defaults.targetUpdateFrequency
     var warmupSteps: Int = TrainingDefaults.warmupSteps
     var gradClipNorm: Double = Double(CartPoleDQN.Defaults.gradClipNorm)
     
@@ -138,7 +138,7 @@ import MLXNN
             epsilonStart: Float(epsilon),
                 epsilonEnd: Float(epsilonMin),
                 epsilonDecaySteps: epsilonDecaySteps,
-                tau: Float(tau),
+                targetUpdateFrequency: targetUpdateFrequency,
                 batchSize: batchSize,
             bufferCapacity: 10_000,
                 gradClipNorm: Float(gradClipNorm)
@@ -194,7 +194,7 @@ import MLXNN
         epsilonDecaySteps = CartPoleDQN.Defaults.epsilonDecaySteps
         epsilonMin = Double(CartPoleDQN.Defaults.epsilonEnd)
         batchSize = CartPoleDQN.Defaults.batchSize
-        tau = Double(CartPoleDQN.Defaults.tau)
+        targetUpdateFrequency = CartPoleDQN.Defaults.targetUpdateFrequency
         gradClipNorm = Double(CartPoleDQN.Defaults.gradClipNorm)
         
         warmupSteps = TrainingDefaults.warmupSteps
@@ -233,7 +233,7 @@ import MLXNN
                 "epsilon": epsilon,
                 "epsilonMin": epsilonMin,
                 "epsilonDecaySteps": Double(epsilonDecaySteps),
-                "tau": tau,
+                "targetUpdateFrequency": Double(targetUpdateFrequency),
                 "batchSize": Double(batchSize),
                 "gradClipNorm": gradClipNorm,
                 "warmupSteps": Double(warmupSteps),
@@ -271,7 +271,7 @@ import MLXNN
                 "epsilon": epsilon,
                 "epsilonMin": epsilonMin,
                 "epsilonDecaySteps": Double(epsilonDecaySteps),
-                "tau": tau,
+                "targetUpdateFrequency": Double(targetUpdateFrequency),
                 "batchSize": Double(batchSize),
                 "gradClipNorm": gradClipNorm,
                 "warmupSteps": Double(warmupSteps),
@@ -296,7 +296,7 @@ import MLXNN
         if let eps = savedAgent.hyperparameters["epsilon"] { epsilon = eps }
         if let epsMin = savedAgent.hyperparameters["epsilonMin"] { epsilonMin = epsMin }
         if let decaySteps = savedAgent.hyperparameters["epsilonDecaySteps"] { epsilonDecaySteps = Int(decaySteps) }
-        if let t = savedAgent.hyperparameters["tau"] { tau = t }
+        if let t = savedAgent.hyperparameters["targetUpdateFrequency"] { targetUpdateFrequency = Int(t) }
         if let bs = savedAgent.hyperparameters["batchSize"] { batchSize = Int(bs) }
         if let gcn = savedAgent.hyperparameters["gradClipNorm"] { gradClipNorm = gcn }
         if let wSteps = savedAgent.hyperparameters["warmupSteps"] { warmupSteps = Int(wSteps) }
@@ -359,7 +359,7 @@ import MLXNN
     
     private func runTrainingLoop() async {
         var lastUIUpdate = Date()
-        let uiUpdateInterval: TimeInterval = 1.0 / 30.0 
+        let uiUpdateInterval: TimeInterval = renderEnabled ? 1.0 / 30.0 : 1.0 / 5.0 
         
         guard var env = self.env, let agent = self.agent else { return }
         guard let actSpace = env.action_space as? Discrete else { return }

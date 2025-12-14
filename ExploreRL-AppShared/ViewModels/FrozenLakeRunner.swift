@@ -427,7 +427,7 @@ import MLX
         let targetEpisodes = episodeCount + episodesPerRun
         
         var lastUIUpdate = Date()
-        let uiUpdateInterval: TimeInterval = 1.0 / 30.0
+        let uiUpdateInterval: TimeInterval = renderEnabled ? 1.0 / 30.0 : 1.0 / 5.0
         
         for episode in episodeCount..<targetEpisodes {
             if !isTraining { break }

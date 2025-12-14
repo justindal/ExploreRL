@@ -40,7 +40,7 @@ struct AcrobotConfigurationView: View {
                 epsilon: $runner.epsilon,
                 epsilonDecaySteps: $runner.epsilonDecaySteps,
                 epsilonMin: $runner.epsilonMin,
-                tau: $runner.tau,
+                targetUpdateFrequency: $runner.targetUpdateFrequency,
                 batchSize: $runner.batchSize,
                 isTraining: runner.isTraining,
                 warmupSteps: $runner.warmupSteps,

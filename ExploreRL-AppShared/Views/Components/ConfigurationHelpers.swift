@@ -225,7 +225,7 @@ struct DQNHyperparametersSection: View {
     @Binding var epsilon: Double
     @Binding var epsilonDecaySteps: Int
     @Binding var epsilonMin: Double
-    @Binding var tau: Double
+    @Binding var targetUpdateFrequency: Int
     @Binding var batchSize: Int
     let isTraining: Bool
     
@@ -239,7 +239,7 @@ struct DQNHyperparametersSection: View {
         epsilon: Binding<Double>,
         epsilonDecaySteps: Binding<Int>,
         epsilonMin: Binding<Double>,
-        tau: Binding<Double>,
+        targetUpdateFrequency: Binding<Int>,
         batchSize: Binding<Int>,
         isTraining: Bool,
         warmupSteps: Binding<Int> = .constant(0),
@@ -251,7 +251,7 @@ struct DQNHyperparametersSection: View {
         self._epsilon = epsilon
         self._epsilonDecaySteps = epsilonDecaySteps
         self._epsilonMin = epsilonMin
-        self._tau = tau
+        self._targetUpdateFrequency = targetUpdateFrequency
         self._batchSize = batchSize
         self.isTraining = isTraining
         self._warmupSteps = warmupSteps
@@ -318,17 +318,7 @@ struct DQNHyperparametersSection: View {
                 }
                 
                 Group {
-                    HyperparameterSlider(
-                        title: "Tau (Soft Update)",
-                        value: $tau,
-                        range: 0.001...0.1,
-                        step: 0.001,
-                        decimals: 3,
-                        infoTitle: "Tau",
-                        infoDescription: "Soft update coefficient.",
-                        infoIcon: "arrow.triangle.2.circlepath",
-                        isDisabled: isTraining
-                    )
+                    targetUpdateFrequencySlider
                     
                     BatchSizePicker(batchSize: $batchSize, isDisabled: isTraining)
                     
@@ -355,6 +345,25 @@ struct DQNHyperparametersSection: View {
             infoTitle: "Warmup Steps",
             infoDescription: "Number of random action steps to fill replay buffer before training begins.",
             infoIcon: "flame",
+            isDisabled: isTraining
+        )
+    }
+    
+    private var targetUpdateFrequencySlider: some View {
+        let frequencyBinding = Binding<Double>(
+            get: { Double(targetUpdateFrequency) },
+            set: { targetUpdateFrequency = max(1, Int($0.rounded())) }
+        )
+        
+        return HyperparameterSlider(
+            title: "Target Update Freq",
+            value: frequencyBinding,
+            range: 100...5000,
+            step: 100,
+            decimals: 0,
+            infoTitle: "Target Update Frequency",
+            infoDescription: "Number of steps between hard updates of the target network. Standard DQN uses periodic hard updates.",
+            infoIcon: "arrow.triangle.2.circlepath",
             isDisabled: isTraining
         )
     }

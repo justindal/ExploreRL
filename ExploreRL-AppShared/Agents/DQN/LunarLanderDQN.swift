@@ -44,7 +44,7 @@ public class LunarLanderDQN: DQNAgent<LunarLanderQNetwork> {
         public static let epsilonStart: Float = 1.0
         public static let epsilonEnd: Float = 0.01
         public static let epsilonDecaySteps = 50000
-        public static let tau: Float = 0.005
+        public static let targetUpdateFrequency = 1000 
         public static let batchSize = 64
         public static let bufferCapacity = 100000
         public static let gradClipNorm: Float = 10.0
@@ -57,7 +57,7 @@ public class LunarLanderDQN: DQNAgent<LunarLanderQNetwork> {
         epsilonStart: Float = Defaults.epsilonStart,
         epsilonEnd: Float = Defaults.epsilonEnd,
         epsilonDecaySteps: Int = Defaults.epsilonDecaySteps,
-        tau: Float = Defaults.tau,
+        targetUpdateFrequency: Int = Defaults.targetUpdateFrequency,
         batchSize: Int = Defaults.batchSize,
         bufferCapacity: Int = Defaults.bufferCapacity,
         gradClipNorm: Float = Defaults.gradClipNorm
@@ -83,7 +83,7 @@ public class LunarLanderDQN: DQNAgent<LunarLanderQNetwork> {
             epsilonStart: epsilonStart,
             epsilonEnd: epsilonEnd,
             epsilonDecaySteps: epsilonDecaySteps,
-            targetUpdateStrategy: .soft(tau: tau),
+            targetUpdateStrategy: .hard(frequency: targetUpdateFrequency),
             learningRate: learningRate,
             optim: Adam(learningRate: learningRate),
             gradClipNorm: gradClipNorm,
