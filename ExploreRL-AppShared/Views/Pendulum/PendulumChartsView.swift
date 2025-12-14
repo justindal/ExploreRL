@@ -30,9 +30,9 @@ struct PendulumChartsView: View {
             
             MetricChart(
                 title: "Alpha (Entropy)",
-                data: runner.episodeMetrics,
+                data: runner.episodeMetrics.filter { $0.alpha != nil },
                 xValue: { $0.episode },
-                yValue: { $0.epsilon },
+                yValue: { $0.alpha ?? 0 },
                 color: .purple,
                 averageValue: nil
             )

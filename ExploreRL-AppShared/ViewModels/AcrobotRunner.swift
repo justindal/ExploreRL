@@ -573,6 +573,7 @@ import MLXNN
                     averageLoss: avgLoss,
                     averageMaxQ: avgMaxQ,
                     epsilon: self.epsilon,
+                    alpha: nil,
                     averageGradNorm: avgGradNorm,
                     rewardMovingAverage: rewardMovingAverage
                 )

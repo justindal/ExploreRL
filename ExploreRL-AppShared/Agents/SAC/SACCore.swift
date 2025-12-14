@@ -337,19 +337,13 @@ public class SACAgent<Actor: SACActorProtocol, Critic: SACCriticProtocol>: Conti
         
         softUpdateTargetNetworks()
         
-        // L_alpha = -alpha * (log_pi + H_target), we optimize log_alpha
-        let entropyDiff = stopGradient(meanLogPi + targetEntropyArray)
         
-        let alphaLossAndGrad = valueAndGrad { (inputs: [MLXArray]) -> [MLXArray] in
-            let logAlpha = inputs[0]
-            let alpha = exp(logAlpha)
-            let loss = -alpha * entropyDiff
-            return [loss]
-        }
+        let currentAlpha = exp(logAlphaModule.value)
+        let entropyDiff = meanLogPi + targetEntropyArray
         
-        let (alphaLossResults, alphaGradResults) = alphaLossAndGrad([logAlphaModule.value])
-        let alphaLossArray = alphaLossResults[0]
-        let logAlphaGrad = alphaGradResults[0]
+        let alphaLossArray = -currentAlpha * entropyDiff
+        
+        let logAlphaGrad = -currentAlpha * entropyDiff
         
         logAlphaModule.value = logAlphaModule.value - alphaLearningRate * logAlphaGrad
         
@@ -591,19 +585,13 @@ public class SACAgentVmap<Actor: SACActorProtocol, Ensemble: SACEnsembleCriticPr
         
         softUpdateTargetNetwork()
         
-        // L_alpha = -alpha * (log_pi + H_target), we optimize log_alpha
-        let entropyDiff = stopGradient(meanLogPi + targetEntropyArray)
         
-        let alphaLossAndGrad = valueAndGrad { (inputs: [MLXArray]) -> [MLXArray] in
-            let logAlpha = inputs[0]
-            let alpha = exp(logAlpha)
-            let loss = -alpha * entropyDiff
-            return [loss]
-        }
+        let currentAlpha = exp(logAlphaModule.value)
+        let entropyDiff = meanLogPi + targetEntropyArray 
         
-        let (alphaLossResults, alphaGradResults) = alphaLossAndGrad([logAlphaModule.value])
-        let alphaLossArray = alphaLossResults[0]
-        let logAlphaGrad = alphaGradResults[0]
+        let alphaLossArray = -currentAlpha * entropyDiff
+        
+        let logAlphaGrad = -currentAlpha * entropyDiff
         
         logAlphaModule.value = logAlphaModule.value - alphaLearningRate * logAlphaGrad
         

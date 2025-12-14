@@ -14,6 +14,7 @@ struct EpisodeMetrics: Identifiable, Sendable {
     let averageLoss: Double?
     let averageMaxQ: Double
     let epsilon: Double
+    let alpha: Double?
     let averageGradNorm: Double?
     let rewardMovingAverage: Double?
 }

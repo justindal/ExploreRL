@@ -575,6 +575,7 @@ import MLX
                 averageLoss: nil,
                 averageMaxQ: Double(avgMaxQ),
                 epsilon: Double(epsilon),
+                alpha: nil,
                 averageGradNorm: nil,
                 rewardMovingAverage: nil
             )

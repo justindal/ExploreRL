@@ -652,6 +652,7 @@ import MLXNN
                 averageLoss: avgLoss,
                 averageMaxQ: avgMaxQ,
                 epsilon: Double(dqnAgent.epsilon),
+                alpha: nil,
                 averageGradNorm: avgGradNorm,
                 rewardMovingAverage: movingAvg
             )
