@@ -56,6 +56,7 @@ struct SavedAgent: Identifiable, Codable {
     var updatedAt: Date
     
     let episodesTrained: Int
+    let trainingTimeSeconds: Double?
     let finalEpsilon: Double
     let bestReward: Double
     let averageReward: Double
@@ -71,7 +72,7 @@ struct SavedAgent: Identifiable, Codable {
     let networkArchitecture: [NetworkArchitecture]?
     
     init(id: UUID, name: String, environmentType: EnvironmentType, algorithmType: String,
-         createdAt: Date, updatedAt: Date, episodesTrained: Int, finalEpsilon: Double,
+         createdAt: Date, updatedAt: Date, episodesTrained: Int, trainingTimeSeconds: Double? = nil, finalEpsilon: Double,
          bestReward: Double, averageReward: Double, successRate: Double?,
          hyperparameters: [String: Double], environmentConfig: [String: String],
          agentDataPath: String, networkArchitecture: [NetworkArchitecture]? = nil) {
@@ -82,6 +83,7 @@ struct SavedAgent: Identifiable, Codable {
         self.createdAt = createdAt
         self.updatedAt = updatedAt
         self.episodesTrained = episodesTrained
+        self.trainingTimeSeconds = trainingTimeSeconds
         self.finalEpsilon = finalEpsilon
         self.bestReward = bestReward
         self.averageReward = averageReward

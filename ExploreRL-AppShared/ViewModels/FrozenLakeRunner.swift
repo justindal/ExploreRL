@@ -26,6 +26,13 @@ import MLX
     private var loadedBestReward: Double = 0
     private var trainingCompletedNormally = false
     
+    private(set) var accumulatedTrainingTimeSeconds: TimeInterval = 0
+    private(set) var trainingSessionStartDate: Date? = nil
+    
+    var totalTrainingTimeSeconds: TimeInterval {
+        accumulatedTrainingTimeSeconds + (trainingSessionStartDate.map { Date().timeIntervalSince($0) } ?? 0)
+    }
+    
     var canResume: Bool {
         return agent != nil && episodeCount > 1 && !trainingCompletedNormally
     }
@@ -230,6 +237,9 @@ import MLX
         guard !TrainingState.shared.isTraining else { return }
         
         isTraining = true
+        if trainingSessionStartDate == nil {
+            trainingSessionStartDate = Date()
+        }
         hasTrainedSinceLoad = true
         trainingCompletedNormally = false
         episodesCompletedInRun = 0
@@ -241,12 +251,18 @@ import MLX
     }
     
     func stopTraining() {
+        if let start = trainingSessionStartDate {
+            accumulatedTrainingTimeSeconds += Date().timeIntervalSince(start)
+            trainingSessionStartDate = nil
+        }
         isTraining = false
         TrainingState.shared.stopTraining()
     }
     
     func reset() {
         stopTraining()
+        accumulatedTrainingTimeSeconds = 0
+        trainingSessionStartDate = nil
         self.epsilon = 1.0
         
         loadedAgentId = nil
@@ -286,6 +302,7 @@ import MLX
             qTable: agent.qTable,
             algorithm: selectedAlgorithm.rawValue,
             episodesTrained: totalEpisodesTrained,
+            trainingTimeSeconds: totalTrainingTimeSeconds,
             epsilon: Double(epsilon),
             bestReward: combinedBestReward,
             averageReward: averageReward,
@@ -310,6 +327,7 @@ import MLX
         hasTrainedSinceLoad = false
         loadedEpisodeCount = totalEpisodesTrained
         loadedBestReward = combinedBestReward
+        accumulatedTrainingTimeSeconds = totalTrainingTimeSeconds
     }
     
     func updateAgent(id: UUID, name: String) throws {
@@ -322,6 +340,7 @@ import MLX
             newName: name,
             qTable: agent.qTable,
             episodesTrained: totalEpisodesTrained,
+            trainingTimeSeconds: totalTrainingTimeSeconds,
             epsilon: Double(epsilon),
             bestReward: combinedBestReward,
             averageReward: averageReward,
@@ -337,6 +356,7 @@ import MLX
         
         loadedAgentName = name
         hasTrainedSinceLoad = false
+        accumulatedTrainingTimeSeconds = totalTrainingTimeSeconds
     }
     
     func loadAgent(from savedAgent: SavedAgent) throws {
@@ -345,6 +365,8 @@ import MLX
         }
         
         stopTraining()
+        accumulatedTrainingTimeSeconds = savedAgent.trainingTimeSeconds ?? 0
+        trainingSessionStartDate = nil
         
         isLoadingAgent = true
         defer { isLoadingAgent = false }
@@ -576,8 +598,7 @@ import MLX
         if self.isTraining {
             self.trainingCompletedNormally = true
         }
-        self.isTraining = false
-        TrainingState.shared.stopTraining()
+        self.stopTraining()
     }
     
     

@@ -27,6 +27,13 @@ import MLXNN
     private var loadedBestReward: Double = -2000
     private var trainingCompletedNormally = false
     
+    private(set) var accumulatedTrainingTimeSeconds: TimeInterval = 0
+    private(set) var trainingSessionStartDate: Date? = nil
+    
+    var totalTrainingTimeSeconds: TimeInterval {
+        accumulatedTrainingTimeSeconds + (trainingSessionStartDate.map { Date().timeIntervalSince($0) } ?? 0)
+    }
+    
     var canResume: Bool {
         return agent != nil && episodeCount > 1 && !trainingCompletedNormally
     }
@@ -144,6 +151,8 @@ import MLXNN
     func reset() {
         stopTraining()
         stopRunning()
+        accumulatedTrainingTimeSeconds = 0
+        trainingSessionStartDate = nil
         agent = nil
         episodeMetrics = []
         totalSteps = 0
@@ -162,6 +171,9 @@ import MLXNN
         guard !TrainingState.shared.isTraining else { return }
         
         isTraining = true
+        if trainingSessionStartDate == nil {
+            trainingSessionStartDate = Date()
+        }
         trainingCompletedNormally = false
         if loadedAgentId != nil {
             hasTrainedSinceLoad = true
@@ -174,6 +186,10 @@ import MLXNN
     }
     
     func stopTraining() {
+        if let start = trainingSessionStartDate {
+            accumulatedTrainingTimeSeconds += Date().timeIntervalSince(start)
+            trainingSessionStartDate = nil
+        }
         isTraining = false
         TrainingState.shared.stopTraining()
     }
@@ -193,6 +209,7 @@ import MLXNN
             actor: agent.actor,
             qEnsemble: agent.qEnsemble,
             episodesTrained: totalEpisodesTrained,
+            trainingTimeSeconds: totalTrainingTimeSeconds,
             alpha: alpha,
             bestReward: combinedBestReward,
             averageReward: averageReward,
@@ -216,6 +233,7 @@ import MLXNN
         hasTrainedSinceLoad = false
         loadedEpisodeCount = totalEpisodesTrained
         loadedBestReward = combinedBestReward
+        accumulatedTrainingTimeSeconds = totalTrainingTimeSeconds
     }
     
     func updateAgent(id: UUID, name: String) throws {
@@ -229,6 +247,7 @@ import MLXNN
             actor: agent.actor,
             qEnsemble: agent.qEnsemble,
             episodesTrained: totalEpisodesTrained,
+            trainingTimeSeconds: totalTrainingTimeSeconds,
             alpha: alpha,
             bestReward: combinedBestReward,
             averageReward: averageReward,
@@ -246,6 +265,7 @@ import MLXNN
         
         loadedAgentName = name
         hasTrainedSinceLoad = false
+        accumulatedTrainingTimeSeconds = totalTrainingTimeSeconds
     }
     
     func loadAgent(from savedAgent: SavedAgent) throws {
@@ -254,6 +274,8 @@ import MLXNN
         }
         
         stopTraining()
+        accumulatedTrainingTimeSeconds = savedAgent.trainingTimeSeconds ?? 0
+        trainingSessionStartDate = nil
         
         if let lr = savedAgent.hyperparameters["learningRate"] { learningRate = lr }
         if let g = savedAgent.hyperparameters["gamma"] { gamma = g }

@@ -348,14 +348,16 @@ struct EnvironmentView<Runner: SavableEnvironmentRunner, CanvasView: View, Confi
     
     private var environmentControls: some View {
         VStack(spacing: 12) {
-            if !runner.renderEnabled {
-                TrainingProgressView(
-                    current: runner.episodeMetrics.count,
-                    total: runner.episodesPerRun,
-                    color: accentColor
-                )
-                .padding(.horizontal, 40)
-            }
+            TrainingProgressView(
+                current: runner.episodeMetrics.count,
+                total: runner.episodesPerRun,
+                totalEpisodesTrained: runner.totalEpisodesTrained,
+                accumulatedTrainingTimeSeconds: runner.accumulatedTrainingTimeSeconds,
+                trainingSessionStartDate: runner.trainingSessionStartDate,
+                isTraining: runner.isTraining,
+                color: accentColor
+            )
+            .padding(.horizontal, 40)
             
             controlButtons
         }

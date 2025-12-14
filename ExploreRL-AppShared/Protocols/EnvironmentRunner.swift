@@ -48,6 +48,12 @@ protocol SavableEnvironmentRunner: EnvironmentRunner {
     var totalEpisodesTrained: Int { get }
     var averageReward: Double { get }
     
+    var totalTrainingTimeSeconds: TimeInterval { get }
+    
+    var accumulatedTrainingTimeSeconds: TimeInterval { get }
+    
+    var trainingSessionStartDate: Date? { get }
+    
     func saveAgent(name: String) throws
     func loadAgent(from agent: SavedAgent) throws
     func updateAgent(id: UUID, name: String) throws
