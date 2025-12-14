@@ -20,6 +20,8 @@ import Gymnazo
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
     
+    var agentsDirectoryURL: URL { agentsDirectory }
+    
     
     private var agentsDirectory: URL {
         let documents = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
