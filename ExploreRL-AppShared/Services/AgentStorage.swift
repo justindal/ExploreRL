@@ -81,6 +81,42 @@ import Gymnazo
         }
         return agentsDirectory
     }
+
+    private func resolveAgentDataURL(for agent: SavedAgent) throws -> URL {
+        let primary = agentsDirectory.appendingPathComponent(agent.agentDataPath)
+        if fileManager.fileExists(atPath: primary.path) {
+            return primary
+        }
+        
+        let envDir = agentsDirectory.appendingPathComponent(agent.environmentType.displayName, isDirectory: true)
+        if fileManager.fileExists(atPath: envDir.path),
+           let folders = try? fileManager.contentsOfDirectory(at: envDir, includingPropertiesForKeys: nil) {
+            for folder in folders where folder.hasDirectoryPath {
+                let metadataPath = folder.appendingPathComponent("metadata.json")
+                guard let data = try? Data(contentsOf: metadataPath),
+                      let decoded = try? decoder.decode(SavedAgent.self, from: data),
+                      decoded.id == agent.id else { continue }
+                
+                let expectedFile = getWeightsFileName(for: decoded.environmentType, algorithm: decoded.algorithmType)
+                let expectedURL = folder.appendingPathComponent(expectedFile)
+                if fileManager.fileExists(atPath: expectedURL.path) {
+                    return expectedURL
+                }
+                
+                if let files = try? fileManager.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil) {
+                    if decoded.environmentType == .frozenLake,
+                       let fallback = files.first(where: { $0.pathExtension == "npy" }) {
+                        return fallback
+                    }
+                    if let fallback = files.first(where: { $0.pathExtension == "safetensors" }) {
+                        return fallback
+                    }
+                }
+            }
+        }
+        
+        throw AgentStorageError.dataCorrupted
+    }
     
     private var legacyAgentsDirectory: URL {
         let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
@@ -362,8 +398,8 @@ import Gymnazo
         guard agent.environmentType == .frozenLake else {
             throw AgentStorageError.wrongEnvironmentType
         }
-        let dataPath = agentsDirectory.appendingPathComponent(agent.agentDataPath)
-        return try MLX.loadArray(url: dataPath)
+        let dataURL = try resolveAgentDataURL(for: agent)
+        return try MLX.loadArray(url: dataURL)
     }
     
     private func saveDQNAgent(
@@ -711,16 +747,16 @@ import Gymnazo
         guard [.cartPole, .mountainCar, .acrobot, .lunarLander].contains(agent.environmentType) else {
             throw AgentStorageError.wrongEnvironmentType
         }
-        let dataPath = agentsDirectory.appendingPathComponent(agent.agentDataPath)
-        return try MLX.loadArrays(url: dataPath)
+        let dataURL = try resolveAgentDataURL(for: agent)
+        return try MLX.loadArrays(url: dataURL)
     }
     
     func loadLunarLanderWeights(for agent: SavedAgent) throws -> [String: MLXArray] {
         guard agent.environmentType == .lunarLander else {
             throw AgentStorageError.wrongEnvironmentType
         }
-        let dataPath = agentsDirectory.appendingPathComponent(agent.agentDataPath)
-        return try MLX.loadArrays(url: dataPath)
+        let dataURL = try resolveAgentDataURL(for: agent)
+        return try MLX.loadArrays(url: dataURL)
     }
     
     private func saveSACAgent(
@@ -842,8 +878,8 @@ import Gymnazo
     }
     
     private func loadSACWeightsGeneric(for agent: SavedAgent) throws -> [String: [String: MLXArray]] {
-        let dataPath = agentsDirectory.appendingPathComponent(agent.agentDataPath)
-        let allWeights = try MLX.loadArrays(url: dataPath)
+        let dataURL = try resolveAgentDataURL(for: agent)
+        let allWeights = try MLX.loadArrays(url: dataURL)
         
         var actorWeights: [String: MLXArray] = [:]
         var qEnsembleWeights: [String: MLXArray] = [:]
@@ -1017,8 +1053,8 @@ import Gymnazo
         guard agent.environmentType == .mountainCarContinuous else {
             throw AgentStorageError.wrongEnvironmentType
         }
-        let dataPath = agentsDirectory.appendingPathComponent(agent.agentDataPath)
-        let allWeights = try MLX.loadArrays(url: dataPath)
+        let dataURL = try resolveAgentDataURL(for: agent)
+        let allWeights = try MLX.loadArrays(url: dataURL)
         
         var actorWeights: [String: MLXArray] = [:]
         var qf1Weights: [String: MLXArray] = [:]

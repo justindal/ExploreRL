@@ -1551,7 +1551,19 @@ struct AgentDataVisualizationView: View {
                     
                     var layers: [NetworkLayerInfo] = []
                     
-                    let inputSize = agentCopy.environmentType == .cartPole ? 4 : 2
+                    let inputSize: Int
+                    switch agentCopy.environmentType {
+                    case .cartPole:
+                        inputSize = 4
+                    case .mountainCar:
+                        inputSize = 2
+                    case .acrobot:
+                        inputSize = 6
+                    case .lunarLander:
+                        inputSize = 8
+                    default:
+                        inputSize = 2
+                    }
                     layers.append(NetworkLayerInfo(
                         name: "Input",
                         type: "input",
