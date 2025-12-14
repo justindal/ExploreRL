@@ -65,87 +65,10 @@ struct MetricChart<DataPoint: Identifiable>: View {
         return downsample(series: running, maxPoints: maxPlotPoints)
     }
     
-    private var averageLineSeries: [(x: Int, y: Double)] {
-        guard let first = sortedSeries.first, let last = sortedSeries.last else { return [] }
-        let avg = averageValue ?? (sortedSeries.map(\.y).reduce(0, +) / Double(max(1, sortedSeries.count)))
-        return [(x: first.x, y: avg), (x: last.x, y: avg)]
-    }
-    
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(title)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                if let current = currentValue {
-                    Text(formatValue(current))
-                        .font(.title3)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(color)
-                        .monospacedDigit()
-                }
-            }
-            
-            Chart {
-                ForEach(downsampledSeries, id: \.x) { p in
-                    LineMark(
-                        x: .value("Episode", p.x),
-                        y: .value("Value", p.y)
-                    )
-                    .foregroundStyle(by: .value("Series", "Value"))
-                    .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
-                    .interpolationMethod(.linear)
-                }
-                
-                ForEach(downsampledRunningAverageSeries, id: \.x) { p in
-                    LineMark(
-                        x: .value("Episode", p.x),
-                        y: .value("Average", p.y)
-                    )
-                    .foregroundStyle(by: .value("Series", "Avg"))
-                    .lineStyle(StrokeStyle(lineWidth: 2, dash: [5, 4], lineCap: .round, lineJoin: .round))
-                    .interpolationMethod(.linear)
-                }
-                
-                if averageLineSeries.count == 2 {
-                    ForEach(averageLineSeries, id: \.x) { p in
-                        LineMark(
-                            x: .value("Episode", p.x),
-                            y: .value("Average Level", p.y)
-                        )
-                        .foregroundStyle(by: .value("Series", "Mean"))
-                        .lineStyle(StrokeStyle(lineWidth: 1.25, dash: [2, 3]))
-                        .interpolationMethod(.linear)
-                    }
-                }
-            }
-            .chartForegroundStyleScale([
-                "Value": color,
-                "Avg": color.opacity(0.65),
-                "Mean": Color.gray.opacity(0.7)
-            ])
-            .chartLegend(position: .top, alignment: .leading)
-            .chartXAxis {
-                AxisMarks(values: .automatic(desiredCount: 4)) { value in
-                    AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                        .foregroundStyle(Color.gray.opacity(0.2))
-                    AxisValueLabel()
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                }
-            }
-            .chartYAxis {
-                AxisMarks(values: .automatic(desiredCount: 3)) { value in
-                    AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                        .foregroundStyle(Color.gray.opacity(0.2))
-                    AxisValueLabel()
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                }
-            }
-            .frame(height: 100)
+            header
+            chartView
         }
         .padding(12)
         .background(
@@ -156,6 +79,76 @@ struct MetricChart<DataPoint: Identifiable>: View {
             RoundedRectangle(cornerRadius: 12)
                 .strokeBorder(Color.gray.opacity(0.15), lineWidth: 1)
         )
+    }
+
+    private var header: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(title)
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .foregroundStyle(.secondary)
+            Spacer()
+            if let current = currentValue {
+                Text(formatValue(current))
+                    .font(.title3)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(color)
+                    .monospacedDigit()
+            }
+        }
+    }
+    
+    private var chartView: some View {
+        Chart {
+            chartContent
+        }
+        .chartForegroundStyleScale([
+            "Value": color,
+            "Avg": color.opacity(0.65)
+        ])
+        .chartLegend(position: .top, alignment: .leading)
+        .chartXAxis {
+            AxisMarks(values: .automatic(desiredCount: 4)) { _ in
+                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                    .foregroundStyle(Color.gray.opacity(0.2))
+                AxisValueLabel()
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .chartYAxis {
+            AxisMarks(values: .automatic(desiredCount: 3)) { _ in
+                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                    .foregroundStyle(Color.gray.opacity(0.2))
+                AxisValueLabel()
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .frame(height: 100)
+    }
+    
+    @ChartContentBuilder
+    private var chartContent: some ChartContent {
+        ForEach(downsampledSeries, id: \.x) { p in
+            LineMark(
+                x: .value("Episode", p.x),
+                y: .value("Value", p.y)
+            )
+            .foregroundStyle(by: .value("Series", "Value"))
+            .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+            .interpolationMethod(.linear)
+        }
+        
+        ForEach(downsampledRunningAverageSeries, id: \.x) { p in
+            LineMark(
+                x: .value("Episode", p.x),
+                y: .value("Average", p.y)
+            )
+            .foregroundStyle(by: .value("Series", "Avg"))
+            .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round, dash: [5, 4]))
+            .interpolationMethod(.linear)
+        }
     }
     
     private func formatValue(_ value: Double) -> String {
