@@ -6,7 +6,7 @@ import Foundation
 import SwiftUI
 
 /// Describes a single layer in a neural network
-struct LayerInfo: Codable, Hashable {
+struct LayerInfo: Codable, Hashable, Sendable {
     let name: String
     let inputSize: Int
     let outputSize: Int
@@ -23,7 +23,7 @@ struct LayerInfo: Codable, Hashable {
 }
 
 /// Describes the full network architecture for CoreML conversion
-struct NetworkArchitecture: Codable, Hashable {
+struct NetworkArchitecture: Codable, Hashable, Sendable {
     let networkType: String
     let inputSize: Int
     let outputSize: Int
@@ -47,7 +47,7 @@ struct NetworkArchitecture: Codable, Hashable {
 }
 
 /// Represents a saved RL agent that can be loaded for evaluation or continued training
-struct SavedAgent: Identifiable, Codable {
+struct SavedAgent: Identifiable, Codable, Sendable {
     let id: UUID
     var name: String
     let environmentType: EnvironmentType
@@ -95,7 +95,7 @@ struct SavedAgent: Identifiable, Codable {
     }
 }
 
-struct SavedAgentSummary: Identifiable, Codable, Hashable {
+struct SavedAgentSummary: Identifiable, Codable, Hashable, Sendable {
     let id: UUID
     var name: String
     let environmentType: EnvironmentType

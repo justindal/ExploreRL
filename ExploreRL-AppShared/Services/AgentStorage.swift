@@ -22,16 +22,65 @@ import Gymnazo
     
     var agentsDirectoryURL: URL { agentsDirectory }
     
+    var iCloudAvailable: Bool {
+        fileManager.url(forUbiquityContainerIdentifier: nil) != nil
+    }
+    
+    private var useICloud: Bool {
+        UserDefaults.standard.bool(forKey: "useiCloudSync") && iCloudAvailable
+    }
+    
+    private var localAgentsDirectory: URL {
+        let documents = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
+        return documents.appendingPathComponent("SavedAgents", isDirectory: true)
+    }
+    
+    private var iCloudAgentsDirectory: URL? {
+        guard let container = fileManager.url(forUbiquityContainerIdentifier: nil) else { return nil }
+        return container.appendingPathComponent("Documents/SavedAgents", isDirectory: true)
+    }
     
     private var agentsDirectory: URL {
-        let documents = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
-        let agentsDir = documents.appendingPathComponent("SavedAgents", isDirectory: true)
-        
-        if !fileManager.fileExists(atPath: agentsDir.path) {
-            try? fileManager.createDirectory(at: agentsDir, withIntermediateDirectories: true)
+        let targetDir: URL
+        if useICloud, let iCloudDir = iCloudAgentsDirectory {
+            targetDir = iCloudDir
+        } else {
+            targetDir = localAgentsDirectory
         }
         
-        return agentsDir
+        if !fileManager.fileExists(atPath: targetDir.path) {
+            try? fileManager.createDirectory(at: targetDir, withIntermediateDirectories: true)
+        }
+        
+        return targetDir
+    }
+    
+    func migrateToICloud() throws {
+        guard let iCloudDir = iCloudAgentsDirectory else { return }
+        try migrateAgents(from: localAgentsDirectory, to: iCloudDir)
+        loadAgentList()
+    }
+    
+    func migrateToLocal() throws {
+        guard let iCloudDir = iCloudAgentsDirectory else { return }
+        try migrateAgents(from: iCloudDir, to: localAgentsDirectory)
+        loadAgentList()
+    }
+    
+    private func migrateAgents(from source: URL, to destination: URL) throws {
+        guard fileManager.fileExists(atPath: source.path) else { return }
+        
+        if !fileManager.fileExists(atPath: destination.path) {
+            try fileManager.createDirectory(at: destination, withIntermediateDirectories: true)
+        }
+        
+        let contents = try fileManager.contentsOfDirectory(at: source, includingPropertiesForKeys: nil)
+        for item in contents {
+            let destPath = destination.appendingPathComponent(item.lastPathComponent)
+            if !fileManager.fileExists(atPath: destPath.path) {
+                try fileManager.copyItem(at: item, to: destPath)
+            }
+        }
     }
     
     /// Get the directory for a specific environment type
