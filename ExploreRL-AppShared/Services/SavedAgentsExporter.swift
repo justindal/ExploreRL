@@ -7,6 +7,34 @@ struct AgentExport: Identifiable, Hashable {
     var createdAt: Date {
         (try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? Date.distantPast
     }
+    
+    var formattedDate: String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter.string(from: createdAt)
+    }
+    
+    var formattedSize: String {
+        let size = Self.folderSize(at: url)
+        let formatter = ByteCountFormatter()
+        formatter.countStyle = .file
+        return formatter.string(fromByteCount: size)
+    }
+    
+    private static func folderSize(at url: URL) -> Int64 {
+        let fm = FileManager.default
+        guard let enumerator = fm.enumerator(at: url, includingPropertiesForKeys: [.fileSizeKey], options: [.skipsHiddenFiles]) else {
+            return 0
+        }
+        var total: Int64 = 0
+        for case let fileURL as URL in enumerator {
+            if let size = try? fileURL.resourceValues(forKeys: [.fileSizeKey]).fileSize {
+                total += Int64(size)
+            }
+        }
+        return total
+    }
 }
 
 enum SavedAgentsExporter {
@@ -42,6 +70,10 @@ enum SavedAgentsExporter {
         }
         try fileManager.copyItem(at: source, to: destination)
         return AgentExport(url: destination)
+    }
+    
+    static func deleteExport(_ export: AgentExport) throws {
+        try fileManager.removeItem(at: export.url)
     }
 }
 
