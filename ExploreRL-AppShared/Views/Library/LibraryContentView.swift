@@ -58,27 +58,27 @@ struct LibraryContentView: View {
     
     var body: some View {
         NavigationStack {
-            GeometryReader { geometry in
-                HStack(spacing: 0) {
-                    VStack(spacing: 0) {
-                        agentListContent
-                    }
-                    .frame(width: min(max(geometry.size.width * 0.4, 350), 500))
-                    .clipped()
-                    
-                    Divider()
-                    
-                    if let agent = selectedAgent {
-                        LibraryAgentDetailView(agentSummary: agent)
-                            .frame(maxWidth: .infinity)
-                    } else {
-                        ContentUnavailableView {
-                            Label("Select an Agent", systemImage: "tray")
-                        } description: {
-                            Text("Choose an agent from the list to view its details.")
-                        }
+        GeometryReader { geometry in
+            HStack(spacing: 0) {
+                VStack(spacing: 0) {
+                    agentListContent
+                }
+                .frame(width: min(max(geometry.size.width * 0.4, 350), 500))
+                .clipped()
+                
+                Divider()
+                
+                if let agent = selectedAgent {
+                    LibraryAgentDetailView(agentSummary: agent)
                         .frame(maxWidth: .infinity)
+                } else {
+                    ContentUnavailableView {
+                        Label("Select an Agent", systemImage: "tray")
+                    } description: {
+                        Text("Choose an agent from the list to view its details.")
                     }
+                    .frame(maxWidth: .infinity)
+                }
                 }
             }
             .navigationDestination(isPresented: $showSettings) {
@@ -201,12 +201,14 @@ struct LibraryContentView: View {
                         }
                         .buttonStyle(.borderless)
                         
+                        #if os(iOS)
                         Button {
                             showSettings = true
                         } label: {
                             Image(systemName: "gearshape")
                         }
                         .buttonStyle(.borderless)
+                        #endif
                     }
                 }
             }

@@ -136,14 +136,14 @@ struct LibraryStackView: View {
                             }
                         }
                     }
-                    
-                    if !isSelecting {
-                        ToolbarItem(placement: .automatic) {
-                            Button {
-                                showSettings = true
-                            } label: {
-                                Image(systemName: "gearshape")
-                            }
+                }
+                
+                if !isSelecting {
+                    ToolbarItem(placement: .automatic) {
+                        Button {
+                            showSettings = true
+                        } label: {
+                            Image(systemName: "gearshape")
                         }
                     }
                 }

@@ -13,5 +13,10 @@ struct ExploreRL_macOSApp: App {
         WindowGroup {
             ContentView()
         }
+        
+        Settings {
+            LibrarySettingsView()
+                .frame(minWidth: 450, minHeight: 300)
+        }
     }
 }

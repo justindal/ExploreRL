@@ -10,19 +10,62 @@ import UIKit
 #endif
 
 struct LibrarySettingsView: View {
-    @State private var autoSync = true
+    @AppStorage("useiCloudSync") private var useiCloudSync = false
     @State private var confirmations = true
     @State private var showNotion = false
+    @State private var showImportPicker = false
+    @State private var importedAgents: [SavedAgent] = []
+    @State private var showImportConfirmation = false
+    @State private var isMigrating = false
+    @State private var migrationError: String?
     @State private var showFolderPicker = false
+    
+    private var iCloudAvailable: Bool {
+        AgentStorage.shared.iCloudAvailable
+    }
     
     var body: some View {
         List {
             Section("General") {
-                settingsRow(icon: "arrow.triangle.2.circlepath", title: "Auto-sync saved agents", toggle: $autoSync)
-                settingsRow(icon: "exclamationmark.bubble", title: "Show confirmations", toggle: $confirmations)
+                HStack(spacing: 10) {
+                    Image(systemName: "icloud")
+                    Toggle(isOn: $useiCloudSync) {
+                        Text("iCloud sync")
+                    }
+                    .disabled(!iCloudAvailable || isMigrating)
+                    .onChange(of: useiCloudSync) { _, newValue in
+                        performMigration(toICloud: newValue)
+                    }
+                }
+                .toggleStyle(.switch)
+                .foregroundStyle(iCloudAvailable ? .primary : .secondary)
+                
+                if isMigrating {
+                    HStack {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                        Text("Migrating agents...")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                
+                if let error = migrationError {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+                
+                HStack(spacing: 10) {
+                    Image(systemName: "exclamationmark.bubble")
+                    Toggle(isOn: $confirmations) {
+                        Text("Show confirmations")
+                    }
+                }
+                .toggleStyle(.switch)
             }
             
-            Section("Privacy") {
+            Section("Data") {
                 NavigationLink {
                     AgentExportsView()
                 } label: {
