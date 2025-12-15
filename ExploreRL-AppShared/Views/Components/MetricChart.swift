@@ -65,6 +65,31 @@ struct MetricChart<DataPoint: Identifiable>: View {
         return downsample(series: running, maxPoints: maxPlotPoints)
     }
     
+    private var contrastingAverageColor: Color {
+        switch color {
+        case .blue:
+            return .orange
+        case .green:
+            return .pink
+        case .orange:
+            return .blue
+        case .red:
+            return .cyan
+        case .purple:
+            return .yellow
+        case .pink:
+            return .teal
+        case .cyan:
+            return .red
+        case .yellow:
+            return .purple
+        case .teal:
+            return .pink
+        default:
+            return .gray
+        }
+    }
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             header
@@ -104,7 +129,7 @@ struct MetricChart<DataPoint: Identifiable>: View {
         }
         .chartForegroundStyleScale([
             "Value": color,
-            "Avg": color.opacity(0.65)
+            "Avg": contrastingAverageColor
         ])
         .chartLegend(position: .top, alignment: .leading)
         .chartXAxis {
