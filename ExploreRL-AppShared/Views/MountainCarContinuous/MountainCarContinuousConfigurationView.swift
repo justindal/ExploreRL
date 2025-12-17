@@ -39,7 +39,6 @@ struct MountainCarContinuousConfigurationView: View {
                 gamma: $runner.gamma,
                 tau: $runner.tau,
                 tauRange: 0.001...0.05,
-                alpha: $runner.alpha,
                 batchSize: $runner.batchSize,
                 isTraining: runner.isTraining
             )

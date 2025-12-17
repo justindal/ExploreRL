@@ -39,7 +39,6 @@ struct PendulumConfigurationView: View {
                 gamma: $runner.gamma,
                 tau: $runner.tau,
                 tauRange: 0.001...0.1,
-                alpha: $runner.alpha,
                 batchSize: $runner.batchSize,
                 isTraining: runner.isTraining,
                 warmupSteps: $runner.warmupSteps,

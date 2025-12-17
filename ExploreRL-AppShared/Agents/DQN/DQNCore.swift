@@ -233,7 +233,6 @@ public class DQNAgent<Network: QNetworkProtocol>: DiscreteDeepRLAgent {
         } else {
             let stateRow = state.ndim == 1 ? state.reshaped([1, stateSize]) : state
             let qValues = policyNetwork(stateRow)
-            eval(qValues)
             let actionIndex = argMax(qValues, axis: 1)
             return actionIndex.reshaped([1, 1])
         }

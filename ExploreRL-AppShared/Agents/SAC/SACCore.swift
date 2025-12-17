@@ -67,11 +67,11 @@ public class SACReplayBuffer {
     public let stateSize: Int
     public let actionSize: Int
     
-    var obsBuffer: MLXArray
-    var nextObsBuffer: MLXArray
-    var actionBuffer: MLXArray
-    var rewardBuffer: MLXArray
-    var terminatedBuffer: MLXArray
+    var obsBuffer: [Float]
+    var nextObsBuffer: [Float]
+    var actionBuffer: [Float]
+    var rewardBuffer: [Float]
+    var terminatedBuffer: [Float]
     
     var ptr: Int = 0
     var size: Int = 0
@@ -81,23 +81,34 @@ public class SACReplayBuffer {
         self.stateSize = stateSize
         self.actionSize = actionSize
         
-        self.obsBuffer = MLXArray.zeros([capacity, stateSize])
-        self.nextObsBuffer = MLXArray.zeros([capacity, stateSize])
-        self.actionBuffer = MLXArray.zeros([capacity, actionSize])
-        self.rewardBuffer = MLXArray.zeros([capacity, 1])
-        self.terminatedBuffer = MLXArray.zeros([capacity, 1])
+        self.obsBuffer = [Float](repeating: 0, count: capacity * stateSize)
+        self.nextObsBuffer = [Float](repeating: 0, count: capacity * stateSize)
+        self.actionBuffer = [Float](repeating: 0, count: capacity * actionSize)
+        self.rewardBuffer = [Float](repeating: 0, count: capacity)
+        self.terminatedBuffer = [Float](repeating: 0, count: capacity)
     }
     
     public func push(_ experience: SACExperience) {
-        let obs = experience.observation.ndim == 1 ? experience.observation : experience.observation.reshaped([stateSize])
-        let nextObs = experience.nextObservation.ndim == 1 ? experience.nextObservation : experience.nextObservation.reshaped([stateSize])
-        let action = experience.action.ndim == 1 ? experience.action : experience.action.reshaped([actionSize])
+        let obsFlat = experience.observation.asArray(Float.self)
+        let nextObsFlat = experience.nextObservation.asArray(Float.self)
+        let actionFlat = experience.action.asArray(Float.self)
+        let rewardScalar = experience.reward.item(Float.self)
+        let termScalar = experience.terminated.item(Float.self)
         
-        obsBuffer[ptr] = obs
-        nextObsBuffer[ptr] = nextObs
-        actionBuffer[ptr] = action
-        rewardBuffer[ptr] = experience.reward.reshaped([1])
-        terminatedBuffer[ptr] = experience.terminated.reshaped([1])
+        let obsStart = ptr * stateSize
+        let actionStart = ptr * actionSize
+        
+        for i in 0..<stateSize {
+            obsBuffer[obsStart + i] = obsFlat[i]
+            nextObsBuffer[obsStart + i] = nextObsFlat[i]
+        }
+        
+        for i in 0..<actionSize {
+            actionBuffer[actionStart + i] = actionFlat[i]
+        }
+        
+        rewardBuffer[ptr] = rewardScalar
+        terminatedBuffer[ptr] = termScalar
         
         ptr = (ptr + 1) % capacity
         size = min(size + 1, capacity)
@@ -106,15 +117,42 @@ public class SACReplayBuffer {
     public func sample(batchSize: Int) -> (MLXArray, MLXArray, MLXArray, MLXArray, MLXArray) {
         let safeBatchSize = min(batchSize, size)
         
-        let indices = MLX.randInt(low: 0, high: size, [safeBatchSize])
+        var indices = [Int]()
+        indices.reserveCapacity(safeBatchSize)
+        for _ in 0..<safeBatchSize {
+            indices.append(Int.random(in: 0..<size))
+        }
         
-        let bObs = obsBuffer[indices]
-        let bNextObs = nextObsBuffer[indices]
-        let bActions = actionBuffer[indices]
-        let bRewards = rewardBuffer[indices]
-        let bTerminated = terminatedBuffer[indices]
+        var bObs = [Float]()
+        var bNextObs = [Float]()
+        var bActions = [Float]()
+        var bRewards = [Float]()
+        var bTerminated = [Float]()
         
-        return (bObs, bNextObs, bActions, bRewards, bTerminated)
+        bObs.reserveCapacity(safeBatchSize * stateSize)
+        bNextObs.reserveCapacity(safeBatchSize * stateSize)
+        bActions.reserveCapacity(safeBatchSize * actionSize)
+        bRewards.reserveCapacity(safeBatchSize)
+        bTerminated.reserveCapacity(safeBatchSize)
+        
+        for idx in indices {
+            let obsStart = idx * stateSize
+            let actionStart = idx * actionSize
+            
+            bObs.append(contentsOf: obsBuffer[obsStart..<(obsStart + stateSize)])
+            bNextObs.append(contentsOf: nextObsBuffer[obsStart..<(obsStart + stateSize)])
+            bActions.append(contentsOf: actionBuffer[actionStart..<(actionStart + actionSize)])
+            bRewards.append(rewardBuffer[idx])
+            bTerminated.append(terminatedBuffer[idx])
+        }
+        
+        let mlxObs = MLXArray(bObs).reshaped([safeBatchSize, stateSize])
+        let mlxNextObs = MLXArray(bNextObs).reshaped([safeBatchSize, stateSize])
+        let mlxActions = MLXArray(bActions).reshaped([safeBatchSize, actionSize])
+        let mlxRewards = MLXArray(bRewards).reshaped([safeBatchSize, 1])
+        let mlxTerminated = MLXArray(bTerminated).reshaped([safeBatchSize, 1])
+        
+        return (mlxObs, mlxNextObs, mlxActions, mlxRewards, mlxTerminated)
     }
     
     public var count: Int { size }
@@ -142,19 +180,14 @@ public class SACAgent<Actor: SACActorProtocol, Critic: SACCriticProtocol>: Conti
     public var targetEntropy: Float
     public var targetEntropyArray: MLXArray
     public let logAlphaModule: TrainableParameter
-    public let alphaOptimizer: Adam
     
     public let minLogAlpha: Float
     public let maxLogAlpha: Float
     private let minLogAlphaArray: MLXArray
     private let maxLogAlphaArray: MLXArray
-    private let alphaSyncInterval: Int = 50
     private let alphaLearningRate: MLXArray
     
     public var steps: Int = 0
-    
-    private let tauArray: MLXArray
-    private let oneMinusTauArray: MLXArray
     
     public func syncAlpha() -> Float {
         let alphaArray = exp(logAlphaModule.value)
@@ -211,11 +244,7 @@ public class SACAgent<Actor: SACActorProtocol, Critic: SACCriticProtocol>: Conti
         self.targetEntropy = -Float(actionSize)
         self.targetEntropyArray = MLXArray(-Float(actionSize))
         self.logAlphaModule = TrainableParameter(log(alpha))
-        self.alphaOptimizer = Adam(learningRate: learningRate)
         self.alphaLearningRate = MLXArray(learningRate)
-        
-        self.tauArray = MLXArray(tau)
-        self.oneMinusTauArray = MLXArray(1.0 - tau)
         
         eval(actor, qf1, qf2, qf1Target, qf2Target, logAlphaModule)
     }
@@ -224,17 +253,13 @@ public class SACAgent<Actor: SACActorProtocol, Critic: SACCriticProtocol>: Conti
         let stateRow = state.count == stateSize ? state.reshaped([1, stateSize]) : state
         
         if deterministic {
-            let action = actor.getDeterministicAction(obs: stateRow).reshaped([actionSize])
-            eval(action)
-            return action
+            return actor.getDeterministicAction(obs: stateRow).reshaped([actionSize])
         }
         
         let (k1, k2) = MLX.split(key: key)
         key = k2
         let (action, _, _) = actor.sample(obs: stateRow, key: k1)
-        let actionVec = action.reshaped([actionSize])
-        eval(actionVec)
-        return actionVec
+        return action.reshaped([actionSize])
     }
     
     public func store(state: MLXArray, action: MLXArray, reward: Float, nextState: MLXArray, terminated: Bool) {
@@ -337,16 +362,10 @@ public class SACAgent<Actor: SACActorProtocol, Critic: SACCriticProtocol>: Conti
         
         softUpdateTargetNetworks()
         
-        
         let currentAlpha = exp(logAlphaModule.value)
-        let entropyDiff = meanLogPi + targetEntropyArray
-        
+        let entropyDiff = (stopGradient(meanLogPi) - targetEntropyArray).mean()
         let alphaLossArray = -currentAlpha * entropyDiff
-        
-        let logAlphaGrad = -currentAlpha * entropyDiff
-        
-        logAlphaModule.value = logAlphaModule.value - alphaLearningRate * logAlphaGrad
-        
+        logAlphaModule.value = logAlphaModule.value + alphaLearningRate * currentAlpha * entropyDiff
         logAlphaModule.value = minimum(maximum(logAlphaModule.value, minLogAlphaArray), maxLogAlphaArray)
         
         eval(totalQLoss, actorLossValue, alphaLossArray, actor, qf1, qf2, qf1Target, qf2Target, logAlphaModule)
@@ -356,9 +375,6 @@ public class SACAgent<Actor: SACActorProtocol, Critic: SACCriticProtocol>: Conti
             
             return (totalQLoss.item(Float.self), actorLossValue.item(Float.self), alphaLossArray.item(Float.self))
         } else {
-            if steps % alphaSyncInterval == 0 {
-                _ = syncAlpha()
-            }
             return nil
         }
     }
@@ -397,19 +413,15 @@ public class SACAgentVmap<Actor: SACActorProtocol, Ensemble: SACEnsembleCriticPr
     public var targetEntropy: Float
     public var targetEntropyArray: MLXArray
     public let logAlphaModule: TrainableParameter
-    public let alphaOptimizer: Adam
     
     public let minLogAlpha: Float
     public let maxLogAlpha: Float
     private let minLogAlphaArray: MLXArray
     private let maxLogAlphaArray: MLXArray
-    private let alphaSyncInterval: Int = 50
     private let alphaLearningRate: MLXArray
     
     public var steps: Int = 0
     
-    private let tauArray: MLXArray
-    private let oneMinusTauArray: MLXArray
     private let gammaArray: MLXArray
     
     public func syncAlpha() -> Float {
@@ -454,21 +466,16 @@ public class SACAgentVmap<Actor: SACActorProtocol, Ensemble: SACEnsembleCriticPr
         self.batchSize = batchSize
         self.alpha = alpha
         
-        // Alpha bounds
         self.minLogAlpha = minLogAlpha
         self.maxLogAlpha = maxLogAlpha
         self.minLogAlphaArray = MLXArray(minLogAlpha)
         self.maxLogAlphaArray = MLXArray(maxLogAlpha)
         
-        // Automatic entropy tuning
         self.targetEntropy = -Float(actionSize)
         self.targetEntropyArray = MLXArray(-Float(actionSize))
         self.logAlphaModule = TrainableParameter(log(alpha))
-        self.alphaOptimizer = Adam(learningRate: learningRate)
         self.alphaLearningRate = MLXArray(learningRate)
         
-        self.tauArray = MLXArray(tau)
-        self.oneMinusTauArray = MLXArray(1.0 - tau)
         self.gammaArray = MLXArray(gamma)
         
         eval(actor, qEnsemble, qEnsembleTarget, logAlphaModule)
@@ -478,17 +485,13 @@ public class SACAgentVmap<Actor: SACActorProtocol, Ensemble: SACEnsembleCriticPr
         let stateRow = state.count == stateSize ? state.reshaped([1, stateSize]) : state
         
         if deterministic {
-            let action = actor.getDeterministicAction(obs: stateRow).reshaped([actionSize])
-            eval(action)
-            return action
+            return actor.getDeterministicAction(obs: stateRow).reshaped([actionSize])
         }
         
         let (k1, k2) = MLX.split(key: key)
         key = k2
         let (action, _, _) = actor.sample(obs: stateRow, key: k1)
-        let actionVec = action.reshaped([actionSize])
-        eval(actionVec)
-        return actionVec
+        return action.reshaped([actionSize])
     }
     
     public func store(state: MLXArray, action: MLXArray, reward: Float, nextState: MLXArray, terminated: Bool) {
@@ -585,16 +588,10 @@ public class SACAgentVmap<Actor: SACActorProtocol, Ensemble: SACEnsembleCriticPr
         
         softUpdateTargetNetwork()
         
-        
         let currentAlpha = exp(logAlphaModule.value)
-        let entropyDiff = meanLogPi + targetEntropyArray 
-        
+        let entropyDiff = (stopGradient(meanLogPi) - targetEntropyArray).mean()
         let alphaLossArray = -currentAlpha * entropyDiff
-        
-        let logAlphaGrad = -currentAlpha * entropyDiff
-        
-        logAlphaModule.value = logAlphaModule.value - alphaLearningRate * logAlphaGrad
-        
+        logAlphaModule.value = logAlphaModule.value + alphaLearningRate * currentAlpha * entropyDiff
         logAlphaModule.value = minimum(maximum(logAlphaModule.value, minLogAlphaArray), maxLogAlphaArray)
         
         eval(totalQLoss, actorLossValue, alphaLossArray, actor, qEnsemble, qEnsembleTarget, logAlphaModule)
@@ -604,9 +601,6 @@ public class SACAgentVmap<Actor: SACActorProtocol, Ensemble: SACEnsembleCriticPr
             
             return (totalQLoss.item(Float.self), actorLossValue.item(Float.self), alphaLossArray.item(Float.self))
         } else {
-            if steps % alphaSyncInterval == 0 {
-                _ = syncAlpha()
-            }
             return nil
         }
     }
@@ -617,6 +611,49 @@ public class SACAgentVmap<Actor: SACActorProtocol, Ensemble: SACEnsembleCriticPr
     
     public func update() -> (qLoss: Float, actorLoss: Float, alphaLoss: Float)? {
         updateInternal(syncScalars: true)
+    }
+    
+    public func updateWithBatch(
+        batchObs: MLXArray,
+        batchNextObs: MLXArray,
+        batchActions: MLXArray,
+        batchRewards: MLXArray,
+        batchTerminated: MLXArray,
+        rngKey: MLXArray
+    ) -> MLXArray {
+        steps += 1
+        
+        let batchRewardsFloat = batchRewards.asType(.float32)
+        let batchTerminatedFloat = batchTerminated.asType(.float32)
+        
+        let (k1, k2) = MLX.split(key: rngKey)
+        
+        let alphaVal = exp(logAlphaModule.value)
+        
+        let totalQLoss = updateQ(
+            batchObs: batchObs,
+            batchNextObs: batchNextObs,
+            batchActions: batchActions,
+            batchRewards: batchRewardsFloat,
+            batchTerminated: batchTerminatedFloat,
+            rngKey: k1,
+            alphaVal: alphaVal
+        )
+        
+        let (actorLossValue, meanLogPi) = updateActor(
+            batchObs: batchObs,
+            rngKey: k2,
+            alphaVal: alphaVal
+        )
+        
+        softUpdateTargetNetwork()
+        
+        let currentAlpha = exp(logAlphaModule.value)
+        let entropyDiff = (stopGradient(meanLogPi) - targetEntropyArray).mean()
+        logAlphaModule.value = logAlphaModule.value + alphaLearningRate * currentAlpha * entropyDiff
+        logAlphaModule.value = minimum(maximum(logAlphaModule.value, minLogAlphaArray), maxLogAlphaArray)
+        
+        return totalQLoss + actorLossValue
     }
     
     private func softUpdateTargetNetwork() {

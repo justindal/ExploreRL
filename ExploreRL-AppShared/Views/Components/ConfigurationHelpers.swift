@@ -528,12 +528,10 @@ struct SACHyperparametersSection: View {
     @Binding var gamma: Double
     @Binding var tau: Double
     let tauRange: ClosedRange<Double>
-    @Binding var alpha: Double
     @Binding var batchSize: Int
     let batchSizeOptions: [Int]
     let isTraining: Bool
     
-    // Optional warmup and buffer (for environments that use them)
     @Binding var warmupSteps: Int
     let showWarmup: Bool
     @Binding var bufferSize: Int
@@ -545,7 +543,6 @@ struct SACHyperparametersSection: View {
         gamma: Binding<Double>,
         tau: Binding<Double>,
         tauRange: ClosedRange<Double> = 0.001...0.1,
-        alpha: Binding<Double>,
         batchSize: Binding<Int>,
         batchSizeOptions: [Int] = [64, 128, 256, 512],
         isTraining: Bool,
@@ -559,7 +556,6 @@ struct SACHyperparametersSection: View {
         self._gamma = gamma
         self._tau = tau
         self.tauRange = tauRange
-        self._alpha = alpha
         self._batchSize = batchSize
         self.batchSizeOptions = batchSizeOptions
         self.isTraining = isTraining
@@ -610,18 +606,6 @@ struct SACHyperparametersSection: View {
                         infoTitle: "Tau",
                         infoDescription: "Soft update coefficient for target networks.",
                         infoIcon: "arrow.triangle.2.circlepath",
-                        isDisabled: isTraining
-                    )
-                    
-                    HyperparameterSlider(
-                        title: "Alpha (Entropy)",
-                        value: $alpha,
-                        range: 0.01...1.0,
-                        step: 0.01,
-                        decimals: 2,
-                        infoTitle: "Alpha",
-                        infoDescription: "Entropy regularization coefficient. Controls exploration-exploitation tradeoff.",
-                        infoIcon: "waveform",
                         isDisabled: isTraining
                     )
                 }

@@ -519,16 +519,14 @@ import MLXNN
                 } else if now.timeIntervalSince(lastUIUpdate) >= uiUpdateInterval {
                     let currentSteps = steps
                     let currentReward = episodeRewardLocal
-                    let currentAlpha = Double(sacAgent.syncAlpha())
                     await MainActor.run {
                         self.currentStep = currentSteps
                         self.episodeReward = currentReward
-                        self.alpha = currentAlpha
                     }
                     lastUIUpdate = now
                 }
                 
-                if !renderEnabled && steps % 10 == 0 {
+                if !renderEnabled && steps % 50 == 0 {
                     await Task.yield()
                 }
             }
@@ -555,36 +553,33 @@ import MLXNN
             let recentRewards = episodeMetrics.suffix(50).map { $0.reward }
             let movingAvg = recentRewards.isEmpty ? episodeRewardLocal : recentRewards.reduce(0, +) / Double(recentRewards.count)
             
-            let completedEpisodeNumber = await MainActor.run { loadedEpisodeCount + episodeMetrics.count + 1 }
-            
-            let metrics = EpisodeMetrics(
-                episode: completedEpisodeNumber,
-                reward: episodeRewardLocal,
-                steps: steps,
-                success: terminated,
-                averageTDError: 0,
-                averageLoss: nil,
-                averageMaxQ: 0,
-                epsilon: 0,
-                alpha: Double(sacAgent.syncAlpha()),
-                averageGradNorm: nil,
-                rewardMovingAverage: movingAvg
-            )
-            
             let finalSteps = steps
             let finalReward = episodeRewardLocal
-            let finalAlpha = Double(sacAgent.alpha)
+            let finalAlpha = Double(sacAgent.syncAlpha())
+            
             await MainActor.run {
+                let completedEpisodeNumber = loadedEpisodeCount + episodeMetrics.count + 1
+                
+                let metrics = EpisodeMetrics(
+                    episode: completedEpisodeNumber,
+                    reward: episodeRewardLocal,
+                    steps: finalSteps,
+                    success: terminated,
+                    averageTDError: 0,
+                    averageLoss: nil,
+                    averageMaxQ: 0,
+                    epsilon: 0,
+                    alpha: finalAlpha,
+                    averageGradNorm: nil,
+                    rewardMovingAverage: movingAvg
+                )
+                
                 self.currentStep = finalSteps
                 self.episodeReward = finalReward
                 self.totalReward += finalReward
                 self.alpha = finalAlpha
                 self.episodeMetrics.append(metrics)
                 self.episodeCount += 1
-                
-                if !self.renderEnabled {
-                    self.updateSnapshot()
-                }
             }
         }
         
