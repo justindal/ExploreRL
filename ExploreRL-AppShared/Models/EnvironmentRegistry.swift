@@ -34,6 +34,15 @@ struct EnvironmentRegistry {
             category: .toyText,
             description: "Navigate a frozen lake from start to goal without falling into holes."
         ),
+        EnvironmentInfo(
+            type: .blackjack,
+            displayName: "Blackjack",
+            algorithmName: "Q-Learning / SARSA",
+            icon: "suit.spade.fill",
+            accentColor: .mint,
+            category: .toyText,
+            description: "Play blackjack against a dealer by learning when to hit or stick."
+        ),
         
         // Classic Control
         EnvironmentInfo(
@@ -134,6 +143,7 @@ extension EnvironmentRegistry {
     static func destinationView(
         for type: EnvironmentType,
         frozenLakeRunner: FrozenLakeRunner,
+        blackjackRunner: BlackjackRunner,
         cartPoleRunner: CartPoleRunner,
         mountainCarRunner: MountainCarRunner,
         mountainCarContinuousRunner: MountainCarContinuousRunner,
@@ -145,6 +155,8 @@ extension EnvironmentRegistry {
         switch type {
         case .frozenLake:
             FrozenLakeView(runner: frozenLakeRunner)
+        case .blackjack:
+            BlackjackView(runner: blackjackRunner)
         case .cartPole:
             CartPoleView(runner: cartPoleRunner)
         case .mountainCar:

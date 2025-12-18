@@ -8,6 +8,7 @@ struct TrainLandingView: View {
     var trainingState = TrainingState.shared
     
     var frozenLakeRunner: FrozenLakeRunner
+    var blackjackRunner: BlackjackRunner
     var cartPoleRunner: CartPoleRunner
     var mountainCarRunner: MountainCarRunner
     var mountainCarContinuousRunner: MountainCarContinuousRunner
@@ -63,6 +64,9 @@ struct TrainLandingView: View {
         case .frozenLake:
             FrozenLakeView(runner: frozenLakeRunner)
                 .navigationTitle("Frozen Lake")
+        case .blackjack:
+            BlackjackView(runner: blackjackRunner)
+                .navigationTitle("Blackjack")
         case .cartPole:
             CartPoleView(runner: cartPoleRunner)
                 .navigationTitle("Cart Pole")

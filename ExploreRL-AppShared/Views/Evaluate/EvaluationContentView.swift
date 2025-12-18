@@ -92,6 +92,12 @@ struct EvaluationContentView: View {
                                 }
                             }
                     }
+                case .blackjack:
+                    if let snapshot = runner.blackjackSnapshot {
+                        BlackjackCanvasView(snapshot: snapshot)
+                            .aspectRatio(600/500, contentMode: .fit)
+                            .cornerRadius(12)
+                    }
                 case .cartPole:
                     if let snapshot = runner.cartPoleSnapshot {
                         CartPoleViewAdapter(snapshot: snapshot)

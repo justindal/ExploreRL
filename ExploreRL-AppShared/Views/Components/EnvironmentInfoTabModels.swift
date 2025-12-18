@@ -339,6 +339,63 @@ enum EnvironmentInfoTabModels {
         )
     }
     
+    static func blackjack(
+        algorithmName: String?,
+        natural: Bool?,
+        sab: Bool?,
+        maxStepsPerEpisode: Int?
+    ) -> EnvironmentInfoTabModel {
+        let naturalLine: String = (natural ?? false) ? "Natural bonus: +1.5 for natural blackjack." : "Natural bonus: disabled."
+        let sabLine: String = (sab ?? false) ? "Rules: Sutton & Barto textbook." : "Rules: standard casino."
+        
+        return EnvironmentInfoTabModel(
+            title: "Blackjack — Info",
+            subtitle: "Toy text • Discrete actions" + (algorithmName.map { " • \($0)" } ?? ""),
+            overview: EnvironmentRegistry.info(for: .blackjack)?.description,
+            sections: [
+                .init(
+                    title: "Spaces",
+                    kind: .keyValues([
+                        .init(label: "State Space", value: "Discrete(704)"),
+                        .init(label: "Observation", value: "(playerSum, dealerCard, usableAce)"),
+                        .init(label: "Action Space", value: "Discrete(2)")
+                    ])
+                ),
+                .init(
+                    title: "Actions",
+                    kind: .keyValues([
+                        .init(label: "0", value: "Stick (stop taking cards)"),
+                        .init(label: "1", value: "Hit (take another card)")
+                    ])
+                ),
+                .init(
+                    title: "Rewards",
+                    kind: .bullets([
+                        "Win: +1.0",
+                        "Lose: −1.0",
+                        "Draw: 0.0",
+                        naturalLine
+                    ])
+                ),
+                .init(
+                    title: "Rules",
+                    kind: .bullets([
+                        sabLine,
+                        "Dealer hits until sum ≥ 17.",
+                        "Face cards = 10, Ace = 1 or 11."
+                    ])
+                ),
+                .init(
+                    title: "Episode end",
+                    kind: .bullets([
+                        "Termination: player sticks or busts.",
+                        truncationLine(maxStepsPerEpisode: maxStepsPerEpisode)
+                    ])
+                )
+            ]
+        )
+    }
+    
     // Static models for Learn hub (no runner state)
     static func forLearn(type: EnvironmentType) -> EnvironmentInfoTabModel {
         switch type {
@@ -362,6 +419,13 @@ enum EnvironmentInfoTabModels {
                 mapName: "4x4",
                 customMapSize: nil,
                 isSlippery: true,
+                maxStepsPerEpisode: nil
+            )
+        case .blackjack:
+            return blackjack(
+                algorithmName: nil,
+                natural: false,
+                sab: false,
                 maxStepsPerEpisode: nil
             )
         }

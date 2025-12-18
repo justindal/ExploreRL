@@ -17,6 +17,7 @@ struct MainView: View {
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     
     @State private var frozenLakeRunner = FrozenLakeRunner()
+    @State private var blackjackRunner = BlackjackRunner()
     @State private var cartPoleRunner = CartPoleRunner()
     @State private var mountainCarRunner = MountainCarRunner()
     @State private var mountainCarContinuousRunner = MountainCarContinuousRunner()
@@ -127,6 +128,7 @@ struct MainView: View {
             Tab("Train", systemImage: "graduationcap") {
                 TrainLandingView(
                     frozenLakeRunner: frozenLakeRunner,
+                    blackjackRunner: blackjackRunner,
                     cartPoleRunner: cartPoleRunner,
                     mountainCarRunner: mountainCarRunner,
                     mountainCarContinuousRunner: mountainCarContinuousRunner,
@@ -159,6 +161,8 @@ struct MainView: View {
             switch type {
             case .frozenLake:
                 FrozenLakeView(runner: frozenLakeRunner)
+            case .blackjack:
+                BlackjackView(runner: blackjackRunner)
             case .cartPole:
                 CartPoleView(runner: cartPoleRunner)
             case .mountainCar:
