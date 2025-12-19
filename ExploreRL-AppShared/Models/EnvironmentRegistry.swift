@@ -43,6 +43,15 @@ struct EnvironmentRegistry {
             category: .toyText,
             description: "Play blackjack against a dealer by learning when to hit or stick."
         ),
+        EnvironmentInfo(
+            type: .taxi,
+            displayName: "Taxi",
+            algorithmName: "Q-Learning / SARSA",
+            icon: "car.fill",
+            accentColor: .yellow,
+            category: .toyText,
+            description: "Navigate a taxi to pick up and drop off passengers at designated locations."
+        ),
         
         // Classic Control
         EnvironmentInfo(
@@ -144,6 +153,7 @@ extension EnvironmentRegistry {
         for type: EnvironmentType,
         frozenLakeRunner: FrozenLakeRunner,
         blackjackRunner: BlackjackRunner,
+        taxiRunner: TaxiRunner,
         cartPoleRunner: CartPoleRunner,
         mountainCarRunner: MountainCarRunner,
         mountainCarContinuousRunner: MountainCarContinuousRunner,
@@ -157,6 +167,8 @@ extension EnvironmentRegistry {
             FrozenLakeView(runner: frozenLakeRunner)
         case .blackjack:
             BlackjackView(runner: blackjackRunner)
+        case .taxi:
+            TaxiView(runner: taxiRunner)
         case .cartPole:
             CartPoleView(runner: cartPoleRunner)
         case .mountainCar:

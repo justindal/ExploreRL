@@ -339,6 +339,66 @@ enum EnvironmentInfoTabModels {
         )
     }
     
+    static func taxi(
+        algorithmName: String?,
+        isRainy: Bool?,
+        ficklePassenger: Bool?,
+        maxStepsPerEpisode: Int?
+    ) -> EnvironmentInfoTabModel {
+        let rainyLine: String = (isRainy ?? false) ? "Weather: rainy (stochastic movement)." : "Weather: dry (deterministic movement)."
+        let fickleLine: String = (ficklePassenger ?? false) ? "Passenger: fickle (may change destination)." : "Passenger: normal."
+        
+        return EnvironmentInfoTabModel(
+            title: "Taxi — Info",
+            subtitle: "Toy text • Discrete actions" + (algorithmName.map { " • \($0)" } ?? ""),
+            overview: EnvironmentRegistry.info(for: .taxi)?.description,
+            sections: [
+                .init(
+                    title: "Spaces",
+                    kind: .keyValues([
+                        .init(label: "State Space", value: "Discrete(500)"),
+                        .init(label: "State Encoding", value: "(taxiPos × passLoc × dest)"),
+                        .init(label: "Action Space", value: "Discrete(6)")
+                    ])
+                ),
+                .init(
+                    title: "Actions",
+                    kind: .keyValues([
+                        .init(label: "0", value: "South"),
+                        .init(label: "1", value: "North"),
+                        .init(label: "2", value: "East"),
+                        .init(label: "3", value: "West"),
+                        .init(label: "4", value: "Pickup"),
+                        .init(label: "5", value: "Dropoff")
+                    ])
+                ),
+                .init(
+                    title: "Rewards",
+                    kind: .bullets([
+                        "Step: −1 (time penalty)",
+                        "Successful dropoff: +20",
+                        "Illegal pickup/dropoff: −10"
+                    ])
+                ),
+                .init(
+                    title: "Environment",
+                    kind: .bullets([
+                        rainyLine,
+                        fickleLine,
+                        "Locations: R (Red), G (Green), Y (Yellow), B (Blue)"
+                    ])
+                ),
+                .init(
+                    title: "Episode end",
+                    kind: .bullets([
+                        "Termination: passenger delivered to destination.",
+                        truncationLine(maxStepsPerEpisode: maxStepsPerEpisode)
+                    ])
+                )
+            ]
+        )
+    }
+    
     static func blackjack(
         algorithmName: String?,
         natural: Bool?,
@@ -426,6 +486,13 @@ enum EnvironmentInfoTabModels {
                 algorithmName: nil,
                 natural: false,
                 sab: false,
+                maxStepsPerEpisode: nil
+            )
+        case .taxi:
+            return taxi(
+                algorithmName: nil,
+                isRainy: false,
+                ficklePassenger: false,
                 maxStepsPerEpisode: nil
             )
         }

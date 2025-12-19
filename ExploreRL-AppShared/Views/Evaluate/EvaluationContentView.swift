@@ -98,6 +98,12 @@ struct EvaluationContentView: View {
                             .aspectRatio(600/500, contentMode: .fit)
                             .cornerRadius(12)
                     }
+                case .taxi:
+                    if let snapshot = runner.taxiSnapshot {
+                        TaxiCanvasView(snapshot: snapshot)
+                            .aspectRatio(340.0/360.0, contentMode: .fit)
+                            .cornerRadius(12)
+                    }
                 case .cartPole:
                     if let snapshot = runner.cartPoleSnapshot {
                         CartPoleViewAdapter(snapshot: snapshot)

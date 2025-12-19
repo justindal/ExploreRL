@@ -38,6 +38,11 @@ import MLXNN
     private var blackjackEnv: (any Env<BlackjackObservation, Int>)?
     private var blackjackAgent: DiscreteAgent?
     
+    // Taxi
+    var taxiSnapshot: TaxiRenderSnapshot?
+    private var taxiEnv: (any Env<Int, Int>)?
+    private var taxiAgent: DiscreteAgent?
+    
     // CartPole
     var cartPoleSnapshot: CartPoleSnapshot?
     private var cartPoleEnv: (any Env<MLXArray, Int>)?
@@ -103,6 +108,8 @@ import MLXNN
             try setupFrozenLake(agent)
         case .blackjack:
             try setupBlackjack(agent)
+        case .taxi:
+            try setupTaxi(agent)
         case .cartPole:
             try setupCartPole(agent)
         case .mountainCar:
@@ -587,6 +594,11 @@ import MLXNN
         blackjackEnv = nil
         blackjackAgent = nil
         
+        // Taxi
+        taxiSnapshot = nil
+        taxiEnv = nil
+        taxiAgent = nil
+        
         // CartPole
         cartPoleSnapshot = nil
         cartPoleEnv = nil
@@ -638,6 +650,8 @@ import MLXNN
                 await runFrozenLakeEpisode()
             case .blackjack:
                 await runBlackjackEpisode()
+            case .taxi:
+                await runTaxiEpisode()
             case .cartPole:
                 await runCartPoleEpisode()
             case .mountainCar:
@@ -757,6 +771,98 @@ import MLXNN
     /// Convert BlackjackObservation to a single integer state index
     private func observationToState(_ obs: BlackjackObservation) -> Int {
         return obs.playerSum * 22 + obs.dealerCard * 2 + obs.usableAce
+    }
+    
+    private func setupTaxi(_ agent: SavedAgent) throws {
+        let isRainy = agent.environmentConfig["isRainy"] == "true"
+        let ficklePassenger = agent.environmentConfig["ficklePassenger"] == "true"
+        
+        var kwargs: [String: Any] = [
+            "is_rainy": isRainy,
+            "fickle_passenger": ficklePassenger
+        ]
+        
+        if showVisualization {
+            kwargs["render_mode"] = "rgb_array"
+        }
+        
+        guard let env = Gymnazo.make("Taxi", kwargs: kwargs) as? any Env<Int, Int> else {
+            throw AgentStorageError.dataCorrupted
+        }
+        taxiEnv = env
+        
+        let qTable = try AgentStorage.shared.loadQTable(for: agent)
+        
+        guard let obsSpace = env.observation_space as? Discrete,
+              let actSpace = env.action_space as? Discrete else {
+            throw AgentStorageError.dataCorrupted
+        }
+        
+        let qAgent = QLearningAgent(
+            learningRate: 0,
+            gamma: 0.99,
+            stateSize: obsSpace.n,
+            actionSize: actSpace.n,
+            epsilon: 0
+        )
+        
+        qAgent.loadQTable(qTable)
+        
+        taxiAgent = DiscreteAgent(qAgent)
+        
+        if let taxi = env.unwrapped as? Taxi {
+            taxiSnapshot = taxi.currentSnapshot
+        }
+    }
+    
+    private func runTaxiEpisode() async {
+        guard var env = taxiEnv, let agent = taxiAgent else { return }
+        
+        let resetResult = env.reset()
+        var state = resetResult.obs
+        var terminated = false
+        var truncated = false
+        var steps = 0
+        var reward = 0.0
+        
+        guard let actionSpace = env.action_space as? Discrete else { return }
+        
+        let maxSteps = 200
+        
+        while !terminated && !truncated && isRunning && steps < maxSteps {
+            var key = rngKey
+            let action = agent.chooseAction(actionSpace: actionSpace, state: state, key: &key)
+            rngKey = key
+            
+            let result = env.step(action)
+            state = result.obs
+            terminated = result.terminated
+            truncated = result.truncated
+            reward += result.reward
+            steps += 1
+            
+            currentStep = steps
+            episodeReward = reward
+            
+            if showVisualization {
+                if let taxi = env.unwrapped as? Taxi {
+                    taxiSnapshot = taxi.currentSnapshot
+                }
+                
+                let delayNs = UInt64(1_000_000_000 / targetFPS)
+                try? await Task.sleep(nanoseconds: delayNs)
+            }
+        }
+        
+        taxiEnv = env
+        episodeRewards.append(reward)
+        episodeSteps.append(steps)
+        totalReward += reward
+        
+        // Taxi success: passenger delivered (episode terminates with positive reward)
+        if terminated && reward > 0 {
+            successCount += 1
+        }
     }
     
     private func runCartPoleEpisode() async {
