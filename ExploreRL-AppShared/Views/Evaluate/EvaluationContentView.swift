@@ -104,6 +104,12 @@ struct EvaluationContentView: View {
                             .aspectRatio(340.0/360.0, contentMode: .fit)
                             .cornerRadius(12)
                     }
+                case .cliffWalking:
+                    if let snapshot = runner.cliffWalkingSnapshot {
+                        CliffWalkingCanvasView(snapshot: snapshot)
+                            .aspectRatio(640.0/240.0, contentMode: .fit)
+                            .cornerRadius(12)
+                    }
                 case .cartPole:
                     if let snapshot = runner.cartPoleSnapshot {
                         CartPoleViewAdapter(snapshot: snapshot)

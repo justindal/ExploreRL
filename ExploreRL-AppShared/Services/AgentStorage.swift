@@ -259,7 +259,7 @@ import Gymnazo
     
     private func getWeightsFileName(for envType: EnvironmentType, algorithm: String) -> String {
         switch envType {
-        case .frozenLake, .blackjack, .taxi:
+        case .frozenLake, .blackjack, .taxi, .cliffWalking:
             return "qtable.npy"
         case .cartPole, .mountainCar, .acrobot, .lunarLander:
             return "weights.safetensors"
@@ -446,7 +446,7 @@ import Gymnazo
     }
     
     func loadQTable(for agent: SavedAgent) throws -> MLXArray {
-        guard agent.environmentType == .frozenLake || agent.environmentType == .blackjack || agent.environmentType == .taxi else {
+        guard agent.environmentType == .frozenLake || agent.environmentType == .blackjack || agent.environmentType == .taxi || agent.environmentType == .cliffWalking else {
             throw AgentStorageError.wrongEnvironmentType
         }
         let dataURL = try resolveAgentDataURL(for: agent)
@@ -602,6 +602,105 @@ import Gymnazo
     }
     
     func updateTaxiAgent(
+        id: UUID,
+        newName: String,
+        qTable: MLXArray,
+        episodesTrained: Int,
+        trainingTimeSeconds: Double? = nil,
+        epsilon: Double,
+        bestReward: Double,
+        averageReward: Double,
+        successRate: Double,
+        hyperparameters: [String: Double]
+    ) throws {
+        let agent = try loadAgent(id: id)
+        let folder = agentFolder(for: agent)
+        
+        let weightsPath = agentsDirectory.appendingPathComponent(agent.agentDataPath)
+        try saveQTable(qTable, to: weightsPath)
+        
+        var newDataPath = agent.agentDataPath
+        var newFolder = folder
+        if newName != agent.name {
+            newFolder = try renameAgentFolder(from: folder, to: newName, environmentType: agent.environmentType)
+            let envName = agent.environmentType.displayName
+            newDataPath = "\(envName)/\(newFolder.lastPathComponent)/qtable.npy"
+        }
+        
+        let updatedAgent = SavedAgent(
+            id: agent.id,
+            name: newName,
+            environmentType: agent.environmentType,
+            algorithmType: agent.algorithmType,
+            createdAt: agent.createdAt,
+            updatedAt: Date(),
+            episodesTrained: episodesTrained,
+            trainingTimeSeconds: trainingTimeSeconds ?? agent.trainingTimeSeconds,
+            finalEpsilon: epsilon,
+            bestReward: bestReward,
+            averageReward: averageReward,
+            successRate: successRate,
+            hyperparameters: hyperparameters,
+            environmentConfig: agent.environmentConfig,
+            agentDataPath: newDataPath
+        )
+        
+        let metadataPath = newFolder.appendingPathComponent("metadata.json")
+        try encoder.encode(updatedAgent).write(to: metadataPath)
+        
+        loadAgentList()
+    }
+    
+    func saveCliffWalkingAgent(
+        name: String,
+        qTable: MLXArray,
+        algorithm: String,
+        episodesTrained: Int,
+        trainingTimeSeconds: Double? = nil,
+        epsilon: Double,
+        bestReward: Double,
+        averageReward: Double,
+        successRate: Double,
+        hyperparameters: [String: Double],
+        environmentConfig: [String: String]
+    ) throws -> SavedAgent {
+        let id = UUID()
+        let now = Date()
+        let agentDir = createAgentFolder(name: name, environmentType: .cliffWalking)
+        let folderName = agentDir.lastPathComponent
+        let envName = EnvironmentType.cliffWalking.displayName
+        
+        let weightsFileName = "qtable.npy"
+        let dataPath = "\(envName)/\(folderName)/\(weightsFileName)"
+        
+        try saveQTable(qTable, to: agentDir.appendingPathComponent(weightsFileName))
+        
+        let agent = SavedAgent(
+            id: id,
+            name: name,
+            environmentType: .cliffWalking,
+            algorithmType: algorithm,
+            createdAt: now,
+            updatedAt: now,
+            episodesTrained: episodesTrained,
+            trainingTimeSeconds: trainingTimeSeconds,
+            finalEpsilon: epsilon,
+            bestReward: bestReward,
+            averageReward: averageReward,
+            successRate: successRate,
+            hyperparameters: hyperparameters,
+            environmentConfig: environmentConfig,
+            agentDataPath: dataPath
+        )
+        
+        let metadataPath = agentDir.appendingPathComponent("metadata.json")
+        try encoder.encode(agent).write(to: metadataPath)
+        
+        loadAgentList()
+        return agent
+    }
+    
+    func updateCliffWalkingAgent(
         id: UUID,
         newName: String,
         qTable: MLXArray,

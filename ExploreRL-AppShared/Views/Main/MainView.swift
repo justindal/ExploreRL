@@ -19,6 +19,7 @@ struct MainView: View {
     @State private var frozenLakeRunner = FrozenLakeRunner()
     @State private var blackjackRunner = BlackjackRunner()
     @State private var taxiRunner = TaxiRunner()
+    @State private var cliffWalkingRunner = CliffWalkingRunner()
     @State private var cartPoleRunner = CartPoleRunner()
     @State private var mountainCarRunner = MountainCarRunner()
     @State private var mountainCarContinuousRunner = MountainCarContinuousRunner()
@@ -131,6 +132,7 @@ struct MainView: View {
                     frozenLakeRunner: frozenLakeRunner,
                     blackjackRunner: blackjackRunner,
                     taxiRunner: taxiRunner,
+                    cliffWalkingRunner: cliffWalkingRunner,
                     cartPoleRunner: cartPoleRunner,
                     mountainCarRunner: mountainCarRunner,
                     mountainCarContinuousRunner: mountainCarContinuousRunner,
@@ -167,6 +169,8 @@ struct MainView: View {
                 BlackjackView(runner: blackjackRunner)
             case .taxi:
                 TaxiView(runner: taxiRunner)
+            case .cliffWalking:
+                CliffWalkingView(runner: cliffWalkingRunner)
             case .cartPole:
                 CartPoleView(runner: cartPoleRunner)
             case .mountainCar:

@@ -52,6 +52,15 @@ struct EnvironmentRegistry {
             category: .toyText,
             description: "Navigate a taxi to pick up and drop off passengers at designated locations."
         ),
+        EnvironmentInfo(
+            type: .cliffWalking,
+            displayName: "Cliff Walking",
+            algorithmName: "Q-Learning / SARSA",
+            icon: "arrow.triangle.turn.up.right.diamond",
+            accentColor: .brown,
+            category: .toyText,
+            description: "Navigate from start to goal while avoiding falling off the cliff."
+        ),
         
         // Classic Control
         EnvironmentInfo(
@@ -154,6 +163,7 @@ extension EnvironmentRegistry {
         frozenLakeRunner: FrozenLakeRunner,
         blackjackRunner: BlackjackRunner,
         taxiRunner: TaxiRunner,
+        cliffWalkingRunner: CliffWalkingRunner,
         cartPoleRunner: CartPoleRunner,
         mountainCarRunner: MountainCarRunner,
         mountainCarContinuousRunner: MountainCarContinuousRunner,
@@ -169,6 +179,8 @@ extension EnvironmentRegistry {
             BlackjackView(runner: blackjackRunner)
         case .taxi:
             TaxiView(runner: taxiRunner)
+        case .cliffWalking:
+            CliffWalkingView(runner: cliffWalkingRunner)
         case .cartPole:
             CartPoleView(runner: cartPoleRunner)
         case .mountainCar:

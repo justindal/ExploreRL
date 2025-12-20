@@ -339,6 +339,62 @@ enum EnvironmentInfoTabModels {
         )
     }
     
+    static func cliffWalking(
+        algorithmName: String?,
+        isSlippery: Bool?,
+        maxStepsPerEpisode: Int?
+    ) -> EnvironmentInfoTabModel {
+        let slipperyLine: String = (isSlippery ?? false) ? "Slippery surface: stochastic movement." : "Normal surface: deterministic movement."
+        
+        return EnvironmentInfoTabModel(
+            title: "Cliff Walking — Info",
+            subtitle: "Toy text • Discrete actions" + (algorithmName.map { " • \($0)" } ?? ""),
+            overview: EnvironmentRegistry.info(for: .cliffWalking)?.description,
+            sections: [
+                .init(
+                    title: "Spaces",
+                    kind: .keyValues([
+                        .init(label: "State Space", value: "Discrete(48)"),
+                        .init(label: "Grid", value: "4 rows × 12 columns"),
+                        .init(label: "Action Space", value: "Discrete(4)")
+                    ])
+                ),
+                .init(
+                    title: "Actions",
+                    kind: .keyValues([
+                        .init(label: "0", value: "Up"),
+                        .init(label: "1", value: "Right"),
+                        .init(label: "2", value: "Down"),
+                        .init(label: "3", value: "Left")
+                    ])
+                ),
+                .init(
+                    title: "Rewards",
+                    kind: .bullets([
+                        "Step: −1 (time penalty)",
+                        "Fall off cliff: −100 (returns to start)"
+                    ])
+                ),
+                .init(
+                    title: "Environment",
+                    kind: .bullets([
+                        slipperyLine,
+                        "Start: bottom-left [3, 0]",
+                        "Goal: bottom-right [3, 11]",
+                        "Cliff: bottom row [3, 1..10]"
+                    ])
+                ),
+                .init(
+                    title: "Episode end",
+                    kind: .bullets([
+                        "Termination: agent reaches the goal.",
+                        truncationLine(maxStepsPerEpisode: maxStepsPerEpisode)
+                    ])
+                )
+            ]
+        )
+    }
+    
     static func taxi(
         algorithmName: String?,
         isRainy: Bool?,
@@ -493,6 +549,12 @@ enum EnvironmentInfoTabModels {
                 algorithmName: nil,
                 isRainy: false,
                 ficklePassenger: false,
+                maxStepsPerEpisode: nil
+            )
+        case .cliffWalking:
+            return cliffWalking(
+                algorithmName: nil,
+                isSlippery: false,
                 maxStepsPerEpisode: nil
             )
         }

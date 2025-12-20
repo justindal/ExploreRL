@@ -236,6 +236,7 @@ extension EnvironmentType {
         case .frozenLake: return .cyan
         case .blackjack: return .mint
         case .taxi: return .yellow
+        case .cliffWalking: return .brown
         case .cartPole: return .orange
         case .mountainCar: return .green
         case .mountainCarContinuous: return .purple
@@ -248,7 +249,7 @@ extension EnvironmentType {
     
     var accessibleForeground: Color {
         switch self {
-        case .frozenLake, .mountainCar, .blackjack, .taxi: return .black
+        case .frozenLake, .mountainCar, .blackjack, .taxi, .cliffWalking: return .black
         case .cartPole, .mountainCarContinuous, .acrobot, .pendulum, .lunarLander, .lunarLanderContinuous: return .white
         }
     }

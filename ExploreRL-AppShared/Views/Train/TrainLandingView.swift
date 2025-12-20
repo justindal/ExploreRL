@@ -10,6 +10,7 @@ struct TrainLandingView: View {
     var frozenLakeRunner: FrozenLakeRunner
     var blackjackRunner: BlackjackRunner
     var taxiRunner: TaxiRunner
+    var cliffWalkingRunner: CliffWalkingRunner
     var cartPoleRunner: CartPoleRunner
     var mountainCarRunner: MountainCarRunner
     var mountainCarContinuousRunner: MountainCarContinuousRunner
@@ -71,6 +72,9 @@ struct TrainLandingView: View {
         case .taxi:
             TaxiView(runner: taxiRunner)
                 .navigationTitle("Taxi")
+        case .cliffWalking:
+            CliffWalkingView(runner: cliffWalkingRunner)
+                .navigationTitle("Cliff Walking")
         case .cartPole:
             CartPoleView(runner: cartPoleRunner)
                 .navigationTitle("Cart Pole")

@@ -73,6 +73,7 @@ enum EnvironmentType: String, Codable, CaseIterable, Identifiable {
     case frozenLake = "FrozenLake"
     case blackjack = "Blackjack"
     case taxi = "Taxi"
+    case cliffWalking = "CliffWalking"
     case cartPole = "CartPole"
     case mountainCar = "MountainCar"
     case mountainCarContinuous = "MountainCarContinuous"
@@ -88,6 +89,7 @@ enum EnvironmentType: String, Codable, CaseIterable, Identifiable {
         case .frozenLake: return "Frozen Lake"
         case .blackjack: return "Blackjack"
         case .taxi: return "Taxi"
+        case .cliffWalking: return "Cliff Walking"
         case .cartPole: return "Cart Pole"
         case .mountainCar: return "Mountain Car"
         case .mountainCarContinuous: return "Mountain Car Continuous"
@@ -103,6 +105,7 @@ enum EnvironmentType: String, Codable, CaseIterable, Identifiable {
         case .frozenLake: return "snowflake"
         case .blackjack: return "suit.spade.fill"
         case .taxi: return "car.fill"
+        case .cliffWalking: return "arrow.triangle.turn.up.right.diamond"
         case .cartPole: return "cart"
         case .mountainCar: return "car.side"
         case .mountainCarContinuous: return "car.side.fill"
@@ -118,6 +121,7 @@ enum EnvironmentType: String, Codable, CaseIterable, Identifiable {
         case .frozenLake: return .cyan
         case .blackjack: return .mint
         case .taxi: return .yellow
+        case .cliffWalking: return .brown
         case .cartPole: return .orange
         case .mountainCar: return .green
         case .mountainCarContinuous: return .purple
@@ -130,7 +134,7 @@ enum EnvironmentType: String, Codable, CaseIterable, Identifiable {
     
     var category: EnvironmentCategory {
         switch self {
-        case .frozenLake, .blackjack, .taxi: return .toyText
+        case .frozenLake, .blackjack, .taxi, .cliffWalking: return .toyText
         case .cartPole, .mountainCar, .mountainCarContinuous, .acrobot, .pendulum: return .classicControl
         case .lunarLander, .lunarLanderContinuous: return .box2d
         }
@@ -138,7 +142,7 @@ enum EnvironmentType: String, Codable, CaseIterable, Identifiable {
     
     var defaultAlgorithm: String {
         switch self {
-        case .frozenLake, .blackjack, .taxi: return "Q-Learning"
+        case .frozenLake, .blackjack, .taxi, .cliffWalking: return "Q-Learning"
         case .cartPole, .mountainCar, .acrobot, .lunarLander: return "DQN"
         case .mountainCarContinuous, .pendulum, .lunarLanderContinuous: return "SAC"
         }

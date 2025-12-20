@@ -43,6 +43,11 @@ import MLXNN
     private var taxiEnv: (any Env<Int, Int>)?
     private var taxiAgent: DiscreteAgent?
     
+    // CliffWalking
+    var cliffWalkingSnapshot: CliffWalkingRenderSnapshot?
+    private var cliffWalkingEnv: (any Env<Int, Int>)?
+    private var cliffWalkingAgent: DiscreteAgent?
+    
     // CartPole
     var cartPoleSnapshot: CartPoleSnapshot?
     private var cartPoleEnv: (any Env<MLXArray, Int>)?
@@ -110,6 +115,8 @@ import MLXNN
             try setupBlackjack(agent)
         case .taxi:
             try setupTaxi(agent)
+        case .cliffWalking:
+            try setupCliffWalking(agent)
         case .cartPole:
             try setupCartPole(agent)
         case .mountainCar:
@@ -599,6 +606,11 @@ import MLXNN
         taxiEnv = nil
         taxiAgent = nil
         
+        // CliffWalking
+        cliffWalkingSnapshot = nil
+        cliffWalkingEnv = nil
+        cliffWalkingAgent = nil
+        
         // CartPole
         cartPoleSnapshot = nil
         cartPoleEnv = nil
@@ -652,6 +664,8 @@ import MLXNN
                 await runBlackjackEpisode()
             case .taxi:
                 await runTaxiEpisode()
+            case .cliffWalking:
+                await runCliffWalkingEpisode()
             case .cartPole:
                 await runCartPoleEpisode()
             case .mountainCar:
@@ -861,6 +875,96 @@ import MLXNN
         
         // Taxi success: passenger delivered (episode terminates with positive reward)
         if terminated && reward > 0 {
+            successCount += 1
+        }
+    }
+    
+    private func setupCliffWalking(_ agent: SavedAgent) throws {
+        let isSlippery = agent.environmentConfig["isSlippery"] == "true"
+        
+        var kwargs: [String: Any] = [
+            "is_slippery": isSlippery
+        ]
+        
+        if showVisualization {
+            kwargs["render_mode"] = "rgb_array"
+        }
+        
+        guard let env = Gymnazo.make("CliffWalking", kwargs: kwargs) as? any Env<Int, Int> else {
+            throw AgentStorageError.dataCorrupted
+        }
+        cliffWalkingEnv = env
+        
+        let qTable = try AgentStorage.shared.loadQTable(for: agent)
+        
+        guard let obsSpace = env.observation_space as? Discrete,
+              let actSpace = env.action_space as? Discrete else {
+            throw AgentStorageError.dataCorrupted
+        }
+        
+        let qAgent = QLearningAgent(
+            learningRate: 0,
+            gamma: 0.99,
+            stateSize: obsSpace.n,
+            actionSize: actSpace.n,
+            epsilon: 0
+        )
+        
+        qAgent.loadQTable(qTable)
+        
+        cliffWalkingAgent = DiscreteAgent(qAgent)
+        
+        if let cliff = env.unwrapped as? CliffWalking {
+            cliffWalkingSnapshot = cliff.currentSnapshot
+        }
+    }
+    
+    private func runCliffWalkingEpisode() async {
+        guard var env = cliffWalkingEnv, let agent = cliffWalkingAgent else { return }
+        
+        let resetResult = env.reset()
+        var state = resetResult.obs
+        var terminated = false
+        var truncated = false
+        var steps = 0
+        var reward = 0.0
+        
+        guard let actionSpace = env.action_space as? Discrete else { return }
+        
+        let maxSteps = 200
+        
+        while !terminated && !truncated && isRunning && steps < maxSteps {
+            var key = rngKey
+            let action = agent.chooseAction(actionSpace: actionSpace, state: state, key: &key)
+            rngKey = key
+            
+            let result = env.step(action)
+            state = result.obs
+            terminated = result.terminated
+            truncated = result.truncated
+            reward += result.reward
+            steps += 1
+            
+            currentStep = steps
+            episodeReward = reward
+            
+            if showVisualization {
+                if let cliff = env.unwrapped as? CliffWalking {
+                    cliffWalkingSnapshot = cliff.currentSnapshot
+                }
+                
+                let delayNs = UInt64(1_000_000_000 / targetFPS)
+                try? await Task.sleep(nanoseconds: delayNs)
+            }
+        }
+        
+        cliffWalkingEnv = env
+        episodeRewards.append(reward)
+        episodeSteps.append(steps)
+        totalReward += reward
+        
+        // CliffWalking success: agent reaches the goal (episode terminates)
+        if terminated {
             successCount += 1
         }
     }
