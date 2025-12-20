@@ -55,7 +55,7 @@ ExploreRL/
 ### Prerequisites
 
 - macOS with Xcode 15+
-- iOS 17+ / macOS 14+ deployment target
+- iOS 18+ / macOS 15+
 - Apple Silicon (Intel not supported)
 
 ### Dependencies
