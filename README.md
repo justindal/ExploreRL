@@ -8,6 +8,7 @@ ExploreRL is a native Swift app for iOS and macOS that lets you visualize and ex
 - **Evaluate** saved agents without further training
 - **Visualize** agent behavior, rewards, and learning metrics in real time
 - **Save/Load** trained agents with hyperparameters and weights
+- **Import/Export** saved agents (share policies / Q-tables)
 - **Adjust** hyperparameters (learning rate, gamma, epsilon, batch size, etc.)
 
 ## Supported Environments
@@ -15,11 +16,17 @@ ExploreRL is a native Swift app for iOS and macOS that lets you visualize and ex
 | Environment             | Category        | Algorithm          | Action Space |
 | ----------------------- | --------------- | ------------------ | ------------ |
 | Frozen Lake             | Toy Text        | Q-Learning / SARSA | Discrete(4)  |
+| Blackjack               | Toy Text        | Q-Learning / SARSA | Discrete(2)  |
+| Taxi                    | Toy Text        | Q-Learning / SARSA | Discrete(6)  |
+| Cliff Walking           | Toy Text        | Q-Learning / SARSA | Discrete(4)  |
 | Cart Pole               | Classic Control | DQN                | Discrete(2)  |
 | Mountain Car            | Classic Control | DQN                | Discrete(3)  |
 | Mountain Car Continuous | Classic Control | SAC                | Box(1)       |
 | Acrobot                 | Classic Control | DQN                | Discrete(3)  |
 | Pendulum                | Classic Control | SAC                | Box(1)       |
+| Lunar Lander            | Box2D           | DQN                | Discrete(4)  |
+| Lunar Lander Continuous | Box2D           | SAC                | Box(2)       |
+
 
 ## Implemented Algorithms
 
@@ -61,9 +68,10 @@ ExploreRL/
 ### Dependencies
 
 - [MLX Swift](https://github.com/ml-explore/mlx-swift/) - Neural network training on Apple Silicon
-- [Gymnazo](https://github.com/justindal/Gymnazo) - Swift port of Gymnasium environments
+- [Gymnazo](https://github.com/justindal/Gymnazo) - Swift port of Gymnasium environments and tools
 
 ### Run
+
 1. Open the project in Xcode
 2. Select `ExploreRL-iOS` or `ExploreRL-macOS` target and run.
 
@@ -92,12 +100,17 @@ ExploreRL/
 ## Roadmap
 
 - [x] FrozenLake with Q-Learning/SARSA
+- [x] Blackjack with Q-Learning/SARSA
+- [x] Taxi with Q-Learning/SARSA
+- [x] CliffWalking with Q-Learning/SARSA
 - [x] CartPole, MountainCar, Acrobot with DQN
 - [x] Pendulum, MountainCarContinuous with SAC
+- [x] LunarLander with DQN
+- [x] LunarLanderContinuous with SAC
 - [x] Save/load agents with weights
 - [x] Evaluation mode
-- [ ] Export training logs and
-- [ ] More environments (LunarLander, BipedalWalker)
+- [ ] Export training logs
+- [ ] Other Gymnasium environments
 - [ ] More algorithms (PPO, A2C, TD3)
 - [ ] Experiment comparison view
 
