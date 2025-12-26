@@ -349,32 +349,25 @@ import MLXNN
             batchSize: 256,
             bufferSize: 1000
         )
+
+        let weightsDict = try AgentStorage.shared.loadSACVmapWeights(for: agent)
         
-        if agent.algorithmType == "SAC-Vmap" || agent.agentDataPath.contains("vmap") {
-            let weightsDict = try AgentStorage.shared.loadSACVmapWeights(for: agent)
-            
-            if let actorWeights = weightsDict["actor"] {
-                let actorTuples = actorWeights.map { ($0.key, $0.value) }
-                let actorParams = NestedDictionary<String, MLXArray>.unflattened(actorTuples)
-                sacAgent.actor.update(parameters: actorParams)
-            }
-            
-            if let qEnsembleWeights = weightsDict["qEnsemble"] {
-                let qTuples = qEnsembleWeights.map { ($0.key, $0.value) }
-                let qParams = NestedDictionary<String, MLXArray>.unflattened(qTuples)
-                sacAgent.qEnsemble.update(parameters: qParams)
-            }
-        } else {
-            let weightsDict = try AgentStorage.shared.loadSACWeights(for: agent)
-            
-            if let actorWeights = weightsDict["actor"] {
-                let actorTuples = actorWeights.map { ($0.key, $0.value) }
-                let actorParams = NestedDictionary<String, MLXArray>.unflattened(actorTuples)
-                sacAgent.actor.update(parameters: actorParams)
-            }
+        if let actorWeights = weightsDict["actor"], !actorWeights.isEmpty {
+            let actorTuples = actorWeights.map { ($0.key, $0.value) }
+            let actorParams = NestedDictionary<String, MLXArray>.unflattened(actorTuples)
+            sacAgent.actor.update(parameters: actorParams)
         }
         
-        eval(sacAgent.actor, sacAgent.qEnsemble)
+        if let qEnsembleWeights = weightsDict["qEnsemble"],
+           !qEnsembleWeights.isEmpty,
+           !qEnsembleWeights.keys.contains(where: { $0.hasPrefix("qf1.") || $0.hasPrefix("qf2.") }) {
+            let qTuples = qEnsembleWeights.map { ($0.key, $0.value) }
+            let qParams = NestedDictionary<String, MLXArray>.unflattened(qTuples)
+            sacAgent.qEnsemble.update(parameters: qParams)
+            sacAgent.qEnsembleTarget.update(parameters: qParams)
+        }
+        
+        eval(sacAgent.actor, sacAgent.qEnsemble, sacAgent.qEnsembleTarget)
         
         mountainCarContinuousAgent = sacAgent
         
