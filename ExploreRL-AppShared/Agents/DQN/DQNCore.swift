@@ -39,11 +39,11 @@ public class ReplayMemory {
     let stateSize: Int
     let actionSize: Int = 1
     
-    var obsBuffer: [Float]
-    var nextObsBuffer: [Float]
-    var actionBuffer: [Int32]
-    var rewardBuffer: [Float]
-    var terminatedBuffer: [Float]
+    var obsBuffer: MLXArray
+    var nextObsBuffer: MLXArray
+    var actionBuffer: MLXArray
+    var rewardBuffer: MLXArray
+    var terminatedBuffer: MLXArray
     
     var ptr: Int = 0
     var size: Int = 0
@@ -52,30 +52,25 @@ public class ReplayMemory {
         self.capacity = capacity
         self.stateSize = stateSize
         
-        self.obsBuffer = [Float](repeating: 0, count: capacity * stateSize)
-        self.nextObsBuffer = [Float](repeating: 0, count: capacity * stateSize)
-        self.actionBuffer = [Int32](repeating: 0, count: capacity)
-        self.rewardBuffer = [Float](repeating: 0, count: capacity)
-        self.terminatedBuffer = [Float](repeating: 0, count: capacity)
+        self.obsBuffer = MLXArray.zeros([capacity, stateSize])
+        self.nextObsBuffer = MLXArray.zeros([capacity, stateSize])
+        self.actionBuffer = MLXArray.zeros([capacity, 1], type: Int32.self)
+        self.rewardBuffer = MLXArray.zeros([capacity, 1])
+        self.terminatedBuffer = MLXArray.zeros([capacity, 1])
     }
     
     func push(_ experience: Experience) {
-        let obsFlat = experience.observation.asArray(Float.self)
-        let nextObsFlat = experience.nextObservation.asArray(Float.self)
-        let actionScalar = experience.action.item(Int32.self)
-        let rewardScalar = experience.reward.item(Float.self)
-        let termScalar = experience.terminated.item(Float.self)
+        let obs = experience.observation.reshaped([1, stateSize])
+        let nextObs = experience.nextObservation.reshaped([1, stateSize])
+        let action = experience.action.reshaped([1, 1]).asType(Int32.self)
+        let reward = experience.reward.reshaped([1, 1])
+        let term = experience.terminated.reshaped([1, 1])
         
-        let startIdx = ptr * stateSize
-        
-        for i in 0..<stateSize {
-            obsBuffer[startIdx + i] = obsFlat[i]
-            nextObsBuffer[startIdx + i] = nextObsFlat[i]
-        }
-        
-        actionBuffer[ptr] = actionScalar
-        rewardBuffer[ptr] = rewardScalar
-        terminatedBuffer[ptr] = termScalar
+        obsBuffer[ptr, 0...] = obs
+        nextObsBuffer[ptr, 0...] = nextObs
+        actionBuffer[ptr, 0...] = action
+        rewardBuffer[ptr, 0...] = reward
+        terminatedBuffer[ptr, 0...] = term
         
         ptr = (ptr + 1) % capacity
         size = min(size + 1, capacity)
@@ -84,39 +79,13 @@ public class ReplayMemory {
     func sample(batchSize: Int) -> (MLXArray, MLXArray, MLXArray, MLXArray, MLXArray) {
         let safeBatchSize = min(batchSize, size)
         
-        var indices = [Int]()
-        indices.reserveCapacity(safeBatchSize)
-        for _ in 0..<safeBatchSize {
-            indices.append(Int.random(in: 0..<size))
-        }
+        let indices = MLXRandom.randInt(low: 0, high: size, [safeBatchSize])
         
-        var bObs = [Float]()
-        var bNextObs = [Float]()
-        var bActions = [Int32]()
-        var bRewards = [Float]()
-        var bTerminated = [Float]()
-        
-        bObs.reserveCapacity(safeBatchSize * stateSize)
-        bNextObs.reserveCapacity(safeBatchSize * stateSize)
-        bActions.reserveCapacity(safeBatchSize)
-        bRewards.reserveCapacity(safeBatchSize)
-        bTerminated.reserveCapacity(safeBatchSize)
-        
-        for idx in indices {
-            let start = idx * stateSize
-
-            bObs.append(contentsOf: obsBuffer[start..<(start+stateSize)])
-            bNextObs.append(contentsOf: nextObsBuffer[start..<(start+stateSize)])
-            bActions.append(actionBuffer[idx])
-            bRewards.append(rewardBuffer[idx])
-            bTerminated.append(terminatedBuffer[idx])
-        }
-        
-        let mlxObs = MLXArray(bObs).reshaped([safeBatchSize, stateSize])
-        let mlxNextObs = MLXArray(bNextObs).reshaped([safeBatchSize, stateSize])
-        let mlxActions = MLXArray(bActions).reshaped([safeBatchSize, 1])
-        let mlxRewards = MLXArray(bRewards).reshaped([safeBatchSize, 1])
-        let mlxTerminated = MLXArray(bTerminated).reshaped([safeBatchSize, 1])
+        let mlxObs = obsBuffer[indices]
+        let mlxNextObs = nextObsBuffer[indices]
+        let mlxActions = actionBuffer[indices]
+        let mlxRewards = rewardBuffer[indices]
+        let mlxTerminated = terminatedBuffer[indices]
         
         return (mlxObs, mlxNextObs, mlxActions, mlxRewards, mlxTerminated)
     }
@@ -229,7 +198,7 @@ public class DQNAgent<Network: QNetworkProtocol>: DiscreteDeepRLAgent {
         
         if Float.random(in: 0..<1) < epsilon {
             let randomAction = Int32.random(in: 0..<Int32(actionSize))
-            return MLXArray([randomAction]).reshaped([1, 1])
+            return MLXArray(Int32(randomAction)).reshaped([1, 1])
         } else {
             let stateRow = state.ndim == 1 ? state.reshaped([1, stateSize]) : state
             let qValues = policyNetwork(stateRow)

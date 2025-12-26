@@ -417,9 +417,10 @@ import MLXNN
         var steps = 0
         
         while !terminated && !truncated && isRunning && steps < maxStepsPerEpisode {
-            let mainThrottle = Float.random(in: -1.0...1.0)
-            let lateralControl = Float.random(in: -1.0...1.0)
-            let actionArray = MLXArray([mainThrottle, lateralControl] as [Float32])
+            let (newKey, actionKey) = MLX.split(key: rngKey)
+            rngKey = newKey
+            let range: Range<Float> = (-1.0 as Float)..<(1.0 as Float)
+            let actionArray = MLX.uniform(range, [2], key: actionKey)
             
             let result = env.step(actionArray)
             self.env = env

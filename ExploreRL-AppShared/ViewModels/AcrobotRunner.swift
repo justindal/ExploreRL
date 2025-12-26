@@ -401,7 +401,7 @@ import MLXNN
                 
                 agent.store(
                     state: warmupState,
-                    action: MLXArray([randomAction]).reshaped([1, 1]),
+                    action: MLXArray(Int32(randomAction)).reshaped([1, 1]),
                     reward: Float(stepResult.reward),
                     nextState: stepResult.obs,
                     terminated: stepResult.terminated

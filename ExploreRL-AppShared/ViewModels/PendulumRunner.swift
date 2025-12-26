@@ -339,7 +339,7 @@ import MLXNN
     func step(action: Float) {
         guard var env = self.env else { return }
         
-        let actionArray = MLXArray([action] as [Float32])
+        let actionArray = MLXArray(action).reshaped([1])
         let result = env.step(actionArray)
         self.env = env
         
@@ -385,8 +385,10 @@ import MLXNN
         var steps = 0
         
         while !terminated && !truncated && isRunning && steps < maxStepsPerEpisode {
-            let action = Float.random(in: -2.0...2.0)
-            let actionArray = MLXArray([action] as [Float32])
+            let (newKey, actionKey) = MLX.split(key: rngKey)
+            rngKey = newKey
+            let range: Range<Float> = (-2.0 as Float)..<(2.0 as Float)
+            let actionArray = MLX.uniform(range, [1], key: actionKey)
             
             let result = env.step(actionArray)
             self.env = env

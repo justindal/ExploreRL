@@ -67,11 +67,11 @@ public class SACReplayBuffer {
     public let stateSize: Int
     public let actionSize: Int
     
-    var obsBuffer: [Float]
-    var nextObsBuffer: [Float]
-    var actionBuffer: [Float]
-    var rewardBuffer: [Float]
-    var terminatedBuffer: [Float]
+    var obsBuffer: MLXArray
+    var nextObsBuffer: MLXArray
+    var actionBuffer: MLXArray
+    var rewardBuffer: MLXArray
+    var terminatedBuffer: MLXArray
     
     var ptr: Int = 0
     var size: Int = 0
@@ -81,34 +81,25 @@ public class SACReplayBuffer {
         self.stateSize = stateSize
         self.actionSize = actionSize
         
-        self.obsBuffer = [Float](repeating: 0, count: capacity * stateSize)
-        self.nextObsBuffer = [Float](repeating: 0, count: capacity * stateSize)
-        self.actionBuffer = [Float](repeating: 0, count: capacity * actionSize)
-        self.rewardBuffer = [Float](repeating: 0, count: capacity)
-        self.terminatedBuffer = [Float](repeating: 0, count: capacity)
+        self.obsBuffer = MLXArray.zeros([capacity, stateSize])
+        self.nextObsBuffer = MLXArray.zeros([capacity, stateSize])
+        self.actionBuffer = MLXArray.zeros([capacity, actionSize])
+        self.rewardBuffer = MLXArray.zeros([capacity, 1])
+        self.terminatedBuffer = MLXArray.zeros([capacity, 1])
     }
     
     public func push(_ experience: SACExperience) {
-        let obsFlat = experience.observation.asArray(Float.self)
-        let nextObsFlat = experience.nextObservation.asArray(Float.self)
-        let actionFlat = experience.action.asArray(Float.self)
-        let rewardScalar = experience.reward.item(Float.self)
-        let termScalar = experience.terminated.item(Float.self)
+        let obs = experience.observation.reshaped([1, stateSize])
+        let nextObs = experience.nextObservation.reshaped([1, stateSize])
+        let action = experience.action.reshaped([1, actionSize])
+        let reward = experience.reward.reshaped([1, 1])
+        let term = experience.terminated.reshaped([1, 1])
         
-        let obsStart = ptr * stateSize
-        let actionStart = ptr * actionSize
-        
-        for i in 0..<stateSize {
-            obsBuffer[obsStart + i] = obsFlat[i]
-            nextObsBuffer[obsStart + i] = nextObsFlat[i]
-        }
-        
-        for i in 0..<actionSize {
-            actionBuffer[actionStart + i] = actionFlat[i]
-        }
-        
-        rewardBuffer[ptr] = rewardScalar
-        terminatedBuffer[ptr] = termScalar
+        obsBuffer[ptr, 0...] = obs
+        nextObsBuffer[ptr, 0...] = nextObs
+        actionBuffer[ptr, 0...] = action
+        rewardBuffer[ptr, 0...] = reward
+        terminatedBuffer[ptr, 0...] = term
         
         ptr = (ptr + 1) % capacity
         size = min(size + 1, capacity)
@@ -117,40 +108,13 @@ public class SACReplayBuffer {
     public func sample(batchSize: Int) -> (MLXArray, MLXArray, MLXArray, MLXArray, MLXArray) {
         let safeBatchSize = min(batchSize, size)
         
-        var indices = [Int]()
-        indices.reserveCapacity(safeBatchSize)
-        for _ in 0..<safeBatchSize {
-            indices.append(Int.random(in: 0..<size))
-        }
+        let indices = MLXRandom.randInt(low: 0, high: size, [safeBatchSize])
         
-        var bObs = [Float]()
-        var bNextObs = [Float]()
-        var bActions = [Float]()
-        var bRewards = [Float]()
-        var bTerminated = [Float]()
-        
-        bObs.reserveCapacity(safeBatchSize * stateSize)
-        bNextObs.reserveCapacity(safeBatchSize * stateSize)
-        bActions.reserveCapacity(safeBatchSize * actionSize)
-        bRewards.reserveCapacity(safeBatchSize)
-        bTerminated.reserveCapacity(safeBatchSize)
-        
-        for idx in indices {
-            let obsStart = idx * stateSize
-            let actionStart = idx * actionSize
-            
-            bObs.append(contentsOf: obsBuffer[obsStart..<(obsStart + stateSize)])
-            bNextObs.append(contentsOf: nextObsBuffer[obsStart..<(obsStart + stateSize)])
-            bActions.append(contentsOf: actionBuffer[actionStart..<(actionStart + actionSize)])
-            bRewards.append(rewardBuffer[idx])
-            bTerminated.append(terminatedBuffer[idx])
-        }
-        
-        let mlxObs = MLXArray(bObs).reshaped([safeBatchSize, stateSize])
-        let mlxNextObs = MLXArray(bNextObs).reshaped([safeBatchSize, stateSize])
-        let mlxActions = MLXArray(bActions).reshaped([safeBatchSize, actionSize])
-        let mlxRewards = MLXArray(bRewards).reshaped([safeBatchSize, 1])
-        let mlxTerminated = MLXArray(bTerminated).reshaped([safeBatchSize, 1])
+        let mlxObs = obsBuffer[indices]
+        let mlxNextObs = nextObsBuffer[indices]
+        let mlxActions = actionBuffer[indices]
+        let mlxRewards = rewardBuffer[indices]
+        let mlxTerminated = terminatedBuffer[indices]
         
         return (mlxObs, mlxNextObs, mlxActions, mlxRewards, mlxTerminated)
     }
