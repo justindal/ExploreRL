@@ -396,8 +396,10 @@ import MLXNN
             let samplesToCollect = warmupSteps - totalSteps
             
             for i in 0..<samplesToCollect {
-                let randomAction = Int32.random(in: 0..<Int32(actSpace.n))
-                let stepResult = warmupEnv.step(Int(randomAction))
+                let (newKey, sampleKey) = MLX.split(key: rngKey)
+                rngKey = newKey
+                let randomAction = actSpace.sample(key: sampleKey)
+                let stepResult = warmupEnv.step(randomAction)
                 
                 agent.store(
                     state: warmupState,
@@ -486,6 +488,16 @@ import MLXNN
                 )
                 
                 totalSteps += 1
+
+                if totalSteps >= warmupSteps {
+                    if let (loss, meanQ, gradNorm, tdError) = agent.update() {
+                        totalLoss += Double(loss)
+                        totalMeanQ += Double(meanQ)
+                        totalGradNorm += Double(gradNorm)
+                        totalTdError += Double(tdError)
+                        lossCount += 1
+                    }
+                }
                 state = nextState
                 
                 if !turboMode {
@@ -520,20 +532,6 @@ import MLXNN
                     self.episodeReward = 0
                 }
                 break
-            }
-            
-            let updatesPerEpisode = max(1, steps / 10)
-            for i in 0..<updatesPerEpisode {
-                if let (loss, meanQ, gradNorm, tdError) = agent.update() {
-                    totalLoss += Double(loss)
-                    totalMeanQ += Double(meanQ)
-                    totalGradNorm += Double(gradNorm)
-                    totalTdError += Double(tdError)
-                    lossCount += 1
-                }
-                if i % 5 == 0 {
-                    await Task.yield()
-                }
             }
             
             let finalReward = episodeRewardLocal

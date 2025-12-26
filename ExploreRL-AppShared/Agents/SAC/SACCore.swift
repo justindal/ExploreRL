@@ -153,6 +153,8 @@ public class SACAgent<Actor: SACActorProtocol, Critic: SACCriticProtocol>: Conti
     
     public var steps: Int = 0
     
+    public let policyUpdateDelay: Int
+    
     public func syncAlpha() -> Float {
         let alphaArray = exp(logAlphaModule.value)
         eval(alphaArray)
@@ -175,6 +177,7 @@ public class SACAgent<Actor: SACActorProtocol, Critic: SACCriticProtocol>: Conti
         alpha: Float,
         batchSize: Int,
         bufferSize: Int,
+        policyUpdateDelay: Int = 2,
         minLogAlpha: Float = -5.0,
         maxLogAlpha: Float = 2.0
     ) {
@@ -199,6 +202,7 @@ public class SACAgent<Actor: SACActorProtocol, Critic: SACCriticProtocol>: Conti
         self.tau = tau
         self.batchSize = batchSize
         self.alpha = alpha
+        self.policyUpdateDelay = max(1, policyUpdateDelay)
         
         self.minLogAlpha = minLogAlpha
         self.maxLogAlpha = maxLogAlpha
@@ -317,20 +321,28 @@ public class SACAgent<Actor: SACActorProtocol, Critic: SACCriticProtocol>: Conti
             rngKey: k1,
             alphaVal: alphaVal
         )
+
+        let shouldUpdatePolicy = (steps % policyUpdateDelay == 0)
         
-        let (actorLossValue, meanLogPi) = updateActor(
-            batchObs: batchObs,
-            rngKey: k2,
-            alphaVal: alphaVal
-        )
+        var actorLossValue = MLXArray(Float32(0.0))
+        var alphaLossArray = MLXArray(Float32(0.0))
         
-        softUpdateTargetNetworks()
-        
-        let currentAlpha = exp(logAlphaModule.value)
-        let entropyDiff = (stopGradient(meanLogPi) + targetEntropyArray).mean()
-        let alphaLossArray = -currentAlpha * entropyDiff
-        logAlphaModule.value = logAlphaModule.value + alphaLearningRate * currentAlpha * entropyDiff
-        logAlphaModule.value = minimum(maximum(logAlphaModule.value, minLogAlphaArray), maxLogAlphaArray)
+        if shouldUpdatePolicy {
+            let (actorLoss, meanLogPi) = updateActor(
+                batchObs: batchObs,
+                rngKey: k2,
+                alphaVal: alphaVal
+            )
+            actorLossValue = actorLoss
+            
+            let currentAlpha = exp(logAlphaModule.value)
+            let entropyDiff = (stopGradient(meanLogPi) + targetEntropyArray).mean()
+            alphaLossArray = -currentAlpha * entropyDiff
+            logAlphaModule.value = logAlphaModule.value + alphaLearningRate * currentAlpha * entropyDiff
+            logAlphaModule.value = minimum(maximum(logAlphaModule.value, minLogAlphaArray), maxLogAlphaArray)
+            
+            softUpdateTargetNetworks()
+        }
         
         eval(totalQLoss, actorLossValue, alphaLossArray, actor, qf1, qf2, qf1Target, qf2Target, logAlphaModule)
         
@@ -386,6 +398,8 @@ public class SACAgentVmap<Actor: SACActorProtocol, Ensemble: SACEnsembleCriticPr
     
     public var steps: Int = 0
     
+    public let policyUpdateDelay: Int
+    
     private let gammaArray: MLXArray
     
     public func syncAlpha() -> Float {
@@ -408,6 +422,7 @@ public class SACAgentVmap<Actor: SACActorProtocol, Ensemble: SACEnsembleCriticPr
         alpha: Float,
         batchSize: Int,
         bufferSize: Int,
+        policyUpdateDelay: Int = 2,
         minLogAlpha: Float = -5.0,
         maxLogAlpha: Float = 2.0
     ) {
@@ -429,6 +444,7 @@ public class SACAgentVmap<Actor: SACActorProtocol, Ensemble: SACEnsembleCriticPr
         self.tau = tau
         self.batchSize = batchSize
         self.alpha = alpha
+        self.policyUpdateDelay = max(1, policyUpdateDelay)
         
         self.minLogAlpha = minLogAlpha
         self.maxLogAlpha = maxLogAlpha
@@ -543,20 +559,28 @@ public class SACAgentVmap<Actor: SACActorProtocol, Ensemble: SACEnsembleCriticPr
             rngKey: k1,
             alphaVal: alphaVal
         )
+
+        let shouldUpdatePolicy = (steps % policyUpdateDelay == 0)
         
-        let (actorLossValue, meanLogPi) = updateActor(
-            batchObs: batchObs,
-            rngKey: k2,
-            alphaVal: alphaVal
-        )
+        var actorLossValue = MLXArray(Float32(0.0))
+        var alphaLossArray = MLXArray(Float32(0.0))
         
-        softUpdateTargetNetwork()
-        
-        let currentAlpha = exp(logAlphaModule.value)
-        let entropyDiff = (stopGradient(meanLogPi) + targetEntropyArray).mean()
-        let alphaLossArray = -currentAlpha * entropyDiff
-        logAlphaModule.value = logAlphaModule.value + alphaLearningRate * currentAlpha * entropyDiff
-        logAlphaModule.value = minimum(maximum(logAlphaModule.value, minLogAlphaArray), maxLogAlphaArray)
+        if shouldUpdatePolicy {
+            let (actorLoss, meanLogPi) = updateActor(
+                batchObs: batchObs,
+                rngKey: k2,
+                alphaVal: alphaVal
+            )
+            actorLossValue = actorLoss
+            
+            let currentAlpha = exp(logAlphaModule.value)
+            let entropyDiff = (stopGradient(meanLogPi) + targetEntropyArray).mean()
+            alphaLossArray = -currentAlpha * entropyDiff
+            logAlphaModule.value = logAlphaModule.value + alphaLearningRate * currentAlpha * entropyDiff
+            logAlphaModule.value = minimum(maximum(logAlphaModule.value, minLogAlphaArray), maxLogAlphaArray)
+            
+            softUpdateTargetNetwork()
+        }
         
         eval(totalQLoss, actorLossValue, alphaLossArray, actor, qEnsemble, qEnsembleTarget, logAlphaModule)
         
@@ -604,20 +628,25 @@ public class SACAgentVmap<Actor: SACActorProtocol, Ensemble: SACEnsembleCriticPr
             alphaVal: alphaVal
         )
         
-        let (actorLossValue, meanLogPi) = updateActor(
-            batchObs: batchObs,
-            rngKey: k2,
-            alphaVal: alphaVal
-        )
+        let shouldUpdatePolicy = (steps % policyUpdateDelay == 0)
+        if shouldUpdatePolicy {
+            let (actorLossValue, meanLogPi) = updateActor(
+                batchObs: batchObs,
+                rngKey: k2,
+                alphaVal: alphaVal
+            )
+            
+            let currentAlpha = exp(logAlphaModule.value)
+            let entropyDiff = (stopGradient(meanLogPi) + targetEntropyArray).mean()
+            logAlphaModule.value = logAlphaModule.value + alphaLearningRate * currentAlpha * entropyDiff
+            logAlphaModule.value = minimum(maximum(logAlphaModule.value, minLogAlphaArray), maxLogAlphaArray)
+            
+            softUpdateTargetNetwork()
+            
+            return totalQLoss + actorLossValue
+        }
         
-        softUpdateTargetNetwork()
-        
-        let currentAlpha = exp(logAlphaModule.value)
-        let entropyDiff = (stopGradient(meanLogPi) + targetEntropyArray).mean()
-        logAlphaModule.value = logAlphaModule.value + alphaLearningRate * currentAlpha * entropyDiff
-        logAlphaModule.value = minimum(maximum(logAlphaModule.value, minLogAlphaArray), maxLogAlphaArray)
-        
-        return totalQLoss + actorLossValue
+        return totalQLoss
     }
     
     private func softUpdateTargetNetwork() {

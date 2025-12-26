@@ -470,7 +470,10 @@ import MLXNN
             let samplesToCollect = warmupSteps - totalSteps
             
             for i in 0..<samplesToCollect {
-                let action = sacAgent.chooseAction(state: warmupState, key: &rngKey, deterministic: false)
+                let (newKey, actionKey) = MLX.split(key: rngKey)
+                rngKey = newKey
+                let range: Range<Float> = LunarLanderContinuousSAC.actionLow..<LunarLanderContinuousSAC.actionHigh
+                let action = MLX.uniform(range, [LunarLanderContinuousSAC.actionCount], key: actionKey)
                 let stepResult = warmupEnv.step(action)
                 
                 sacAgent.store(
@@ -543,6 +546,10 @@ import MLXNN
                 episodeRewardLocal += stepResult.reward
                 steps += 1
                 totalSteps += 1
+
+                if totalSteps >= warmupSteps {
+                    sacAgent.updateNoSync()
+                }
                 
                 let now = Date()
                 if renderEnabled {
@@ -580,14 +587,6 @@ import MLXNN
                     self.episodeReward = 0
                 }
                 break
-            }
-            
-            let updatesPerEpisode = max(1, steps / 10)
-            for i in 0..<updatesPerEpisode {
-                sacAgent.updateNoSync()
-                if i % 5 == 0 {
-                    await Task.yield()
-                }
             }
             
             let recentRewards = episodeMetrics.suffix(movingAverageWindow).map { $0.reward }
