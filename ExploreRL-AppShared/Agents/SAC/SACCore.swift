@@ -322,6 +322,8 @@ public class SACAgent<Actor: SACActorProtocol, Critic: SACCriticProtocol>: Conti
             alphaVal: alphaVal
         )
 
+        softUpdateTargetNetworks()
+
         let shouldUpdatePolicy = (steps % policyUpdateDelay == 0)
         
         var actorLossValue = MLXArray(Float32(0.0))
@@ -340,8 +342,6 @@ public class SACAgent<Actor: SACActorProtocol, Critic: SACCriticProtocol>: Conti
             alphaLossArray = -currentAlpha * entropyDiff
             logAlphaModule.value = logAlphaModule.value + alphaLearningRate * currentAlpha * entropyDiff
             logAlphaModule.value = minimum(maximum(logAlphaModule.value, minLogAlphaArray), maxLogAlphaArray)
-            
-            softUpdateTargetNetworks()
         }
         
         eval(totalQLoss, actorLossValue, alphaLossArray, actor, qf1, qf2, qf1Target, qf2Target, logAlphaModule)
@@ -560,6 +560,8 @@ public class SACAgentVmap<Actor: SACActorProtocol, Ensemble: SACEnsembleCriticPr
             alphaVal: alphaVal
         )
 
+        softUpdateTargetNetwork()
+
         let shouldUpdatePolicy = (steps % policyUpdateDelay == 0)
         
         var actorLossValue = MLXArray(Float32(0.0))
@@ -578,8 +580,6 @@ public class SACAgentVmap<Actor: SACActorProtocol, Ensemble: SACEnsembleCriticPr
             alphaLossArray = -currentAlpha * entropyDiff
             logAlphaModule.value = logAlphaModule.value + alphaLearningRate * currentAlpha * entropyDiff
             logAlphaModule.value = minimum(maximum(logAlphaModule.value, minLogAlphaArray), maxLogAlphaArray)
-            
-            softUpdateTargetNetwork()
         }
         
         eval(totalQLoss, actorLossValue, alphaLossArray, actor, qEnsemble, qEnsembleTarget, logAlphaModule)
@@ -627,6 +627,8 @@ public class SACAgentVmap<Actor: SACActorProtocol, Ensemble: SACEnsembleCriticPr
             rngKey: k1,
             alphaVal: alphaVal
         )
+
+        softUpdateTargetNetwork()
         
         let shouldUpdatePolicy = (steps % policyUpdateDelay == 0)
         if shouldUpdatePolicy {
@@ -640,9 +642,6 @@ public class SACAgentVmap<Actor: SACActorProtocol, Ensemble: SACEnsembleCriticPr
             let entropyDiff = (stopGradient(meanLogPi) + targetEntropyArray).mean()
             logAlphaModule.value = logAlphaModule.value + alphaLearningRate * currentAlpha * entropyDiff
             logAlphaModule.value = minimum(maximum(logAlphaModule.value, minLogAlphaArray), maxLogAlphaArray)
-            
-            softUpdateTargetNetwork()
-            
             return totalQLoss + actorLossValue
         }
         
