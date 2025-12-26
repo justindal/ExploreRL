@@ -44,6 +44,8 @@ struct MountainCarConfigurationView: View {
                 warmupSteps: $runner.warmupSteps,
                 showWarmup: true
             )
+            
+            environmentSection
         }
         .padding()
         #if os(iOS)
@@ -52,5 +54,28 @@ struct MountainCarConfigurationView: View {
         .background(Color.gray.opacity(0.1))
         #endif
         .cornerRadius(10)
+    }
+    
+    private var environmentSection: some View {
+        DisclosureGroup("Environment") {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Text("Goal Velocity")
+                    Spacer()
+                    TextField("0.0", value: $runner.goalVelocity, format: .number)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 80)
+                }
+                Text("Velocity threshold at goal position (default: 0)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.top, 8)
+            .onChange(of: runner.goalVelocity) { _, _ in
+                runner.stopTraining()
+                runner.setupEnvironment()
+            }
+        }
+        .disabled(runner.isTraining)
     }
 }

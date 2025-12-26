@@ -30,7 +30,10 @@ struct MountainCarView: View {
             },
             info: {
                 EnvironmentInfoTabView(
-                    model: EnvironmentInfoTabModels.mountainCar(maxStepsPerEpisode: runner.maxStepsPerEpisode)
+                    model: EnvironmentInfoTabModels.mountainCar(
+                        maxStepsPerEpisode: runner.maxStepsPerEpisode,
+                        goalVelocity: runner.goalVelocity
+                    )
                 )
             }
         )

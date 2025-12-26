@@ -80,6 +80,8 @@ import MLXNN
     var seed: Int = TrainingDefaults.seed
     var maxStepsPerEpisode: Int = 200
     
+    var goalVelocity: Double = 0.0
+    
     var earlyStopEnabled: Bool = TrainingDefaults.earlyStopEnabled
     var earlyStopWindow: Int = TrainingDefaults.earlyStopWindow
     var earlyStopRewardThreshold: Double = -110
@@ -118,7 +120,9 @@ import MLXNN
     
     
     func setupEnvironment() {
-        var kwargs: [String: Any] = [:]
+        var kwargs: [String: Any] = [
+            "goal_velocity": goalVelocity
+        ]
         if renderEnabled {
             kwargs["render_mode"] = "human"
         }
@@ -217,6 +221,7 @@ import MLXNN
         clipRewardMax = TrainingDefaults.clipRewardMax
         targetFPS = TrainingDefaults.targetFPS
         turboMode = TrainingDefaults.turboMode
+        goalVelocity = 0.0
     }
     
     func startTraining() {
@@ -277,7 +282,8 @@ import MLXNN
                 "trainingSteps": Double(agent.currentSteps)
             ],
             environmentConfig: [
-                "maxStepsPerEpisode": "\(maxStepsPerEpisode)"
+                "maxStepsPerEpisode": "\(maxStepsPerEpisode)",
+                "goal_velocity": "\(goalVelocity)"
             ]
         )
         
@@ -345,6 +351,10 @@ import MLXNN
         if let maxSteps = savedAgent.environmentConfig["maxStepsPerEpisode"],
            let steps = Int(maxSteps) {
             maxStepsPerEpisode = steps
+        }
+        if let gv = savedAgent.environmentConfig["goal_velocity"],
+           let gvVal = Double(gv) {
+            goalVelocity = gvVal
         }
         
         agent = nil

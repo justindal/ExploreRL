@@ -52,6 +52,8 @@ struct LunarLanderContinuousConfigurationView: View {
                 seed: $runner.seed,
                 isTraining: runner.isTraining
             )
+            
+            environmentSection
         }
         .padding()
         #if os(iOS)
@@ -60,5 +62,61 @@ struct LunarLanderContinuousConfigurationView: View {
         .background(Color.gray.opacity(0.1))
         #endif
         .cornerRadius(10)
+    }
+    
+    private var environmentSection: some View {
+        DisclosureGroup("Environment") {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text("Gravity")
+                    Spacer()
+                    TextField("-10.0", value: $runner.envGravity, format: .number)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 80)
+                }
+                
+                Toggle("Enable Wind", isOn: $runner.enableWind)
+                
+                if runner.enableWind {
+                    HStack {
+                        Text("Wind Power")
+                        Spacer()
+                        TextField("15.0", value: $runner.windPower, format: .number)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 80)
+                    }
+                    
+                    HStack {
+                        Text("Turbulence Power")
+                        Spacer()
+                        TextField("1.5", value: $runner.turbulencePower, format: .number)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 80)
+                    }
+                }
+                
+                Text("Wind adds random lateral forces during flight")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.top, 8)
+            .onChange(of: runner.envGravity) { _, _ in
+                runner.stopTraining()
+                runner.setupEnvironment()
+            }
+            .onChange(of: runner.enableWind) { _, _ in
+                runner.stopTraining()
+                runner.setupEnvironment()
+            }
+            .onChange(of: runner.windPower) { _, _ in
+                runner.stopTraining()
+                runner.setupEnvironment()
+            }
+            .onChange(of: runner.turbulencePower) { _, _ in
+                runner.stopTraining()
+                runner.setupEnvironment()
+            }
+        }
+        .disabled(runner.isTraining)
     }
 }

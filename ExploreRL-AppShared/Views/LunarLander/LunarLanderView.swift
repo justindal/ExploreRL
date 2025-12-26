@@ -30,7 +30,13 @@ struct LunarLanderView: View {
             },
             info: {
                 EnvironmentInfoTabView(
-                    model: EnvironmentInfoTabModels.lunarLander(maxStepsPerEpisode: runner.maxStepsPerEpisode)
+                    model: EnvironmentInfoTabModels.lunarLander(
+                        maxStepsPerEpisode: runner.maxStepsPerEpisode,
+                        gravity: runner.envGravity,
+                        enableWind: runner.enableWind,
+                        windPower: runner.windPower,
+                        turbulencePower: runner.turbulencePower
+                    )
                 )
             }
         )

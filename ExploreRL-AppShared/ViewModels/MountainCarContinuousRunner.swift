@@ -76,6 +76,8 @@ import MLXNN
     var warmupSteps: Int = TrainingDefaults.warmupSteps > 0 ? TrainingDefaults.warmupSteps : MountainCarContinuousSAC.Defaults.batchSize
     var maxStepsPerEpisode: Int = 999
     
+    var goalVelocity: Double = 0.0
+    
     var position: Float = -0.5
     var velocity: Float = 0.0
     
@@ -97,7 +99,9 @@ import MLXNN
     
     
     func setupEnvironment() {
-        var kwargs: [String: Any] = [:]
+        var kwargs: [String: Any] = [
+            "goal_velocity": goalVelocity
+        ]
         if renderEnabled {
             kwargs["render_mode"] = "human"
         }
@@ -222,7 +226,8 @@ import MLXNN
                 "totalSteps": Double(totalSteps)
             ],
             environmentConfig: [
-                "maxStepsPerEpisode": "\(maxStepsPerEpisode)"
+                "maxStepsPerEpisode": "\(maxStepsPerEpisode)",
+                "goal_velocity": "\(goalVelocity)"
             ]
         )
         
@@ -287,6 +292,10 @@ import MLXNN
         if let maxSteps = savedAgent.environmentConfig["maxStepsPerEpisode"],
            let steps = Int(maxSteps) {
             maxStepsPerEpisode = steps
+        }
+        if let gv = savedAgent.environmentConfig["goal_velocity"],
+           let gvVal = Double(gv) {
+            goalVelocity = gvVal
         }
         
         agent = nil

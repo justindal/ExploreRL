@@ -30,7 +30,13 @@ struct LunarLanderContinuousView: View {
             },
             info: {
                 EnvironmentInfoTabView(
-                    model: EnvironmentInfoTabModels.lunarLanderContinuous(maxStepsPerEpisode: runner.maxStepsPerEpisode)
+                    model: EnvironmentInfoTabModels.lunarLanderContinuous(
+                        maxStepsPerEpisode: runner.maxStepsPerEpisode,
+                        gravity: runner.envGravity,
+                        enableWind: runner.enableWind,
+                        windPower: runner.windPower,
+                        turbulencePower: runner.turbulencePower
+                    )
                 )
             }
         )

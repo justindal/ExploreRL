@@ -79,6 +79,11 @@ import MLXNN
     var seed: Int = TrainingDefaults.seed
     var maxStepsPerEpisode: Int = 1000
     
+    var envGravity: Double = -10.0
+    var enableWind: Bool = false
+    var windPower: Double = 15.0
+    var turbulencePower: Double = 1.5
+    
     var earlyStopEnabled: Bool = TrainingDefaults.earlyStopEnabled
     var earlyStopWindow: Int = 100
     var earlyStopRewardThreshold: Double = 200.0
@@ -112,7 +117,12 @@ import MLXNN
     }
     
     func setupEnvironment() {
-        var kwargs: [String: Any] = [:]
+        var kwargs: [String: Any] = [
+            "gravity": envGravity,
+            "enable_wind": enableWind,
+            "wind_power": windPower,
+            "turbulence_power": turbulencePower
+        ]
         if renderEnabled {
             kwargs["render_mode"] = "human"
         }
@@ -237,6 +247,10 @@ import MLXNN
         clipRewardMax = TrainingDefaults.clipRewardMax
         targetFPS = TrainingDefaults.targetFPS
         turboMode = TrainingDefaults.turboMode
+        envGravity = -10.0
+        enableWind = false
+        windPower = 15.0
+        turbulencePower = 1.5
     }
     
     func saveAgent(name: String) throws {
@@ -266,7 +280,11 @@ import MLXNN
                 "trainingSteps": Double(agent.currentSteps)
             ],
             environmentConfig: [
-                "maxStepsPerEpisode": "\(maxStepsPerEpisode)"
+                "maxStepsPerEpisode": "\(maxStepsPerEpisode)",
+                "gravity": "\(envGravity)",
+                "enable_wind": enableWind ? "true" : "false",
+                "wind_power": "\(windPower)",
+                "turbulence_power": "\(turbulencePower)"
             ]
         )
         
@@ -334,6 +352,21 @@ import MLXNN
         if let maxSteps = savedAgent.environmentConfig["maxStepsPerEpisode"],
            let steps = Int(maxSteps) {
             maxStepsPerEpisode = steps
+        }
+        if let grav = savedAgent.environmentConfig["gravity"],
+           let gravVal = Double(grav) {
+            envGravity = gravVal
+        }
+        if let wind = savedAgent.environmentConfig["enable_wind"] {
+            enableWind = wind == "true"
+        }
+        if let wp = savedAgent.environmentConfig["wind_power"],
+           let wpVal = Double(wp) {
+            windPower = wpVal
+        }
+        if let tp = savedAgent.environmentConfig["turbulence_power"],
+           let tpVal = Double(tp) {
+            turbulencePower = tpVal
         }
         
         setupEnvironment()

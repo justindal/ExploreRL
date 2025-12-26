@@ -274,8 +274,11 @@ import MLXNN
     
     private func setupMountainCar(_ agent: SavedAgent) throws {
         let maxSteps = Int(agent.environmentConfig["maxStepsPerEpisode"] ?? "200") ?? 200
+        let goalVelocity = Double(agent.environmentConfig["goal_velocity"] ?? "0.0") ?? 0.0
         
-        var kwargs: [String: Any] = [:]
+        var kwargs: [String: Any] = [
+            "goal_velocity": goalVelocity
+        ]
         if showVisualization {
             kwargs["render_mode"] = "human"
         }
@@ -318,8 +321,11 @@ import MLXNN
     
     private func setupMountainCarContinuous(_ agent: SavedAgent) throws {
         let maxSteps = Int(agent.environmentConfig["maxStepsPerEpisode"] ?? "999") ?? 999
+        let goalVelocity = Double(agent.environmentConfig["goal_velocity"] ?? "0.0") ?? 0.0
         
-        var kwargs: [String: Any] = [:]
+        var kwargs: [String: Any] = [
+            "goal_velocity": goalVelocity
+        ]
         if showVisualization {
             kwargs["render_mode"] = "human"
         }
@@ -419,8 +425,11 @@ import MLXNN
     
     private func setupPendulum(_ agent: SavedAgent) throws {
         let maxSteps = Int(agent.environmentConfig["maxStepsPerEpisode"] ?? "200") ?? 200
+        let gravity = Double(agent.environmentConfig["g"] ?? "10.0") ?? 10.0
         
-        var kwargs: [String: Any] = [:]
+        var kwargs: [String: Any] = [
+            "g": gravity
+        ]
         if showVisualization {
             kwargs["render_mode"] = "human"
         }
@@ -470,8 +479,20 @@ import MLXNN
     
     private func setupLunarLander(_ agent: SavedAgent) throws {
         let maxSteps = Int(agent.environmentConfig["maxStepsPerEpisode"] ?? "1000") ?? 1000
+        let gravity = Double(agent.environmentConfig["gravity"] ?? "-10.0") ?? -10.0
+        let enableWind = agent.environmentConfig["enable_wind"] == "true"
+        let windPower = Double(agent.environmentConfig["wind_power"] ?? "15.0") ?? 15.0
+        let turbulencePower = Double(agent.environmentConfig["turbulence_power"] ?? "1.5") ?? 1.5
         
-        let kwargs: [String: Any] = showVisualization ? ["render_mode": "human"] : [:]
+        var kwargs: [String: Any] = [
+            "gravity": gravity,
+            "enable_wind": enableWind,
+            "wind_power": windPower,
+            "turbulence_power": turbulencePower
+        ]
+        if showVisualization {
+            kwargs["render_mode"] = "human"
+        }
         
         guard var env = Gymnazo.make(
             "LunarLander",
@@ -511,8 +532,17 @@ import MLXNN
     
     private func setupLunarLanderContinuous(_ agent: SavedAgent) throws {
         let maxSteps = Int(agent.environmentConfig["maxStepsPerEpisode"] ?? "1000") ?? 1000
+        let gravity = Double(agent.environmentConfig["gravity"] ?? "-10.0") ?? -10.0
+        let enableWind = agent.environmentConfig["enable_wind"] == "true"
+        let windPower = Double(agent.environmentConfig["wind_power"] ?? "15.0") ?? 15.0
+        let turbulencePower = Double(agent.environmentConfig["turbulence_power"] ?? "1.5") ?? 1.5
         
-        var kwargs: [String: Any] = [:]
+        var kwargs: [String: Any] = [
+            "gravity": gravity,
+            "enable_wind": enableWind,
+            "wind_power": windPower,
+            "turbulence_power": turbulencePower
+        ]
         if showVisualization {
             kwargs["render_mode"] = "human"
         }

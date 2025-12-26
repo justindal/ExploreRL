@@ -54,80 +54,108 @@ enum EnvironmentInfoTabModels {
         )
     }
     
-    static func mountainCar(maxStepsPerEpisode: Int?) -> EnvironmentInfoTabModel {
-        EnvironmentInfoTabModel(
+    static func mountainCar(
+        maxStepsPerEpisode: Int?,
+        goalVelocity: Double? = nil
+    ) -> EnvironmentInfoTabModel {
+        var envConfig: [EnvironmentInfoTabModel.KV] = []
+        if let gv = goalVelocity {
+            envConfig.append(EnvironmentInfoTabModel.KV(label: "Goal Velocity", value: String(format: "%.2f", gv)))
+        }
+        
+        var sections: [EnvironmentInfoTabModel.Section] = [
+            .init(
+                title: "Spaces",
+                kind: .keyValues([
+                    .init(label: "Observation Space", value: "Box(2,)"),
+                    .init(label: "Observation", value: "[position, velocity]"),
+                    .init(label: "Position Range", value: "[-1.2, 0.6]"),
+                    .init(label: "Velocity Range", value: "[-0.07, 0.07]"),
+                    .init(label: "Action Space", value: "Discrete(3)")
+                ])
+            ),
+            .init(
+                title: "Actions",
+                kind: .keyValues([
+                    .init(label: "0", value: "Push left"),
+                    .init(label: "1", value: "No push"),
+                    .init(label: "2", value: "Push right")
+                ])
+            ),
+            .init(
+                title: "Rewards & goal",
+                kind: .bullets([
+                    "Reward: −1 per step.",
+                    "Goal: reach position ≥ 0.5."
+                ])
+            ),
+            .init(
+                title: "Episode end",
+                kind: .bullets([
+                    "Termination: goal reached.",
+                    truncationLine(maxStepsPerEpisode: maxStepsPerEpisode)
+                ])
+            )
+        ]
+        
+        if !envConfig.isEmpty {
+            sections.append(.init(title: "Environment Config", kind: .keyValues(envConfig)))
+        }
+        
+        return EnvironmentInfoTabModel(
             title: "Mountain Car — Info",
             subtitle: "Classic control • Discrete actions",
             overview: overview(for: .mountainCar),
-            sections: [
-                .init(
-                    title: "Spaces",
-                    kind: .keyValues([
-                        .init(label: "Observation Space", value: "Box(2,)"),
-                        .init(label: "Observation", value: "[position, velocity]"),
-                        .init(label: "Position Range", value: "[-1.2, 0.6]"),
-                        .init(label: "Velocity Range", value: "[-0.07, 0.07]"),
-                        .init(label: "Action Space", value: "Discrete(3)")
-                    ])
-                ),
-                .init(
-                    title: "Actions",
-                    kind: .keyValues([
-                        .init(label: "0", value: "Push left"),
-                        .init(label: "1", value: "No push"),
-                        .init(label: "2", value: "Push right")
-                    ])
-                ),
-                .init(
-                    title: "Rewards & goal",
-                    kind: .bullets([
-                        "Reward: −1 per step.",
-                        "Goal: reach position ≥ 0.5."
-                    ])
-                ),
-                .init(
-                    title: "Episode end",
-                    kind: .bullets([
-                        "Termination: goal reached.",
-                        truncationLine(maxStepsPerEpisode: maxStepsPerEpisode)
-                    ])
-                )
-            ]
+            sections: sections
         )
     }
     
-    static func mountainCarContinuous(maxStepsPerEpisode: Int?) -> EnvironmentInfoTabModel {
-        EnvironmentInfoTabModel(
+    static func mountainCarContinuous(
+        maxStepsPerEpisode: Int?,
+        goalVelocity: Double? = nil
+    ) -> EnvironmentInfoTabModel {
+        var envConfig: [EnvironmentInfoTabModel.KV] = []
+        if let gv = goalVelocity {
+            envConfig.append(EnvironmentInfoTabModel.KV(label: "Goal Velocity", value: String(format: "%.2f", gv)))
+        }
+        
+        var sections: [EnvironmentInfoTabModel.Section] = [
+            .init(
+                title: "Spaces",
+                kind: .keyValues([
+                    .init(label: "Observation Space", value: "Box(2,)"),
+                    .init(label: "Observation", value: "[position, velocity]"),
+                    .init(label: "Position Range", value: "[-1.2, 0.6]"),
+                    .init(label: "Velocity Range", value: "[-0.07, 0.07]"),
+                    .init(label: "Action Space", value: "Box(1,)"),
+                    .init(label: "Action Range", value: "[-1, 1]")
+                ])
+            ),
+            .init(
+                title: "Rewards & goal",
+                kind: .bullets([
+                    "Goal: reach position ≥ 0.45.",
+                    "Reward: large bonus at goal with a small action penalty."
+                ])
+            ),
+            .init(
+                title: "Episode end",
+                kind: .bullets([
+                    "Termination: goal reached.",
+                    truncationLine(maxStepsPerEpisode: maxStepsPerEpisode)
+                ])
+            )
+        ]
+        
+        if !envConfig.isEmpty {
+            sections.append(.init(title: "Environment Config", kind: .keyValues(envConfig)))
+        }
+        
+        return EnvironmentInfoTabModel(
             title: "Mountain Car Continuous — Info",
             subtitle: "Classic control • Continuous actions",
             overview: overview(for: .mountainCarContinuous),
-            sections: [
-                .init(
-                    title: "Spaces",
-                    kind: .keyValues([
-                        .init(label: "Observation Space", value: "Box(2,)"),
-                        .init(label: "Observation", value: "[position, velocity]"),
-                        .init(label: "Position Range", value: "[-1.2, 0.6]"),
-                        .init(label: "Velocity Range", value: "[-0.07, 0.07]"),
-                        .init(label: "Action Space", value: "Box(1,)"),
-                        .init(label: "Action Range", value: "[-1, 1]")
-                    ])
-                ),
-                .init(
-                    title: "Rewards & goal",
-                    kind: .bullets([
-                        "Goal: reach position ≥ 0.45.",
-                        "Reward: large bonus at goal with a small action penalty."
-                    ])
-                ),
-                .init(
-                    title: "Episode end",
-                    kind: .bullets([
-                        "Termination: goal reached.",
-                        truncationLine(maxStepsPerEpisode: maxStepsPerEpisode)
-                    ])
-                )
-            ]
+            sections: sections
         )
     }
     
@@ -171,110 +199,180 @@ enum EnvironmentInfoTabModels {
         )
     }
     
-    static func pendulum(maxStepsPerEpisode: Int?) -> EnvironmentInfoTabModel {
-        EnvironmentInfoTabModel(
+    static func pendulum(
+        maxStepsPerEpisode: Int?,
+        gravity: Double? = nil
+    ) -> EnvironmentInfoTabModel {
+        var envConfig: [EnvironmentInfoTabModel.KV] = []
+        if let g = gravity {
+            envConfig.append(EnvironmentInfoTabModel.KV(label: "Gravity (g)", value: String(format: "%.1f", g)))
+        }
+        
+        var sections: [EnvironmentInfoTabModel.Section] = [
+            .init(
+                title: "Spaces",
+                kind: .keyValues([
+                    .init(label: "Observation Space", value: "Box(3,)"),
+                    .init(label: "Observation", value: "[cos(θ), sin(θ), θ̇]"),
+                    .init(label: "Action Space", value: "Box(1,)"),
+                    .init(label: "Action Range", value: "[-2.0, 2.0] torque")
+                ])
+            ),
+            .init(
+                title: "Rewards & goal",
+                kind: .bullets([
+                    "Goal: keep the pendulum upright (θ ≈ 0).",
+                    "Reward: −(θ² + 0.1θ̇² + 0.001τ²)."
+                ])
+            ),
+            .init(
+                title: "Episode end",
+                kind: .bullets([
+                    "Termination: none (typically).",
+                    truncationLine(maxStepsPerEpisode: maxStepsPerEpisode)
+                ])
+            )
+        ]
+        
+        if !envConfig.isEmpty {
+            sections.append(.init(title: "Environment Config", kind: .keyValues(envConfig)))
+        }
+        
+        return EnvironmentInfoTabModel(
             title: "Pendulum — Info",
             subtitle: "Classic control • Continuous actions",
             overview: overview(for: .pendulum),
-            sections: [
-                .init(
-                    title: "Spaces",
-                    kind: .keyValues([
-                        .init(label: "Observation Space", value: "Box(3,)"),
-                        .init(label: "Observation", value: "[cos(θ), sin(θ), θ̇]"),
-                        .init(label: "Action Space", value: "Box(1,)"),
-                        .init(label: "Action Range", value: "[-2.0, 2.0] torque")
-                    ])
-                ),
-                .init(
-                    title: "Rewards & goal",
-                    kind: .bullets([
-                        "Goal: keep the pendulum upright (θ ≈ 0).",
-                        "Reward: −(θ² + 0.1θ̇² + 0.001τ²)."
-                    ])
-                ),
-                .init(
-                    title: "Episode end",
-                    kind: .bullets([
-                        "Termination: none (typically).",
-                        truncationLine(maxStepsPerEpisode: maxStepsPerEpisode)
-                    ])
-                )
-            ]
+            sections: sections
         )
     }
     
-    static func lunarLander(maxStepsPerEpisode: Int?) -> EnvironmentInfoTabModel {
-        EnvironmentInfoTabModel(
+    static func lunarLander(
+        maxStepsPerEpisode: Int?,
+        gravity: Double? = nil,
+        enableWind: Bool? = nil,
+        windPower: Double? = nil,
+        turbulencePower: Double? = nil
+    ) -> EnvironmentInfoTabModel {
+        var envConfig: [EnvironmentInfoTabModel.KV] = []
+        if let g = gravity {
+            envConfig.append(EnvironmentInfoTabModel.KV(label: "Gravity", value: String(format: "%.1f", g)))
+        }
+        if let wind = enableWind {
+            envConfig.append(EnvironmentInfoTabModel.KV(label: "Wind Enabled", value: wind ? "Yes" : "No"))
+            if wind {
+                if let wp = windPower {
+                    envConfig.append(EnvironmentInfoTabModel.KV(label: "Wind Power", value: String(format: "%.1f", wp)))
+                }
+                if let tp = turbulencePower {
+                    envConfig.append(EnvironmentInfoTabModel.KV(label: "Turbulence Power", value: String(format: "%.1f", tp)))
+                }
+            }
+        }
+        
+        var sections: [EnvironmentInfoTabModel.Section] = [
+            .init(
+                title: "Spaces",
+                kind: .keyValues([
+                    .init(label: "Observation Space", value: "Box(8,)"),
+                    .init(label: "Observation", value: "[x, y, vx, vy, θ, ω, leg_l, leg_r]"),
+                    .init(label: "Action Space", value: "Discrete(4)")
+                ])
+            ),
+            .init(
+                title: "Actions",
+                kind: .keyValues([
+                    .init(label: "0", value: "No-op"),
+                    .init(label: "1", value: "Fire left engine"),
+                    .init(label: "2", value: "Fire main engine"),
+                    .init(label: "3", value: "Fire right engine")
+                ])
+            ),
+            .init(
+                title: "Rewards",
+                kind: .bullets([
+                    "Reward shaping encourages safe landing with low velocity and upright angle.",
+                    "Typical successful returns are positive (often ~100–140)."
+                ])
+            ),
+            .init(
+                title: "Episode end",
+                kind: .bullets([
+                    "Termination: crash or successful land.",
+                    truncationLine(maxStepsPerEpisode: maxStepsPerEpisode)
+                ])
+            )
+        ]
+        
+        if !envConfig.isEmpty {
+            sections.append(.init(title: "Environment Config", kind: .keyValues(envConfig)))
+        }
+        
+        return EnvironmentInfoTabModel(
             title: "Lunar Lander — Info",
             subtitle: "Box2D • Discrete actions",
             overview: overview(for: .lunarLander),
-            sections: [
-                .init(
-                    title: "Spaces",
-                    kind: .keyValues([
-                        .init(label: "Observation Space", value: "Box(8,)"),
-                        .init(label: "Observation", value: "[x, y, vx, vy, θ, ω, leg_l, leg_r]"),
-                        .init(label: "Action Space", value: "Discrete(4)")
-                    ])
-                ),
-                .init(
-                    title: "Actions",
-                    kind: .keyValues([
-                        .init(label: "0", value: "No-op"),
-                        .init(label: "1", value: "Fire left engine"),
-                        .init(label: "2", value: "Fire main engine"),
-                        .init(label: "3", value: "Fire right engine")
-                    ])
-                ),
-                .init(
-                    title: "Rewards",
-                    kind: .bullets([
-                        "Reward shaping encourages safe landing with low velocity and upright angle.",
-                        "Typical successful returns are positive (often ~100–140)."
-                    ])
-                ),
-                .init(
-                    title: "Episode end",
-                    kind: .bullets([
-                        "Termination: crash or successful land.",
-                        truncationLine(maxStepsPerEpisode: maxStepsPerEpisode)
-                    ])
-                )
-            ]
+            sections: sections
         )
     }
     
-    static func lunarLanderContinuous(maxStepsPerEpisode: Int?) -> EnvironmentInfoTabModel {
-        EnvironmentInfoTabModel(
+    static func lunarLanderContinuous(
+        maxStepsPerEpisode: Int?,
+        gravity: Double? = nil,
+        enableWind: Bool? = nil,
+        windPower: Double? = nil,
+        turbulencePower: Double? = nil
+    ) -> EnvironmentInfoTabModel {
+        var envConfig: [EnvironmentInfoTabModel.KV] = []
+        if let g = gravity {
+            envConfig.append(EnvironmentInfoTabModel.KV(label: "Gravity", value: String(format: "%.1f", g)))
+        }
+        if let wind = enableWind {
+            envConfig.append(EnvironmentInfoTabModel.KV(label: "Wind Enabled", value: wind ? "Yes" : "No"))
+            if wind {
+                if let wp = windPower {
+                    envConfig.append(EnvironmentInfoTabModel.KV(label: "Wind Power", value: String(format: "%.1f", wp)))
+                }
+                if let tp = turbulencePower {
+                    envConfig.append(EnvironmentInfoTabModel.KV(label: "Turbulence Power", value: String(format: "%.1f", tp)))
+                }
+            }
+        }
+        
+        var sections: [EnvironmentInfoTabModel.Section] = [
+            .init(
+                title: "Spaces",
+                kind: .keyValues([
+                    .init(label: "Observation Space", value: "Box(8,)"),
+                    .init(label: "Observation", value: "[x, y, vx, vy, θ, ω, leg_l, leg_r]"),
+                    .init(label: "Action Space", value: "Box(2,)"),
+                    .init(label: "Actions", value: "[main_engine, lateral]")
+                ])
+            ),
+            .init(
+                title: "Rewards",
+                kind: .bullets([
+                    "Reward shaping encourages soft landing, centered position, and stable legs contact.",
+                    "Typical successful returns are positive (often ~100–140)."
+                ])
+            ),
+            .init(
+                title: "Episode end",
+                kind: .bullets([
+                    "Termination: crash or successful land.",
+                    truncationLine(maxStepsPerEpisode: maxStepsPerEpisode)
+                ])
+            )
+        ]
+        
+        if !envConfig.isEmpty {
+            sections.append(.init(title: "Environment Config", kind: .keyValues(envConfig)))
+        }
+        
+        return EnvironmentInfoTabModel(
             title: "Lunar Lander Continuous — Info",
             subtitle: "Box2D • Continuous actions",
             overview: overview(for: .lunarLanderContinuous),
-            sections: [
-                .init(
-                    title: "Spaces",
-                    kind: .keyValues([
-                        .init(label: "Observation Space", value: "Box(8,)"),
-                        .init(label: "Observation", value: "[x, y, vx, vy, θ, ω, leg_l, leg_r]"),
-                        .init(label: "Action Space", value: "Box(2,)"),
-                        .init(label: "Actions", value: "[main_engine, lateral]")
-                    ])
-                ),
-                .init(
-                    title: "Rewards",
-                    kind: .bullets([
-                        "Reward shaping encourages soft landing, centered position, and stable legs contact.",
-                        "Typical successful returns are positive (often ~100–140)."
-                    ])
-                ),
-                .init(
-                    title: "Episode end",
-                    kind: .bullets([
-                        "Termination: crash or successful land.",
-                        truncationLine(maxStepsPerEpisode: maxStepsPerEpisode)
-                    ])
-                )
-            ]
+            sections: sections
         )
     }
     

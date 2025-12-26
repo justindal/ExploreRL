@@ -76,6 +76,8 @@ import MLXNN
     var warmupSteps: Int = TrainingDefaults.warmupSteps > 0 ? TrainingDefaults.warmupSteps : PendulumSAC.Defaults.batchSize
     var maxStepsPerEpisode: Int = TrainingDefaults.maxStepsPerEpisode
     
+    var gravity: Double = 10.0
+    
     var theta: Float = 0.0
     var thetaDot: Float = 0.0
     
@@ -97,7 +99,9 @@ import MLXNN
     
     
     func setupEnvironment() {
-        var kwargs: [String: Any] = [:]
+        var kwargs: [String: Any] = [
+            "g": gravity
+        ]
         if renderEnabled {
             kwargs["render_mode"] = "human"
         }
@@ -224,7 +228,8 @@ import MLXNN
                 "totalSteps": Double(totalSteps)
             ],
             environmentConfig: [
-                "maxStepsPerEpisode": "\(maxStepsPerEpisode)"
+                "maxStepsPerEpisode": "\(maxStepsPerEpisode)",
+                "g": "\(gravity)"
             ]
         )
         
@@ -289,6 +294,10 @@ import MLXNN
         if let maxSteps = savedAgent.environmentConfig["maxStepsPerEpisode"],
            let steps = Int(maxSteps) {
             maxStepsPerEpisode = steps
+        }
+        if let gVal = savedAgent.environmentConfig["g"],
+           let gDouble = Double(gVal) {
+            gravity = gDouble
         }
         
         agent = nil

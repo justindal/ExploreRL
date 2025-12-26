@@ -30,7 +30,10 @@ struct PendulumView: View {
             },
             info: {
                 EnvironmentInfoTabView(
-                    model: EnvironmentInfoTabModels.pendulum(maxStepsPerEpisode: runner.maxStepsPerEpisode)
+                    model: EnvironmentInfoTabModels.pendulum(
+                        maxStepsPerEpisode: runner.maxStepsPerEpisode,
+                        gravity: runner.gravity
+                    )
                 )
             }
         )
