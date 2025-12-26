@@ -196,15 +196,21 @@ public class DQNAgent<Network: QNetworkProtocol>: DiscreteDeepRLAgent {
         explorationSteps += 1
         updateEpsilonSchedule()
         
-        if Float.random(in: 0..<1) < epsilon {
-            let randomAction = Int32.random(in: 0..<Int32(actionSize))
-            return MLXArray(Int32(randomAction)).reshaped([1, 1])
-        } else {
-            let stateRow = state.ndim == 1 ? state.reshaped([1, stateSize]) : state
-            let qValues = policyNetwork(stateRow)
-            let actionIndex = argMax(qValues, axis: 1)
-            return actionIndex.reshaped([1, 1])
+        let (newKey, rollKey) = MLX.split(key: key)
+        key = newKey
+        
+        let roll = MLX.uniform(0 ..< 1, key: rollKey).item() as Float
+        if roll < epsilon {
+            let (k1, k2) = MLX.split(key: rollKey)
+            _ = k1
+            let sampled = actionSpace.sample(key: k2)
+            return MLXArray(Int32(sampled)).reshaped([1, 1])
         }
+        
+        let stateRow = state.ndim == 1 ? state.reshaped([1, stateSize]) : state
+        let qValues = policyNetwork(stateRow)
+        let actionIndex = argMax(qValues, axis: 1)
+        return actionIndex.reshaped([1, 1])
     }
 
     public func store(

@@ -327,7 +327,7 @@ public class SACAgent<Actor: SACActorProtocol, Critic: SACCriticProtocol>: Conti
         softUpdateTargetNetworks()
         
         let currentAlpha = exp(logAlphaModule.value)
-        let entropyDiff = (stopGradient(meanLogPi) - targetEntropyArray).mean()
+        let entropyDiff = (stopGradient(meanLogPi) + targetEntropyArray).mean()
         let alphaLossArray = -currentAlpha * entropyDiff
         logAlphaModule.value = logAlphaModule.value + alphaLearningRate * currentAlpha * entropyDiff
         logAlphaModule.value = minimum(maximum(logAlphaModule.value, minLogAlphaArray), maxLogAlphaArray)
@@ -553,7 +553,7 @@ public class SACAgentVmap<Actor: SACActorProtocol, Ensemble: SACEnsembleCriticPr
         softUpdateTargetNetwork()
         
         let currentAlpha = exp(logAlphaModule.value)
-        let entropyDiff = (stopGradient(meanLogPi) - targetEntropyArray).mean()
+        let entropyDiff = (stopGradient(meanLogPi) + targetEntropyArray).mean()
         let alphaLossArray = -currentAlpha * entropyDiff
         logAlphaModule.value = logAlphaModule.value + alphaLearningRate * currentAlpha * entropyDiff
         logAlphaModule.value = minimum(maximum(logAlphaModule.value, minLogAlphaArray), maxLogAlphaArray)
@@ -613,7 +613,7 @@ public class SACAgentVmap<Actor: SACActorProtocol, Ensemble: SACEnsembleCriticPr
         softUpdateTargetNetwork()
         
         let currentAlpha = exp(logAlphaModule.value)
-        let entropyDiff = (stopGradient(meanLogPi) - targetEntropyArray).mean()
+        let entropyDiff = (stopGradient(meanLogPi) + targetEntropyArray).mean()
         logAlphaModule.value = logAlphaModule.value + alphaLearningRate * currentAlpha * entropyDiff
         logAlphaModule.value = minimum(maximum(logAlphaModule.value, minLogAlphaArray), maxLogAlphaArray)
         
