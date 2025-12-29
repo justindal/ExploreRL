@@ -403,6 +403,7 @@ import MLXNN
     }
     
     private func getCurrentSnapshot(from environment: any Env<MLXArray, Int>) -> LunarLanderSnapshot {
+        guard renderEnabled else { return .zero }
         // Use render() which properly accesses the current state through the wrapper chain
         if let snapshot = environment.render() as? LunarLanderSnapshot {
             return snapshot

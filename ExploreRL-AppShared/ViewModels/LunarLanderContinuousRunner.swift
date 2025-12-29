@@ -550,30 +550,32 @@ import MLXNN
                 if totalSteps >= warmupSteps {
                     sacAgent.updateNoSync()
                 }
-                
-                let now = Date()
-                if renderEnabled {
-                    let currentSteps = steps
-                    let currentReward = episodeRewardLocal
-                    await MainActor.run {
-                        self.currentStep = currentSteps
-                        self.episodeReward = currentReward
-                        self.updateSnapshot()
+
+                if !turboMode {
+                    if renderEnabled {
+                        let currentSteps = steps
+                        let currentReward = episodeRewardLocal
+                        await MainActor.run {
+                            self.currentStep = currentSteps
+                            self.episodeReward = currentReward
+                            self.updateSnapshot()
+                        }
+                        
+                        let delayNs = UInt64(1_000_000_000 / targetFPS)
+                        try? await Task.sleep(nanoseconds: delayNs)
+                    } else {
+                        let now = Date()
+                        if now.timeIntervalSince(lastUIUpdate) >= uiUpdateInterval {
+                            let currentSteps = steps
+                            let currentReward = episodeRewardLocal
+                            await MainActor.run {
+                                self.currentStep = currentSteps
+                                self.episodeReward = currentReward
+                            }
+                            lastUIUpdate = now
+                        }
                     }
-                    
-                    let delayNs = UInt64(1_000_000_000 / targetFPS)
-                    try? await Task.sleep(nanoseconds: delayNs)
-                } else if now.timeIntervalSince(lastUIUpdate) >= uiUpdateInterval {
-                    let currentSteps = steps
-                    let currentReward = episodeRewardLocal
-                    await MainActor.run {
-                        self.currentStep = currentSteps
-                        self.episodeReward = currentReward
-                    }
-                    lastUIUpdate = now
-                }
-                
-                if !renderEnabled && steps % 50 == 0 {
+                } else if steps % 200 == 0 {
                     await Task.yield()
                 }
             }

@@ -52,7 +52,7 @@ struct SpeedControlSection: View {
             .font(.caption2)
             .foregroundStyle(.secondary)
             
-            if renderEnabled && showTurboMode {
+            if showTurboMode {
                 Toggle("Turbo Mode", isOn: $turboMode)
             }
             
