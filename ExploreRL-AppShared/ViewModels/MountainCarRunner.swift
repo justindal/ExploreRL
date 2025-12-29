@@ -543,10 +543,10 @@ import MLXNN
             var steps = 0
             var terminated = false
             var truncated = false
-            var totalLoss: Double = 0
-            var totalMeanQ: Double = 0
-            var totalGradNorm: Double = 0
-            var totalTdError: Double = 0
+            var totalLossArray = MLXArray(Float32(0.0))
+            var totalMeanQArray = MLXArray(Float32(0.0))
+            var totalGradNormArray = MLXArray(Float32(0.0))
+            var totalTdErrorArray = MLXArray(Float32(0.0))
             var lossCount = 0
             
             while !terminated && !truncated && isTraining && steps < maxStepsPerEpisode {
@@ -591,11 +591,11 @@ import MLXNN
                 totalSteps += 1
 
                 if totalSteps >= warmupSteps {
-                    if let (loss, meanQ, gradNorm, tdError) = dqnAgent.update() {
-                        totalLoss += Double(loss)
-                        totalMeanQ += Double(meanQ)
-                        totalGradNorm += Double(gradNorm)
-                        totalTdError += Double(tdError)
+                    if let (loss, meanQ, gradNorm, tdError) = dqnAgent.updateArrays() {
+                        totalLossArray = totalLossArray + loss
+                        totalMeanQArray = totalMeanQArray + meanQ
+                        totalGradNormArray = totalGradNormArray + gradNorm
+                        totalTdErrorArray = totalTdErrorArray + tdError
                         lossCount += 1
                     }
                 }
@@ -642,10 +642,10 @@ import MLXNN
             
             episodesCompletedInRun += 1
             
-            let avgLoss = lossCount > 0 ? totalLoss / Double(lossCount) : nil
-            let avgMaxQ = lossCount > 0 ? totalMeanQ / Double(lossCount) : 0.0
-            let avgGradNorm = lossCount > 0 ? totalGradNorm / Double(lossCount) : nil
-            let avgTdError = lossCount > 0 ? totalTdError / Double(lossCount) : 0.0
+            let avgLoss: Double? = lossCount > 0 ? Double((totalLossArray / Float(lossCount)).item(Float.self)) : nil
+            let avgMaxQ: Double = lossCount > 0 ? Double((totalMeanQArray / Float(lossCount)).item(Float.self)) : 0.0
+            let avgGradNorm: Double? = lossCount > 0 ? Double((totalGradNormArray / Float(lossCount)).item(Float.self)) : nil
+            let avgTdError: Double = lossCount > 0 ? Double((totalTdErrorArray / Float(lossCount)).item(Float.self)) : 0.0
             let recentRewards = episodeMetrics.suffix(movingAverageWindow).map { $0.reward }
             let movingAvg = recentRewards.isEmpty ? episodeRewardLocal : recentRewards.reduce(0, +) / Double(recentRewards.count)
             

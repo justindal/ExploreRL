@@ -196,21 +196,22 @@ public class DQNAgent<Network: QNetworkProtocol>: DiscreteDeepRLAgent {
         explorationSteps += 1
         updateEpsilonSchedule()
         
-        let (newKey, rollKey) = MLX.split(key: key)
-        key = newKey
-        
-        let roll = MLX.uniform(0 ..< 1, key: rollKey).item() as Float
-        if roll < epsilon {
-            let (k1, k2) = MLX.split(key: rollKey)
-            _ = k1
-            let sampled = actionSpace.sample(key: k2)
-            return MLXArray(Int32(sampled)).reshaped([1, 1])
-        }
+        let (k1, k2) = MLX.split(key: key)
+        let (k3, k4) = MLX.split(key: k2)
+        key = k1
         
         let stateRow = state.ndim == 1 ? state.reshaped([1, stateSize]) : state
         let qValues = policyNetwork(stateRow)
-        let actionIndex = argMax(qValues, axis: 1)
-        return actionIndex.reshaped([1, 1])
+        let greedyAction = argMax(qValues, axis: 1).reshaped([1, 1]).asType(Int32.self)
+        
+        let randomAction = MLX.randInt(low: 0, high: actionSpace.n, [1, 1], key: k3)
+
+        let roll = MLX.uniform(0 ..< 1, [1], key: k4)
+        let epsilonArray = MLXArray(epsilon)
+        let exploreMask = (roll .< epsilonArray).asType(Int32.self).reshaped([1, 1])
+        let action = exploreMask * randomAction + (1 - exploreMask) * greedyAction
+        
+        return action
     }
 
     public func store(
@@ -263,8 +264,8 @@ public class DQNAgent<Network: QNetworkProtocol>: DiscreteDeepRLAgent {
         return (lossValue, gradNormValue, meanQValue, tdError)
     }
     
-    public func update() -> (
-        loss: Float, meanQ: Float, gradNorm: Float, tdError: Float
+    public func updateArrays() -> (
+        loss: MLXArray, meanQ: MLXArray, gradNorm: MLXArray, tdError: MLXArray
     )? {
         guard memory.size >= batchSize else { return nil }
         
@@ -286,6 +287,16 @@ public class DQNAgent<Network: QNetworkProtocol>: DiscreteDeepRLAgent {
             lossValue, gradNormValue, meanQArray, tdErrorArray,
             policyNetwork.parameters(), targetNetwork.parameters()
         )
+        
+        return (lossValue, meanQArray, gradNormValue, tdErrorArray)
+    }
+    
+    public func update() -> (
+        loss: Float, meanQ: Float, gradNorm: Float, tdError: Float
+    )? {
+        guard let (lossValue, meanQArray, gradNormValue, tdErrorArray) = updateArrays() else {
+            return nil
+        }
         
         return (
             lossValue.item(Float.self),

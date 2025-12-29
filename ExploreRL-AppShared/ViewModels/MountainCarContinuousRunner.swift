@@ -524,11 +524,9 @@ import MLXNN
                 if renderEnabled {
                     let currentSteps = steps
                     let currentReward = episodeRewardLocal
-                    let currentAlpha = Double(sacAgent.syncAlpha())
                     await MainActor.run {
                         self.currentStep = currentSteps
                         self.episodeReward = currentReward
-                        self.alpha = currentAlpha
                         self.updateSnapshot()
                     }
                     

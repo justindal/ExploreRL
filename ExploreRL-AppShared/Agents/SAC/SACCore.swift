@@ -297,7 +297,7 @@ public class SACAgent<Actor: SACActorProtocol, Critic: SACCriticProtocol>: Conti
         return (actorLossValue, meanLogPi)
     }
     
-    private func updateInternal(syncScalars: Bool) -> (qLoss: Float, actorLoss: Float, alphaLoss: Float)? {
+    public func updateArrays() -> (qLoss: MLXArray, actorLoss: MLXArray, alphaLoss: MLXArray)? {
         guard memory.count >= batchSize else { return nil }
         
         steps += 1
@@ -346,21 +346,19 @@ public class SACAgent<Actor: SACActorProtocol, Critic: SACCriticProtocol>: Conti
         
         eval(totalQLoss, actorLossValue, alphaLossArray, actor, qf1, qf2, qf1Target, qf2Target, logAlphaModule)
         
-        if syncScalars {
-            _ = syncAlpha()
-            
-            return (totalQLoss.item(Float.self), actorLossValue.item(Float.self), alphaLossArray.item(Float.self))
-        } else {
-            return nil
-        }
+        return (totalQLoss, actorLossValue, alphaLossArray)
     }
     
     public func updateNoSync() {
-        _ = updateInternal(syncScalars: false)
+        _ = updateArrays()
     }
     
     public func update() -> (qLoss: Float, actorLoss: Float, alphaLoss: Float)? {
-        updateInternal(syncScalars: true)
+        guard let (qLoss, actorLoss, alphaLoss) = updateArrays() else {
+            return nil
+        }
+        _ = syncAlpha()
+        return (qLoss.item(Float.self), actorLoss.item(Float.self), alphaLoss.item(Float.self))
     }
     
     private func softUpdateTargetNetworks() {
@@ -535,7 +533,7 @@ public class SACAgentVmap<Actor: SACActorProtocol, Ensemble: SACEnsembleCriticPr
         return (actorLossValue, meanLogPi)
     }
     
-    private func updateInternal(syncScalars: Bool) -> (qLoss: Float, actorLoss: Float, alphaLoss: Float)? {
+    public func updateArrays() -> (qLoss: MLXArray, actorLoss: MLXArray, alphaLoss: MLXArray)? {
         guard memory.count >= batchSize else { return nil }
         
         steps += 1
@@ -584,21 +582,19 @@ public class SACAgentVmap<Actor: SACActorProtocol, Ensemble: SACEnsembleCriticPr
         
         eval(totalQLoss, actorLossValue, alphaLossArray, actor, qEnsemble, qEnsembleTarget, logAlphaModule)
         
-        if syncScalars {
-            _ = syncAlpha()
-            
-            return (totalQLoss.item(Float.self), actorLossValue.item(Float.self), alphaLossArray.item(Float.self))
-        } else {
-            return nil
-        }
+        return (totalQLoss, actorLossValue, alphaLossArray)
     }
     
     public func updateNoSync() {
-        _ = updateInternal(syncScalars: false)
+        _ = updateArrays()
     }
     
     public func update() -> (qLoss: Float, actorLoss: Float, alphaLoss: Float)? {
-        updateInternal(syncScalars: true)
+        guard let (qLoss, actorLoss, alphaLoss) = updateArrays() else {
+            return nil
+        }
+        _ = syncAlpha()
+        return (qLoss.item(Float.self), actorLoss.item(Float.self), alphaLoss.item(Float.self))
     }
     
     public func updateWithBatch(

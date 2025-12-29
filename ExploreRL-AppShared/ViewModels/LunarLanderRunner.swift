@@ -471,10 +471,10 @@ import MLXNN
             var truncated = false
             var steps = 0
             var episodeRewardLocal = 0.0
-            var totalLoss = 0.0
-            var totalMeanQ = 0.0
-            var totalGradNorm = 0.0
-            var totalTdError = 0.0
+            var totalLossArray = MLXArray(Float32(0.0))
+            var totalMeanQArray = MLXArray(Float32(0.0))
+            var totalGradNormArray = MLXArray(Float32(0.0))
+            var totalTdErrorArray = MLXArray(Float32(0.0))
             var lossCount = 0
             
             if !turboMode || episodeCount % 10 == 0 {
@@ -521,11 +521,11 @@ import MLXNN
                 totalSteps += 1
 
                 if totalSteps >= warmupSteps {
-                    if let (loss, meanQ, gradNorm, tdError) = agent.update() {
-                        totalLoss += Double(loss)
-                        totalMeanQ += Double(meanQ)
-                        totalGradNorm += Double(gradNorm)
-                        totalTdError += Double(tdError)
+                    if let (loss, meanQ, gradNorm, tdError) = agent.updateArrays() {
+                        totalLossArray = totalLossArray + loss
+                        totalMeanQArray = totalMeanQArray + meanQ
+                        totalGradNormArray = totalGradNormArray + gradNorm
+                        totalTdErrorArray = totalTdErrorArray + tdError
                         lossCount += 1
                     }
                 }
@@ -567,10 +567,10 @@ import MLXNN
             
             let finalReward = episodeRewardLocal
             let finalSteps = steps
-            let avgLoss = lossCount > 0 ? totalLoss / Double(lossCount) : nil
-            let avgMaxQ = lossCount > 0 ? totalMeanQ / Double(lossCount) : 0.0
-            let avgGradNorm = lossCount > 0 ? totalGradNorm / Double(lossCount) : nil
-            let avgTdError = lossCount > 0 ? totalTdError / Double(lossCount) : nil
+            let avgLoss: Double? = lossCount > 0 ? Double((totalLossArray / Float(lossCount)).item(Float.self)) : nil
+            let avgMaxQ: Double = lossCount > 0 ? Double((totalMeanQArray / Float(lossCount)).item(Float.self)) : 0.0
+            let avgGradNorm: Double? = lossCount > 0 ? Double((totalGradNormArray / Float(lossCount)).item(Float.self)) : nil
+            let avgTdError: Double? = lossCount > 0 ? Double((totalTdErrorArray / Float(lossCount)).item(Float.self)) : nil
             
             if episodeCount % 50 == 0 {
                 GPU.clearCache()
