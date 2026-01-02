@@ -374,8 +374,8 @@ import MLXNN
         let newParams = NestedDictionary<String, MLXArray>.unflattened(weightsTuples)
         agent.policyNetwork.update(parameters: newParams)
         agent.targetNetwork.update(parameters: newParams)
-        eval(agent.policyNetwork)
-        eval(agent.targetNetwork)
+        eval(agent.policyNetwork.parameters())
+        eval(agent.targetNetwork.parameters())
         
         if let explorationSteps = savedAgent.hyperparameters["explorationSteps"] {
             agent.setExplorationSteps(Int(explorationSteps))

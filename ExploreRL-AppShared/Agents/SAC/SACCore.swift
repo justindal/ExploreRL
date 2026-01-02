@@ -214,7 +214,7 @@ public class SACAgent<Actor: SACActorProtocol, Critic: SACCriticProtocol>: Conti
         self.logAlphaModule = TrainableParameter(log(alpha))
         self.alphaLearningRate = MLXArray(learningRate)
         
-        eval(actor, qf1, qf2, qf1Target, qf2Target, logAlphaModule)
+        eval(actor.parameters(), qf1, qf2, qf1Target, qf2Target, logAlphaModule)
     }
     
     public func chooseAction(state: MLXArray, key: inout MLXArray, deterministic: Bool = false) -> MLXArray {
@@ -344,7 +344,7 @@ public class SACAgent<Actor: SACActorProtocol, Critic: SACCriticProtocol>: Conti
             logAlphaModule.value = minimum(maximum(logAlphaModule.value, minLogAlphaArray), maxLogAlphaArray)
         }
         
-        eval(totalQLoss, actorLossValue, alphaLossArray, actor, qf1, qf2, qf1Target, qf2Target, logAlphaModule)
+        eval(totalQLoss, actorLossValue, alphaLossArray, actor.parameters(), qf1, qf2, qf1Target, qf2Target, logAlphaModule)
         
         return (totalQLoss, actorLossValue, alphaLossArray)
     }
@@ -456,7 +456,7 @@ public class SACAgentVmap<Actor: SACActorProtocol, Ensemble: SACEnsembleCriticPr
         
         self.gammaArray = MLXArray(gamma)
         
-        eval(actor, qEnsemble, qEnsembleTarget, logAlphaModule)
+        eval(actor.parameters(), qEnsemble, qEnsembleTarget, logAlphaModule)
     }
     
     public func chooseAction(state: MLXArray, key: inout MLXArray, deterministic: Bool = false) -> MLXArray {

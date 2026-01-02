@@ -371,7 +371,7 @@ import MLXNN
             agent.qEnsembleTarget.update(parameters: qParams)
         }
         
-        eval(agent.actor, agent.qEnsemble, agent.qEnsembleTarget)
+        eval(agent.actor.parameters(), agent.qEnsemble, agent.qEnsembleTarget)
         
         episodeMetrics = []
         episodeCount = savedAgent.episodesTrained + 1

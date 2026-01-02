@@ -182,8 +182,8 @@ public class DQNAgent<Network: QNetworkProtocol>: DiscreteDeepRLAgent {
             self.oneMinusTauArray = nil
         }
         
-        eval(self.policyNetwork)
-        eval(self.targetNetwork)
+        eval(self.policyNetwork.parameters())
+        eval(self.targetNetwork.parameters())
 
         self.steps = 0
     }

@@ -279,7 +279,7 @@ import MLXNN
         let weightsTuples = weightsDict.map { ($0.key, $0.value) }
         let newParams = NestedDictionary<String, MLXArray>.unflattened(weightsTuples)
         dqnAgent.policyNetwork.update(parameters: newParams)
-        eval(dqnAgent.policyNetwork)
+        eval(dqnAgent.policyNetwork.parameters())
         
         cartPoleAgent = dqnAgent
         
@@ -326,7 +326,7 @@ import MLXNN
         let weightsTuples = weightsDict.map { ($0.key, $0.value) }
         let newParams = NestedDictionary<String, MLXArray>.unflattened(weightsTuples)
         dqnAgent.policyNetwork.update(parameters: newParams)
-        eval(dqnAgent.policyNetwork)
+        eval(dqnAgent.policyNetwork.parameters())
         
         mountainCarAgent = dqnAgent
         
@@ -423,7 +423,7 @@ import MLXNN
         let weightsTuples = weightsDict.map { ($0.key, $0.value) }
         let newParams = NestedDictionary<String, MLXArray>.unflattened(weightsTuples)
         dqnAgent.policyNetwork.update(parameters: newParams)
-        eval(dqnAgent.policyNetwork)
+        eval(dqnAgent.policyNetwork.parameters())
         
         acrobotAgent = dqnAgent
         
@@ -477,7 +477,7 @@ import MLXNN
             sacAgent.qEnsemble.update(parameters: qParams)
         }
         
-        eval(sacAgent.actor, sacAgent.qEnsemble)
+        eval(sacAgent.actor.parameters(), sacAgent.qEnsemble)
         
         pendulumAgent = sacAgent
         
@@ -530,7 +530,7 @@ import MLXNN
         let weightsTuples = weightsDict.map { ($0.key, $0.value) }
         let newParams = NestedDictionary<String, MLXArray>.unflattened(weightsTuples)
         dqnAgent.policyNetwork.update(parameters: newParams)
-        eval(dqnAgent.policyNetwork)
+        eval(dqnAgent.policyNetwork.parameters())
         
         lunarLanderAgent = dqnAgent
         
@@ -590,7 +590,7 @@ import MLXNN
             sacAgent.qEnsemble.update(parameters: qParams)
         }
         
-        eval(sacAgent.actor, sacAgent.qEnsemble)
+        eval(sacAgent.actor.parameters(), sacAgent.qEnsemble)
         
         lunarLanderContinuousAgent = sacAgent
         
@@ -664,7 +664,7 @@ import MLXNN
             sacAgent.qEnsemble.update(parameters: qParams)
         }
         
-        eval(sacAgent.actor, sacAgent.qEnsemble)
+        eval(sacAgent.actor.parameters(), sacAgent.qEnsemble)
         
         carRacingAgent = sacAgent
         
@@ -731,7 +731,7 @@ import MLXNN
         let weightsTuples = weightsDict.map { ($0.key, $0.value) }
         let newParams = NestedDictionary<String, MLXArray>.unflattened(weightsTuples)
         dqnAgent.policyNetwork.update(parameters: newParams)
-        eval(dqnAgent.policyNetwork)
+        eval(dqnAgent.policyNetwork.parameters())
         
         carRacingDiscreteAgent = dqnAgent
         
