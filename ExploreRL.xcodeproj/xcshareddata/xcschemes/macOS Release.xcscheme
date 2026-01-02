@@ -15,9 +15,9 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "B954BCC62ECA79740081CE3F"
-               BuildableName = "r.app"
-               BlueprintName = "r"
+               BlueprintIdentifier = "B954BCE42ECA7A380081CE3F"
+               BuildableName = "ExploreRL-macOS.app"
+               BlueprintName = "ExploreRL-macOS"
                ReferencedContainer = "container:ExploreRL.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -31,9 +31,9 @@
       shouldAutocreateTestPlan = "YES">
    </TestAction>
    <LaunchAction
-      buildConfiguration = "Debug"
-      selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
-      selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
+      buildConfiguration = "Release"
+      selectedDebuggerIdentifier = ""
+      selectedLauncherIdentifier = "Xcode.IDEFoundation.Launcher.PosixSpawn"
       launchStyle = "0"
       useCustomWorkingDirectory = "NO"
       ignoresPersistentStateOnLaunch = "NO"
@@ -44,9 +44,9 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "B954BCC62ECA79740081CE3F"
-            BuildableName = "r.app"
-            BlueprintName = "r"
+            BlueprintIdentifier = "B954BCE42ECA7A380081CE3F"
+            BuildableName = "ExploreRL-macOS.app"
+            BlueprintName = "ExploreRL-macOS"
             ReferencedContainer = "container:ExploreRL.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -61,21 +61,12 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "B954BCC62ECA79740081CE3F"
-            BuildableName = "r.app"
-            BlueprintName = "r"
+            BlueprintIdentifier = "B954BCE42ECA7A380081CE3F"
+            BuildableName = "ExploreRL-macOS.app"
+            BlueprintName = "ExploreRL-macOS"
             ReferencedContainer = "container:ExploreRL.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
-      <MacroExpansion>
-         <BuildableReference
-            BuildableIdentifier = "primary"
-            BlueprintIdentifier = "B954BCC62ECA79740081CE3F"
-            BuildableName = "r.app"
-            BlueprintName = "r"
-            ReferencedContainer = "container:ExploreRL.xcodeproj">
-         </BuildableReference>
-      </MacroExpansion>
    </ProfileAction>
    <AnalyzeAction
       buildConfiguration = "Debug">
