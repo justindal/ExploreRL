@@ -19,12 +19,14 @@ nonisolated public class MountainCarContinuousActorNetwork: Module, SACActorProt
     let layer2: Linear
     let meanLayer: Linear
     let logStdLayer: Linear
+    let useSDE: Bool
 
     nonisolated public let actionScale: MLXArray
     nonisolated public let actionBias: MLXArray
     
     private let logStdMax: Float = 2.0
     private let logStdMin: Float = -5.0
+    private let fixedLogStd: Float = -1.0
     private let logStdMinArray: MLXArray
     private let logStdRangeHalf: MLXArray
     private let logPiConstant: MLXArray
@@ -35,12 +37,14 @@ nonisolated public class MountainCarContinuousActorNetwork: Module, SACActorProt
         numActions: Int,
         hiddenSize: Int = 256,
         actionSpaceLow: Float = -1.0,
-        actionSpaceHigh: Float = 1.0
+        actionSpaceHigh: Float = 1.0,
+        useSDE: Bool = true
     ) {
         self.layer1 = Linear(numObservations, hiddenSize)
         self.layer2 = Linear(hiddenSize, hiddenSize)
         self.meanLayer = Linear(hiddenSize, numActions)
         self.logStdLayer = Linear(hiddenSize, numActions)
+        self.useSDE = useSDE
 
         let scale = (actionSpaceHigh - actionSpaceLow) / 2.0
         let bias = (actionSpaceHigh + actionSpaceLow) / 2.0
@@ -59,9 +63,14 @@ nonisolated public class MountainCarContinuousActorNetwork: Module, SACActorProt
         var h = relu(layer1(x))
         h = relu(layer2(h))
         let mean = meanLayer(h)
-        var logStd = logStdLayer(h)
-        logStd = tanh(logStd)
-        logStd = logStdMinArray + logStdRangeHalf * (logStd + 1.0)
+        let logStd: MLXArray
+        if useSDE {
+            var l = logStdLayer(h)
+            l = tanh(l)
+            logStd = logStdMinArray + logStdRangeHalf * (l + 1.0)
+        } else {
+            logStd = MLXArray(fixedLogStd)
+        }
         return (mean, logStd)
     }
 
@@ -200,7 +209,8 @@ public class MountainCarContinuousSAC: SACAgentVmap<MountainCarContinuousActorNe
         batchSize: Int = Defaults.batchSize,
         bufferSize: Int = Defaults.bufferSize,
         minLogAlpha: Float = Defaults.minLogAlpha,
-        maxLogAlpha: Float = Defaults.maxLogAlpha
+        maxLogAlpha: Float = Defaults.maxLogAlpha,
+        useSDE: Bool = true
     ) {
         // Create MountainCarContinuous-specific networks
         let actorNet = MountainCarContinuousActorNetwork(
@@ -208,7 +218,8 @@ public class MountainCarContinuousSAC: SACAgentVmap<MountainCarContinuousActorNe
             numActions: Self.actionCount,
             hiddenSize: hiddenSize,
             actionSpaceLow: Self.actionLow,
-            actionSpaceHigh: Self.actionHigh
+            actionSpaceHigh: Self.actionHigh,
+            useSDE: useSDE
         )
         
         let qEnsemble = MountainCarContinuousEnsembleQNetwork(

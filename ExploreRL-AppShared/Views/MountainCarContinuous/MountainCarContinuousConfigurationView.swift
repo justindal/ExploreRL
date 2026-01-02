@@ -43,6 +43,7 @@ struct MountainCarContinuousConfigurationView: View {
                 isTraining: runner.isTraining
             )
             
+            explorationSection
             environmentSection
         }
         .padding()
@@ -73,6 +74,24 @@ struct MountainCarContinuousConfigurationView: View {
                 runner.stopTraining()
                 runner.setupEnvironment()
             }
+        }
+        .disabled(runner.isTraining)
+    }
+    
+    private var explorationSection: some View {
+        DisclosureGroup("Exploration") {
+            VStack(alignment: .leading, spacing: 10) {
+                Toggle("Use SDE", isOn: $runner.useSDE)
+                    .onChange(of: runner.useSDE) { _, _ in
+                        runner.stopTraining()
+                        runner.setupEnvironment()
+                    }
+                
+                Text("When disabled, the policy uses a fixed standard deviation for exploration.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.top, 8)
         }
         .disabled(runner.isTraining)
     }

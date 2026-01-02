@@ -80,6 +80,7 @@ import MLXNN
     var bufferSize: Int = MountainCarContinuousSAC.Defaults.bufferSize
     var warmupSteps: Int = TrainingDefaults.warmupSteps > 0 ? TrainingDefaults.warmupSteps : MountainCarContinuousSAC.Defaults.batchSize
     var maxStepsPerEpisode: Int = 999
+    var useSDE: Bool = true
     
     var goalVelocity: Double = 0.0
     
@@ -130,14 +131,22 @@ import MLXNN
             self.rngKey = MLX.key(0)
         }
         
-        if agent == nil {
+        let shouldRecreateAgent: Bool
+        if let existing = agent {
+            shouldRecreateAgent = existing.actor.useSDE != useSDE
+        } else {
+            shouldRecreateAgent = true
+        }
+        
+        if shouldRecreateAgent {
             agent = MountainCarContinuousSAC(
                 learningRate: Float(learningRate),
                 gamma: Float(gamma),
                 tau: Float(tau),
                 alpha: Float(alpha),
                 batchSize: batchSize,
-                bufferSize: bufferSize
+                bufferSize: bufferSize,
+                useSDE: useSDE
             )
         }
         
@@ -226,6 +235,7 @@ import MLXNN
                 "gamma": gamma,
                 "tau": tau,
                 "alpha": alpha,
+                "useSDE": useSDE ? 1.0 : 0.0,
                 "batchSize": Double(batchSize),
                 "bufferSize": Double(bufferSize),
                 "warmupSteps": Double(warmupSteps),
@@ -266,6 +276,7 @@ import MLXNN
                 "gamma": gamma,
                 "tau": tau,
                 "alpha": alpha,
+                "useSDE": useSDE ? 1.0 : 0.0,
                 "batchSize": Double(batchSize),
                 "bufferSize": Double(bufferSize),
                 "warmupSteps": Double(warmupSteps),
@@ -293,6 +304,7 @@ import MLXNN
         if let g = savedAgent.hyperparameters["gamma"] { gamma = g }
         if let t = savedAgent.hyperparameters["tau"] { tau = t }
         if let a = savedAgent.hyperparameters["alpha"] { alpha = a }
+        if let sde = savedAgent.hyperparameters["useSDE"] { useSDE = sde > 0.5 }
         if let bs = savedAgent.hyperparameters["batchSize"] { batchSize = Int(bs) }
         if let buf = savedAgent.hyperparameters["bufferSize"] { bufferSize = Int(buf) }
         if let wSteps = savedAgent.hyperparameters["warmupSteps"] { warmupSteps = Int(wSteps) }
