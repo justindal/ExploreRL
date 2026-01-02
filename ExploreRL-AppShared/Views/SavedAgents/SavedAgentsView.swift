@@ -1364,7 +1364,7 @@ struct AgentDataVisualizationView: View {
                     Divider()
                     
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Weight Statistics (\(selectedSACNetwork))")
+                        Text("Weight Statistics (\(networkDisplayName(selectedSACNetwork)))")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         
@@ -1401,9 +1401,12 @@ struct AgentDataVisualizationView: View {
     private func networkDisplayName(_ name: String) -> String {
         switch name {
         case "actor": return "Actor"
-        case "qf1": return "Q-Function 1"
-        case "qf2": return "Q-Function 2"
-        case "qEnsemble": return "Q-Ensemble"
+        case "qf1": return "Critic 1"
+        case "qf2": return "Critic 2"
+        case "qEnsemble": return "Critic"
+        case "critic": return "Critic"
+        case "critic1": return "Critic 1"
+        case "critic2": return "Critic 2"
         default: return name.capitalized
         }
     }
@@ -1503,7 +1506,8 @@ struct AgentDataVisualizationView: View {
                         let inputSize: Int
                         if networkName == "actor" {
                             inputSize = obsSize
-                        } else if networkName == "qEnsemble" || networkName == "qf1" || networkName == "qf2" {
+                        } else if networkName == "qEnsemble" || networkName == "qf1" || networkName == "qf2"
+                                    || networkName == "critic" || networkName == "critic1" || networkName == "critic2" {
                             inputSize = obsSize + actionSize
                         } else {
                             inputSize = obsSize
@@ -1545,7 +1549,7 @@ struct AgentDataVisualizationView: View {
                                     let layerType = layerIndex == sortedKeys.filter { $0.contains("weight") }.count - 1 ? "output" : "hidden"
                                     
                                     let layerName = networkName == "qEnsemble"
-                                        ? "Layer \(layerIndex + 1) (x\(ensembleSize))"
+                                        ? "Layer \(layerIndex + 1) (ensemble x\(ensembleSize))"
                                         : "Layer \(layerIndex + 1)"
                                     
                                     layers.append(NetworkLayerInfo(

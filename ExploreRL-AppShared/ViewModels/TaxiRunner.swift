@@ -25,6 +25,7 @@ import MLX
     private var loadedEpisodeCount: Int = 0
     private var loadedBestReward: Double = -1000
     private var trainingCompletedNormally = false
+    private var committedEpisodeMetricsCount: Int = 0
     
     private(set) var accumulatedTrainingTimeSeconds: TimeInterval = 0
     private(set) var trainingSessionStartDate: Date? = nil
@@ -37,8 +38,12 @@ import MLX
         return agent != nil && episodeCount > 1 && !trainingCompletedNormally
     }
     
+    private var uncommittedEpisodeCount: Int {
+        return max(0, episodeMetrics.count - committedEpisodeMetricsCount)
+    }
+    
     var totalEpisodesTrained: Int {
-        return loadedEpisodeCount + episodeMetrics.count
+        return loadedEpisodeCount + uncommittedEpisodeCount
     }
     
     var averageReward: Double {
@@ -182,6 +187,7 @@ import MLX
         updateSnapshot()
         
         episodeMetrics.removeAll()
+        committedEpisodeMetricsCount = 0
         totalReward = 0
         episodeCount = 1
         currentStep = 0
@@ -233,6 +239,7 @@ import MLX
         loadedEpisodeCount = 0
         loadedBestReward = -1000
         trainingCompletedNormally = false
+        committedEpisodeMetricsCount = 0
         
         setupEnvironment()
     }
@@ -277,6 +284,7 @@ import MLX
         loadedAgentName = saved.name
         hasTrainedSinceLoad = false
         loadedEpisodeCount = totalEpisodesTrained
+        committedEpisodeMetricsCount = episodeMetrics.count
         loadedBestReward = combinedBestReward
         accumulatedTrainingTimeSeconds = totalTrainingTimeSeconds
     }
@@ -307,6 +315,8 @@ import MLX
         
         loadedAgentName = name
         hasTrainedSinceLoad = false
+        loadedEpisodeCount = totalEpisodesTrained
+        committedEpisodeMetricsCount = episodeMetrics.count
         accumulatedTrainingTimeSeconds = totalTrainingTimeSeconds
     }
     
@@ -372,6 +382,7 @@ import MLX
         }
         
         episodeMetrics = []
+        committedEpisodeMetricsCount = 0
         episodeCount = savedAgent.episodesTrained + 1
         
         loadedAgentId = savedAgent.id
@@ -495,7 +506,7 @@ import MLX
             
             // Success is when the passenger is delivered (episode terminates with positive final reward)
             let success = terminated && episodeRewardLocal > 0
-            let completedEpisodeNumber = loadedEpisodeCount + episodeMetrics.count + 1
+            let completedEpisodeNumber = loadedEpisodeCount + uncommittedEpisodeCount + 1
             let metric = EpisodeMetrics(
                 episode: completedEpisodeNumber,
                 reward: episodeRewardLocal,

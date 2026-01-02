@@ -26,6 +26,7 @@ import MLXNN
     private var loadedEpisodeCount: Int = 0
     private var loadedBestReward: Double = 0
     private var trainingCompletedNormally = false
+    private var committedEpisodeMetricsCount: Int = 0
     
     private(set) var accumulatedTrainingTimeSeconds: TimeInterval = 0
     private(set) var trainingSessionStartDate: Date? = nil
@@ -38,8 +39,12 @@ import MLXNN
         return agent != nil && episodeCount > 1 && !trainingCompletedNormally
     }
     
+    private var uncommittedEpisodeCount: Int {
+        return max(0, episodeMetrics.count - committedEpisodeMetricsCount)
+    }
+    
     var totalEpisodesTrained: Int {
-        return loadedEpisodeCount + episodeMetrics.count
+        return loadedEpisodeCount + uncommittedEpisodeCount
     }
     
     var averageReward: Double {
@@ -161,6 +166,7 @@ import MLXNN
         }
         
         episodeMetrics.removeAll()
+        committedEpisodeMetricsCount = 0
         totalReward = 0
         episodeCount = 1
         currentStep = 0
@@ -192,6 +198,7 @@ import MLXNN
         loadedEpisodeCount = 0
         loadedBestReward = 0
         trainingCompletedNormally = false
+        committedEpisodeMetricsCount = 0
         setupEnvironment()
     }
     
@@ -228,6 +235,12 @@ import MLXNN
         guard !isTraining else { return }
         guard !TrainingState.shared.isTraining else { return }
         
+        // If the previous run already completed (or episodesPerRun was lowered),
+        // reset the per-run counter so a new run can start.
+        if episodesPerRun > 0 && episodesCompletedInRun >= episodesPerRun {
+            episodesCompletedInRun = 0
+        }
+
         isTraining = true
         if trainingSessionStartDate == nil {
             trainingSessionStartDate = Date()
@@ -291,6 +304,7 @@ import MLXNN
         loadedAgentName = saved.name
         hasTrainedSinceLoad = false
         loadedEpisodeCount = totalEpisodesTrained
+        committedEpisodeMetricsCount = episodeMetrics.count
         loadedBestReward = combinedBestReward
         accumulatedTrainingTimeSeconds = totalTrainingTimeSeconds
     }
@@ -326,6 +340,8 @@ import MLXNN
         
         loadedAgentName = name
         hasTrainedSinceLoad = false
+        loadedEpisodeCount = totalEpisodesTrained
+        committedEpisodeMetricsCount = episodeMetrics.count
         accumulatedTrainingTimeSeconds = totalTrainingTimeSeconds
     }
     
@@ -381,6 +397,7 @@ import MLXNN
         }
         
         episodeMetrics = []
+        committedEpisodeMetricsCount = 0
         episodeCount = savedAgent.episodesTrained + 1
         episodesCompletedInRun = 0
         
@@ -649,7 +666,7 @@ import MLXNN
             let recentRewards = episodeMetrics.suffix(movingAverageWindow).map { $0.reward }
             let movingAvg = recentRewards.isEmpty ? episodeRewardLocal : recentRewards.reduce(0, +) / Double(recentRewards.count)
             
-            let completedEpisodeNumber = await MainActor.run { loadedEpisodeCount + episodeMetrics.count + 1 }
+            let completedEpisodeNumber = await MainActor.run { loadedEpisodeCount + uncommittedEpisodeCount + 1 }
             
             let metrics = EpisodeMetrics(
                 episode: completedEpisodeNumber,

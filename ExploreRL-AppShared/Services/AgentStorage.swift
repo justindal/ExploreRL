@@ -927,7 +927,7 @@ import Gymnazo
             networkType: "qNetwork",
             inputSize: 2,
             outputSize: 3,
-            hiddenSizes: [hiddenSize, hiddenSize],
+            hiddenSizes: [hiddenSize, hiddenSize, hiddenSize],
             hiddenActivation: "relu",
             outputActivation: nil
         )
@@ -1117,11 +1117,12 @@ import Gymnazo
         averageReward: Double,
         hyperparameters: [String: Double],
         environmentConfig: [String: String],
+        observationSize: Int = 144,
         hiddenSize: Int = 256
     ) throws -> SavedAgent {
         let architecture = NetworkArchitecture(
             networkType: "qNetwork",
-            inputSize: 144,
+            inputSize: observationSize,
             outputSize: 5,
             hiddenSizes: [hiddenSize, hiddenSize],
             hiddenActivation: "relu",
@@ -1175,6 +1176,11 @@ import Gymnazo
         return try MLX.loadArrays(url: dataURL)
     }
     
+    private static let excludedActorKeys: Set<String> = [
+        "actionScale", "actionBias", "epsilon", "logPiConstant",
+        "logStdMinArray", "logStdRangeHalf"
+    ]
+    
     private func saveSACAgent(
         name: String,
         actor: Module,
@@ -1201,7 +1207,9 @@ import Gymnazo
         
         var combinedWeights: [String: MLXArray] = [:]
         for (key, value) in actor.parameters().flattened() {
-            combinedWeights["actor.\(key)"] = value
+            if !Self.excludedActorKeys.contains(key) {
+                combinedWeights["actor.\(key)"] = value
+            }
         }
         for (key, value) in qEnsemble.parameters().flattened() {
             combinedWeights["qEnsemble.\(key)"] = value
@@ -1252,7 +1260,9 @@ import Gymnazo
         
         var combinedWeights: [String: MLXArray] = [:]
         for (key, value) in actor.parameters().flattened() {
-            combinedWeights["actor.\(key)"] = value
+            if !Self.excludedActorKeys.contains(key) {
+                combinedWeights["actor.\(key)"] = value
+            }
         }
         for (key, value) in qEnsemble.parameters().flattened() {
             combinedWeights["qEnsemble.\(key)"] = value
@@ -1341,7 +1351,9 @@ import Gymnazo
         
         var combinedWeights: [String: MLXArray] = [:]
         for (key, value) in actor.parameters().flattened() {
-            combinedWeights["actor.\(key)"] = value
+            if !Self.excludedActorKeys.contains(key) {
+                combinedWeights["actor.\(key)"] = value
+            }
         }
         for (key, value) in qf1.parameters().flattened() {
             combinedWeights["qf1.\(key)"] = value
@@ -1421,7 +1433,9 @@ import Gymnazo
         
         var combinedWeights: [String: MLXArray] = [:]
         for (key, value) in actor.parameters().flattened() {
-            combinedWeights["actor.\(key)"] = value
+            if !Self.excludedActorKeys.contains(key) {
+                combinedWeights["actor.\(key)"] = value
+            }
         }
         for (key, value) in qf1.parameters().flattened() {
             combinedWeights["qf1.\(key)"] = value
@@ -1511,7 +1525,7 @@ import Gymnazo
             outputActivation: "tanh"
         )
         let criticArch = NetworkArchitecture(
-            networkType: "qEnsemble",
+            networkType: "critic",
             inputSize: 3,
             outputSize: 1,
             hiddenSizes: [hiddenSize, hiddenSize],
@@ -1591,7 +1605,7 @@ import Gymnazo
             outputActivation: "tanh"
         )
         let criticArch = NetworkArchitecture(
-            networkType: "qEnsemble",
+            networkType: "critic",
             inputSize: 4,
             outputSize: 1,
             hiddenSizes: [hiddenSize, hiddenSize],
@@ -1670,7 +1684,7 @@ import Gymnazo
             outputActivation: "tanh"
         )
         let criticArch = NetworkArchitecture(
-            networkType: "qEnsemble",
+            networkType: "critic",
             inputSize: 10,
             outputSize: 1,
             hiddenSizes: [hiddenSize, hiddenSize],
@@ -1738,19 +1752,21 @@ import Gymnazo
         averageReward: Double,
         hyperparameters: [String: Double],
         environmentConfig: [String: String],
+        observationSize: Int = 144,
         hiddenSize: Int = 256
     ) throws -> SavedAgent {
+        let actionDim = 3
         let actorArch = NetworkArchitecture(
             networkType: "actor",
-            inputSize: 144,
-            outputSize: 6,
+            inputSize: observationSize,
+            outputSize: actionDim * 2,
             hiddenSizes: [hiddenSize, hiddenSize],
             hiddenActivation: "relu",
             outputActivation: "tanh"
         )
         let criticArch = NetworkArchitecture(
-            networkType: "qEnsemble",
-            inputSize: 147,
+            networkType: "critic",
+            inputSize: observationSize + actionDim,
             outputSize: 1,
             hiddenSizes: [hiddenSize, hiddenSize],
             hiddenActivation: "relu",
