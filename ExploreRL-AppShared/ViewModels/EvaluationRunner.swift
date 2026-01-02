@@ -83,6 +83,18 @@ import MLXNN
     private var lunarLanderContinuousEnv: (any Env<MLXArray, MLXArray>)?
     private var lunarLanderContinuousAgent: LunarLanderContinuousSAC?
     
+    // CarRacing (continuous)
+    var carRacingSnapshot: CarRacingSnapshot?
+    private var carRacingEnv: (any Env<MLXArray, MLXArray>)?
+    private var carRacingAgent: CarRacingSAC?
+    private var carRacingObservationSize: Int = 144
+    
+    // CarRacingDiscrete
+    var carRacingDiscreteSnapshot: CarRacingSnapshot?
+    private var carRacingDiscreteEnv: (any Env<MLXArray, Int>)?
+    private var carRacingDiscreteAgent: CarRacingDiscreteDQN?
+    private var carRacingDiscreteObservationSize: Int = 144
+    
     private var rngKey: MLXArray = MLX.key(0)
     
     var averageReward: Double {
@@ -131,6 +143,10 @@ import MLXNN
             try setupLunarLander(agent)
         case .lunarLanderContinuous:
             try setupLunarLanderContinuous(agent)
+        case .carRacing:
+            try setupCarRacing(agent)
+        case .carRacingDiscrete:
+            try setupCarRacingDiscrete(agent)
         }
     }
     
@@ -583,6 +599,147 @@ import MLXNN
         }
     }
     
+    private func setupCarRacing(_ agent: SavedAgent) throws {
+        let maxSteps = Int(agent.environmentConfig["maxStepsPerEpisode"] ?? "1000") ?? 1000
+        let lapCompletePercent = Float(agent.environmentConfig["lap_complete_percent"] ?? "0.95") ?? 0.95
+        let domainRandomize = agent.environmentConfig["domain_randomize"] == "true"
+        let useFrameStack = agent.environmentConfig["useFrameStack"] == "true"
+        let frameStackSize = Int(agent.environmentConfig["frameStackSize"] ?? "4") ?? 4
+        
+        let observationSize = useFrameStack ? 144 * frameStackSize : 144
+        carRacingObservationSize = observationSize
+        
+        var kwargs: [String: Any] = [
+            "lap_complete_percent": lapCompletePercent,
+            "domain_randomize": domainRandomize
+        ]
+        if showVisualization {
+            kwargs["render_mode"] = "human"
+        }
+
+        guard let baseEnv = Gymnazo.make(
+            "CarRacing",
+            maxEpisodeSteps: maxSteps,
+            kwargs: kwargs
+        ) as? TimeLimit<OrderEnforcing<PassiveEnvChecker<CarRacing>>> else {
+            throw AgentStorageError.dataCorrupted
+        }
+
+        let resizedEnv = ResizeObservation(
+            env: GrayscaleObservation(env: baseEnv),
+            shape: (12, 12)
+        )
+
+        if useFrameStack {
+            var env = FrameStackObservation(env: resizedEnv, stackSize: frameStackSize, paddingType: .reset)
+            _ = env.reset()
+            carRacingEnv = env
+        } else {
+            var env = resizedEnv
+            _ = env.reset()
+            carRacingEnv = env
+        }
+        
+        let sacAgent = CarRacingSAC(
+            observationSize: observationSize,
+            learningRate: 0,
+            gamma: 0.99,
+            tau: 0.005,
+            alpha: Float(agent.finalEpsilon),
+            batchSize: 256,
+            bufferSize: 1000
+        )
+        
+        let weightsDict = try AgentStorage.shared.loadCarRacingWeights(for: agent)
+        
+        if let actorWeights = weightsDict["actor"] {
+            let actorTuples = actorWeights.map { ($0.key, $0.value) }
+            let actorParams = NestedDictionary<String, MLXArray>.unflattened(actorTuples)
+            sacAgent.actor.update(parameters: actorParams)
+        }
+        
+        if let qEnsembleWeights = weightsDict["qEnsemble"] {
+            let qTuples = qEnsembleWeights.map { ($0.key, $0.value) }
+            let qParams = NestedDictionary<String, MLXArray>.unflattened(qTuples)
+            sacAgent.qEnsemble.update(parameters: qParams)
+        }
+        
+        eval(sacAgent.actor, sacAgent.qEnsemble)
+        
+        carRacingAgent = sacAgent
+        
+        if let car = carRacingEnv?.unwrapped as? CarRacing {
+            carRacingSnapshot = car.currentSnapshot
+        }
+    }
+    
+    private func setupCarRacingDiscrete(_ agent: SavedAgent) throws {
+        let maxSteps = Int(agent.environmentConfig["maxStepsPerEpisode"] ?? "1000") ?? 1000
+        let lapCompletePercent = Float(agent.environmentConfig["lap_complete_percent"] ?? "0.95") ?? 0.95
+        let domainRandomize = agent.environmentConfig["domain_randomize"] == "true"
+        let useFrameStack = agent.environmentConfig["useFrameStack"] == "true"
+        let frameStackSize = Int(agent.environmentConfig["frameStackSize"] ?? "4") ?? 4
+        
+        let observationSize = useFrameStack ? 144 * frameStackSize : 144
+        carRacingDiscreteObservationSize = observationSize
+        
+        var kwargs: [String: Any] = [
+            "lap_complete_percent": lapCompletePercent,
+            "domain_randomize": domainRandomize
+        ]
+        if showVisualization {
+            kwargs["render_mode"] = "human"
+        }
+
+        guard let baseEnv = Gymnazo.make(
+            "CarRacingDiscrete",
+            maxEpisodeSteps: maxSteps,
+            kwargs: kwargs
+        ) as? TimeLimit<OrderEnforcing<PassiveEnvChecker<CarRacingDiscrete>>> else {
+            throw AgentStorageError.dataCorrupted
+        }
+
+        let resizedEnv = ResizeObservation(
+            env: GrayscaleObservation(env: baseEnv),
+            shape: (12, 12)
+        )
+
+        if useFrameStack {
+            var env = FrameStackObservation(env: resizedEnv, stackSize: frameStackSize, paddingType: .reset)
+            _ = env.reset()
+            carRacingDiscreteEnv = env
+        } else {
+            var env = resizedEnv
+            _ = env.reset()
+            carRacingDiscreteEnv = env
+        }
+        
+        let dqnAgent = CarRacingDiscreteDQN(
+            observationSize: observationSize,
+            learningRate: 0,
+            gamma: 0.99,
+            epsilonStart: 0,
+            epsilonEnd: 0,
+            epsilonDecaySteps: 1,
+            targetUpdateFrequency: 1,
+            batchSize: 64,
+            bufferCapacity: 1000,
+            gradClipNorm: 100
+        )
+        
+        let weightsDict = try AgentStorage.shared.loadCarRacingDiscreteWeights(for: agent)
+        let weightsTuples = weightsDict.map { ($0.key, $0.value) }
+        let newParams = NestedDictionary<String, MLXArray>.unflattened(weightsTuples)
+        dqnAgent.policyNetwork.update(parameters: newParams)
+        eval(dqnAgent.policyNetwork)
+        
+        carRacingDiscreteAgent = dqnAgent
+        
+        if let car = carRacingDiscreteEnv?.unwrapped as? CarRacingDiscrete {
+            carRacingDiscreteSnapshot = car.currentSnapshot
+        }
+    }
+    
     func startEvaluation() {
         guard !isRunning, loadedAgent != nil else { return }
         isRunning = true
@@ -668,6 +825,18 @@ import MLXNN
         lunarLanderContinuousSnapshot = nil
         lunarLanderContinuousEnv = nil
         lunarLanderContinuousAgent = nil
+        
+        // CarRacing
+        carRacingSnapshot = nil
+        carRacingEnv = nil
+        carRacingAgent = nil
+        carRacingObservationSize = 144
+        
+        // CarRacingDiscrete
+        carRacingDiscreteSnapshot = nil
+        carRacingDiscreteEnv = nil
+        carRacingDiscreteAgent = nil
+        carRacingDiscreteObservationSize = 144
     }
     
     private func runEvaluationLoop() async {
@@ -703,6 +872,10 @@ import MLXNN
                 await runLunarLanderEpisode()
             case .lunarLanderContinuous:
                 await runLunarLanderContinuousEpisode()
+            case .carRacing:
+                await runCarRacingEpisode()
+            case .carRacingDiscrete:
+                await runCarRacingDiscreteEpisode()
             }
         }
         
@@ -1356,6 +1529,122 @@ import MLXNN
             
             // LunarLander Continuous: successful landing if reward >= 200
             if reward >= 200 {
+                self.successCount += 1
+            }
+        }
+    }
+
+    private func preprocessCarRacingObservation(_ obs: MLXArray, size: Int) -> MLXArray {
+        let x = obs.asType(.float32) / MLXArray(Float32(255.0))
+        return x.reshaped([size])
+    }
+    
+    private func runCarRacingEpisode() async {
+        guard var env = carRacingEnv, let agent = carRacingAgent else { return }
+        
+        let resetResult = env.reset()
+        var state = preprocessCarRacingObservation(resetResult.obs, size: carRacingObservationSize)
+        var terminated = false
+        var truncated = false
+        var steps = 0
+        var reward = 0.0
+        
+        let maxSteps = 1000
+        
+        while !terminated && !truncated && isRunning && steps < maxSteps {
+            var key = rngKey
+            let action = agent.chooseAction(state: state, key: &key, deterministic: true)
+            rngKey = key
+            
+            eval(action)
+            
+            let result = env.step(action)
+            state = preprocessCarRacingObservation(result.obs, size: carRacingObservationSize)
+            terminated = result.terminated
+            truncated = result.truncated
+            reward += result.reward
+            steps += 1
+            
+            await MainActor.run {
+                self.currentStep = steps
+                self.episodeReward = reward
+            }
+            
+            if showVisualization {
+                if let car = env.unwrapped as? CarRacing {
+                    await MainActor.run {
+                        self.carRacingSnapshot = car.currentSnapshot
+                    }
+                }
+                
+                let delayNs = UInt64(1_000_000_000 / targetFPS)
+                try? await Task.sleep(nanoseconds: delayNs)
+            }
+        }
+        
+        carRacingEnv = env
+        
+        await MainActor.run {
+            self.episodeRewards.append(reward)
+            self.episodeSteps.append(steps)
+            self.totalReward += reward
+            
+            // CarRacing: successful lap if reward >= 900
+            if reward >= 900 {
+                self.successCount += 1
+            }
+        }
+    }
+    
+    private func runCarRacingDiscreteEpisode() async {
+        guard var env = carRacingDiscreteEnv, let agent = carRacingDiscreteAgent else { return }
+        
+        let resetResult = env.reset()
+        var state = preprocessCarRacingObservation(resetResult.obs, size: carRacingDiscreteObservationSize)
+        var terminated = false
+        var truncated = false
+        var steps = 0
+        var reward = 0.0
+        
+        let maxSteps = 1000
+        
+        while !terminated && !truncated && isRunning && steps < maxSteps {
+            let qValues = agent.policyNetwork(state.expandedDimensions(axis: 0))
+            let action = Int(MLX.argMax(qValues, axis: 1).item(Int32.self))
+            
+            let result = env.step(action)
+            state = preprocessCarRacingObservation(result.obs, size: carRacingDiscreteObservationSize)
+            terminated = result.terminated
+            truncated = result.truncated
+            reward += result.reward
+            steps += 1
+            
+            await MainActor.run {
+                self.currentStep = steps
+                self.episodeReward = reward
+            }
+            
+            if showVisualization {
+                if let car = env.unwrapped as? CarRacingDiscrete {
+                    await MainActor.run {
+                        self.carRacingDiscreteSnapshot = car.currentSnapshot
+                    }
+                }
+                
+                let delayNs = UInt64(1_000_000_000 / targetFPS)
+                try? await Task.sleep(nanoseconds: delayNs)
+            }
+        }
+        
+        carRacingDiscreteEnv = env
+        
+        await MainActor.run {
+            self.episodeRewards.append(reward)
+            self.episodeSteps.append(steps)
+            self.totalReward += reward
+            
+            // CarRacingDiscrete: successful lap if reward >= 900
+            if reward >= 900 {
                 self.successCount += 1
             }
         }

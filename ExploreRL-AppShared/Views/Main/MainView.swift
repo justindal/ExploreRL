@@ -27,6 +27,8 @@ struct MainView: View {
     @State private var pendulumRunner = PendulumRunner()
     @State private var lunarLanderRunner = LunarLanderRunner()
     @State private var lunarLanderContinuousRunner = LunarLanderContinuousRunner()
+    @State private var carRacingRunner = CarRacingRunner()
+    @State private var carRacingDiscreteRunner = CarRacingDiscreteRunner()
     @State private var evaluationRunner = EvaluationRunner()
     
     @State private var selectedItem: NavItem? = .library
@@ -139,7 +141,9 @@ struct MainView: View {
                     acrobotRunner: acrobotRunner,
                     pendulumRunner: pendulumRunner,
                     lunarLanderRunner: lunarLanderRunner,
-                    lunarLanderContinuousRunner: lunarLanderContinuousRunner
+                    lunarLanderContinuousRunner: lunarLanderContinuousRunner,
+                    carRacingRunner: carRacingRunner,
+                    carRacingDiscreteRunner: carRacingDiscreteRunner
                 )
             }
             
@@ -185,6 +189,10 @@ struct MainView: View {
                 LunarLanderView(runner: lunarLanderRunner)
             case .lunarLanderContinuous:
                 LunarLanderContinuousView(runner: lunarLanderContinuousRunner)
+            case .carRacing:
+                CarRacingView(runner: carRacingRunner)
+            case .carRacingDiscrete:
+                CarRacingDiscreteView(runner: carRacingDiscreteRunner)
             }
         }
     }

@@ -127,6 +127,24 @@ struct EnvironmentRegistry {
             accentColor: .teal,
             category: .box2d,
             description: "Land a rocket with continuous throttle control for main and side engines."
+        ),
+        EnvironmentInfo(
+            type: .carRacing,
+            displayName: "Car Racing",
+            algorithmName: "SAC",
+            icon: "flag.checkered",
+            accentColor: .pink,
+            category: .box2d,
+            description: "Race a car around a procedurally generated track with continuous steering, gas, and brake controls."
+        ),
+        EnvironmentInfo(
+            type: .carRacingDiscrete,
+            displayName: "Car Racing Discrete",
+            algorithmName: "DQN",
+            icon: "flag.checkered.circle.fill",
+            accentColor: .gray,
+            category: .box2d,
+            description: "Race a car around a procedurally generated track using discrete action choices."
         )
     ]
     
@@ -170,7 +188,9 @@ extension EnvironmentRegistry {
         acrobotRunner: AcrobotRunner,
         pendulumRunner: PendulumRunner,
         lunarLanderRunner: LunarLanderRunner,
-        lunarLanderContinuousRunner: LunarLanderContinuousRunner
+        lunarLanderContinuousRunner: LunarLanderContinuousRunner,
+        carRacingRunner: CarRacingRunner,
+        carRacingDiscreteRunner: CarRacingDiscreteRunner
     ) -> some View {
         switch type {
         case .frozenLake:
@@ -195,6 +215,10 @@ extension EnvironmentRegistry {
             LunarLanderView(runner: lunarLanderRunner)
         case .lunarLanderContinuous:
             LunarLanderContinuousView(runner: lunarLanderContinuousRunner)
+        case .carRacing:
+            CarRacingView(runner: carRacingRunner)
+        case .carRacingDiscrete:
+            CarRacingDiscreteView(runner: carRacingDiscreteRunner)
         }
     }
 }

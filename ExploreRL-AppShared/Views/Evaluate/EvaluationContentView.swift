@@ -152,6 +152,18 @@ struct EvaluationContentView: View {
                             .aspectRatio(600/400, contentMode: .fit)
                             .cornerRadius(12)
                     }
+                case .carRacing:
+                    if let snapshot = runner.carRacingSnapshot {
+                        CarRacingViewAdapter(snapshot: snapshot)
+                            .aspectRatio(600/400, contentMode: .fit)
+                            .cornerRadius(12)
+                    }
+                case .carRacingDiscrete:
+                    if let snapshot = runner.carRacingDiscreteSnapshot {
+                        CarRacingDiscreteViewAdapter(snapshot: snapshot)
+                            .aspectRatio(600/400, contentMode: .fit)
+                            .cornerRadius(12)
+                    }
                 }
             }
         }

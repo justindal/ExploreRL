@@ -376,6 +376,137 @@ enum EnvironmentInfoTabModels {
         )
     }
     
+    static func carRacing(
+        maxStepsPerEpisode: Int?,
+        lapCompletePercent: Double? = nil,
+        domainRandomize: Bool? = nil,
+        useFrameStack: Bool? = nil,
+        frameStackSize: Int? = nil
+    ) -> EnvironmentInfoTabModel {
+        var envConfig: [EnvironmentInfoTabModel.KV] = []
+        if let lcp = lapCompletePercent {
+            envConfig.append(EnvironmentInfoTabModel.KV(label: "Lap Complete %", value: String(format: "%.2f", lcp)))
+        }
+        if let dr = domainRandomize {
+            envConfig.append(EnvironmentInfoTabModel.KV(label: "Domain Randomize", value: dr ? "Yes" : "No"))
+        }
+        if let fs = useFrameStack {
+            if fs, let size = frameStackSize {
+                envConfig.append(EnvironmentInfoTabModel.KV(label: "Frame Stack", value: "\(size) frames"))
+            } else {
+                envConfig.append(EnvironmentInfoTabModel.KV(label: "Frame Stack", value: "Disabled"))
+            }
+        }
+        
+        var sections: [EnvironmentInfoTabModel.Section] = [
+            .init(
+                title: "Spaces",
+                kind: .keyValues([
+                    .init(label: "Observation Space", value: "Box(96,96,3) → 12×12 gray"),
+                    .init(label: "Observation", value: "Downsampled grayscale (144 features)"),
+                    .init(label: "Action Space", value: "Box(3,)"),
+                    .init(label: "Actions", value: "[steer, gas, brake]"),
+                    .init(label: "Steer Range", value: "[-1, 1]"),
+                    .init(label: "Gas/Brake Range", value: "[0, 1]")
+                ])
+            ),
+            .init(
+                title: "Rewards",
+                kind: .bullets([
+                    "Reward: −0.1 per frame, +1000/N for each tile visited (N = track tiles).",
+                    "High scores require completing the track quickly."
+                ])
+            ),
+            .init(
+                title: "Episode end",
+                kind: .bullets([
+                    "Termination: car goes off-track or completes lap.",
+                    truncationLine(maxStepsPerEpisode: maxStepsPerEpisode)
+                ])
+            )
+        ]
+        
+        if !envConfig.isEmpty {
+            sections.append(.init(title: "Environment Config", kind: .keyValues(envConfig)))
+        }
+        
+        return EnvironmentInfoTabModel(
+            title: "Car Racing — Info",
+            subtitle: "Box2D • Continuous actions",
+            overview: overview(for: .carRacing),
+            sections: sections
+        )
+    }
+    
+    static func carRacingDiscrete(
+        maxStepsPerEpisode: Int?,
+        lapCompletePercent: Double? = nil,
+        domainRandomize: Bool? = nil,
+        useFrameStack: Bool? = nil,
+        frameStackSize: Int? = nil
+    ) -> EnvironmentInfoTabModel {
+        var envConfig: [EnvironmentInfoTabModel.KV] = []
+        if let lcp = lapCompletePercent {
+            envConfig.append(EnvironmentInfoTabModel.KV(label: "Lap Complete %", value: String(format: "%.2f", lcp)))
+        }
+        if let dr = domainRandomize {
+            envConfig.append(EnvironmentInfoTabModel.KV(label: "Domain Randomize", value: dr ? "Yes" : "No"))
+        }
+        if let fs = useFrameStack {
+            if fs, let size = frameStackSize {
+                envConfig.append(EnvironmentInfoTabModel.KV(label: "Frame Stack", value: "\(size) frames"))
+            } else {
+                envConfig.append(EnvironmentInfoTabModel.KV(label: "Frame Stack", value: "Disabled"))
+            }
+        }
+        
+        var sections: [EnvironmentInfoTabModel.Section] = [
+            .init(
+                title: "Spaces",
+                kind: .keyValues([
+                    .init(label: "Observation Space", value: "Box(96,96,3) → 12×12 gray"),
+                    .init(label: "Observation", value: "Downsampled grayscale (144 features)"),
+                    .init(label: "Action Space", value: "Discrete(5)")
+                ])
+            ),
+            .init(
+                title: "Actions",
+                kind: .keyValues([
+                    .init(label: "0", value: "Do nothing"),
+                    .init(label: "1", value: "Steer left"),
+                    .init(label: "2", value: "Steer right"),
+                    .init(label: "3", value: "Gas"),
+                    .init(label: "4", value: "Brake")
+                ])
+            ),
+            .init(
+                title: "Rewards",
+                kind: .bullets([
+                    "Reward: −0.1 per frame, +1000/N for each tile visited (N = track tiles).",
+                    "High scores require completing the track quickly."
+                ])
+            ),
+            .init(
+                title: "Episode end",
+                kind: .bullets([
+                    "Termination: car goes off-track or completes lap.",
+                    truncationLine(maxStepsPerEpisode: maxStepsPerEpisode)
+                ])
+            )
+        ]
+        
+        if !envConfig.isEmpty {
+            sections.append(.init(title: "Environment Config", kind: .keyValues(envConfig)))
+        }
+        
+        return EnvironmentInfoTabModel(
+            title: "Car Racing Discrete — Info",
+            subtitle: "Box2D • Discrete actions",
+            overview: overview(for: .carRacingDiscrete),
+            sections: sections
+        )
+    }
+    
     static func frozenLake(
         algorithmName: String?,
         mapName: String?,
@@ -627,6 +758,10 @@ enum EnvironmentInfoTabModels {
             return lunarLander(maxStepsPerEpisode: nil)
         case .lunarLanderContinuous:
             return lunarLanderContinuous(maxStepsPerEpisode: nil)
+        case .carRacing:
+            return carRacing(maxStepsPerEpisode: nil)
+        case .carRacingDiscrete:
+            return carRacingDiscrete(maxStepsPerEpisode: nil)
         case .frozenLake:
             return frozenLake(
                 algorithmName: nil,

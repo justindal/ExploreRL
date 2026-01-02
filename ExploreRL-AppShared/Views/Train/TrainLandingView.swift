@@ -18,6 +18,8 @@ struct TrainLandingView: View {
     var pendulumRunner: PendulumRunner
     var lunarLanderRunner: LunarLanderRunner
     var lunarLanderContinuousRunner: LunarLanderContinuousRunner
+    var carRacingRunner: CarRacingRunner
+    var carRacingDiscreteRunner: CarRacingDiscreteRunner
     
     var body: some View {
         NavigationStack {
@@ -96,6 +98,12 @@ struct TrainLandingView: View {
         case .lunarLanderContinuous:
             LunarLanderContinuousView(runner: lunarLanderContinuousRunner)
                 .navigationTitle("Lunar Lander Continuous")
+        case .carRacing:
+            CarRacingView(runner: carRacingRunner)
+                .navigationTitle("Car Racing")
+        case .carRacingDiscrete:
+            CarRacingDiscreteView(runner: carRacingDiscreteRunner)
+                .navigationTitle("Car Racing Discrete")
         }
     }
 }

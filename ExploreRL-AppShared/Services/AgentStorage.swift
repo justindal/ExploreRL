@@ -261,11 +261,11 @@ import Gymnazo
         switch envType {
         case .frozenLake, .blackjack, .taxi, .cliffWalking:
             return "qtable.npy"
-        case .cartPole, .mountainCar, .acrobot, .lunarLander:
+        case .cartPole, .mountainCar, .acrobot, .lunarLander, .carRacingDiscrete:
             return "weights.safetensors"
         case .mountainCarContinuous:
             return algorithm == "SAC-Vmap" ? "sac_vmap_weights.safetensors" : "sac_weights.safetensors"
-        case .pendulum, .lunarLanderContinuous:
+        case .pendulum, .lunarLanderContinuous, .carRacing:
             return "sac_weights.safetensors"
         }
     }
@@ -1092,7 +1092,7 @@ import Gymnazo
     }
     
     func loadNetworkWeights(for agent: SavedAgent) throws -> [String: MLXArray] {
-        guard [.cartPole, .mountainCar, .acrobot, .lunarLander].contains(agent.environmentType) else {
+        guard [.cartPole, .mountainCar, .acrobot, .lunarLander, .carRacingDiscrete].contains(agent.environmentType) else {
             throw AgentStorageError.wrongEnvironmentType
         }
         let dataURL = try resolveAgentDataURL(for: agent)
@@ -1101,6 +1101,74 @@ import Gymnazo
     
     func loadLunarLanderWeights(for agent: SavedAgent) throws -> [String: MLXArray] {
         guard agent.environmentType == .lunarLander else {
+            throw AgentStorageError.wrongEnvironmentType
+        }
+        let dataURL = try resolveAgentDataURL(for: agent)
+        return try MLX.loadArrays(url: dataURL)
+    }
+    
+    func saveCarRacingDiscreteAgent(
+        name: String,
+        policyNetwork: Module,
+        episodesTrained: Int,
+        trainingTimeSeconds: Double? = nil,
+        epsilon: Double,
+        bestReward: Double,
+        averageReward: Double,
+        hyperparameters: [String: Double],
+        environmentConfig: [String: String],
+        hiddenSize: Int = 256
+    ) throws -> SavedAgent {
+        let architecture = NetworkArchitecture(
+            networkType: "qNetwork",
+            inputSize: 144,
+            outputSize: 5,
+            hiddenSizes: [hiddenSize, hiddenSize],
+            hiddenActivation: "relu",
+            outputActivation: nil
+        )
+        
+        return try saveDQNAgent(
+            name: name,
+            policyNetwork: policyNetwork,
+            environmentType: .carRacingDiscrete,
+            episodesTrained: episodesTrained,
+            trainingTimeSeconds: trainingTimeSeconds,
+            epsilon: epsilon,
+            bestReward: bestReward,
+            averageReward: averageReward,
+            hyperparameters: hyperparameters,
+            environmentConfig: environmentConfig,
+            networkArchitecture: architecture
+        )
+    }
+    
+    func updateCarRacingDiscreteAgent(
+        id: UUID,
+        newName: String,
+        policyNetwork: Module,
+        episodesTrained: Int,
+        trainingTimeSeconds: Double? = nil,
+        epsilon: Double,
+        bestReward: Double,
+        averageReward: Double,
+        hyperparameters: [String: Double]
+    ) throws {
+        try updateDQNAgent(
+            id: id,
+            newName: newName,
+            policyNetwork: policyNetwork,
+            episodesTrained: episodesTrained,
+            trainingTimeSeconds: trainingTimeSeconds,
+            epsilon: epsilon,
+            bestReward: bestReward,
+            averageReward: averageReward,
+            hyperparameters: hyperparameters
+        )
+    }
+    
+    func loadCarRacingDiscreteWeights(for agent: SavedAgent) throws -> [String: MLXArray] {
+        guard agent.environmentType == .carRacingDiscrete else {
             throw AgentStorageError.wrongEnvironmentType
         }
         let dataURL = try resolveAgentDataURL(for: agent)
@@ -1659,6 +1727,85 @@ import Gymnazo
         return try loadSACWeightsGeneric(for: agent)
     }
     
+    func saveCarRacingAgent(
+        name: String,
+        actor: Module,
+        qEnsemble: Module,
+        episodesTrained: Int,
+        trainingTimeSeconds: Double? = nil,
+        alpha: Double,
+        bestReward: Double,
+        averageReward: Double,
+        hyperparameters: [String: Double],
+        environmentConfig: [String: String],
+        hiddenSize: Int = 256
+    ) throws -> SavedAgent {
+        let actorArch = NetworkArchitecture(
+            networkType: "actor",
+            inputSize: 144,
+            outputSize: 6,
+            hiddenSizes: [hiddenSize, hiddenSize],
+            hiddenActivation: "relu",
+            outputActivation: "tanh"
+        )
+        let criticArch = NetworkArchitecture(
+            networkType: "qEnsemble",
+            inputSize: 147,
+            outputSize: 1,
+            hiddenSizes: [hiddenSize, hiddenSize],
+            hiddenActivation: "relu",
+            outputActivation: nil
+        )
+        
+        return try saveSACAgent(
+            name: name,
+            actor: actor,
+            qEnsemble: qEnsemble,
+            environmentType: .carRacing,
+            episodesTrained: episodesTrained,
+            trainingTimeSeconds: trainingTimeSeconds,
+            alpha: alpha,
+            bestReward: bestReward,
+            averageReward: averageReward,
+            hyperparameters: hyperparameters,
+            environmentConfig: environmentConfig,
+            networkArchitectures: [actorArch, criticArch]
+        )
+    }
+    
+    func updateCarRacingAgent(
+        id: UUID,
+        newName: String,
+        actor: Module,
+        qEnsemble: Module,
+        episodesTrained: Int,
+        trainingTimeSeconds: Double? = nil,
+        alpha: Double,
+        bestReward: Double,
+        averageReward: Double,
+        hyperparameters: [String: Double]
+    ) throws {
+        try updateSACAgent(
+            id: id,
+            newName: newName,
+            actor: actor,
+            qEnsemble: qEnsemble,
+            episodesTrained: episodesTrained,
+            trainingTimeSeconds: trainingTimeSeconds,
+            alpha: alpha,
+            bestReward: bestReward,
+            averageReward: averageReward,
+            hyperparameters: hyperparameters
+        )
+    }
+    
+    func loadCarRacingWeights(for agent: SavedAgent) throws -> [String: [String: MLXArray]] {
+        guard agent.environmentType == .carRacing else {
+            throw AgentStorageError.wrongEnvironmentType
+        }
+        return try loadSACWeightsGeneric(for: agent)
+    }
+    
     func loadAgent(id: UUID) throws -> SavedAgent {
         for envType in EnvironmentType.allCases {
             let envDir = agentsDirectory.appendingPathComponent(envType.displayName, isDirectory: true)
@@ -1799,6 +1946,7 @@ enum AgentStorageError: LocalizedError {
     case wrongEnvironmentType
     case agentNotFound
     case dataCorrupted
+    case frameStackMismatch(saved: String, current: String)
     
     var errorDescription: String? {
         switch self {
@@ -1808,6 +1956,8 @@ enum AgentStorageError: LocalizedError {
             return "Agent not found"
         case .dataCorrupted:
             return "Agent data is corrupted"
+        case .frameStackMismatch(let saved, let current):
+            return "Frame stack settings mismatch: saved agent uses \(saved), but current settings are \(current). Please adjust your Frame Stack configuration to match."
         }
     }
 }

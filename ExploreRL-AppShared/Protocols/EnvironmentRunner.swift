@@ -81,6 +81,8 @@ enum EnvironmentType: String, Codable, CaseIterable, Identifiable {
     case pendulum = "Pendulum"
     case lunarLander = "LunarLander"
     case lunarLanderContinuous = "LunarLanderContinuous"
+    case carRacing = "CarRacing"
+    case carRacingDiscrete = "CarRacingDiscrete"
     
     var id: String { rawValue }
     
@@ -97,6 +99,8 @@ enum EnvironmentType: String, Codable, CaseIterable, Identifiable {
         case .pendulum: return "Pendulum"
         case .lunarLander: return "Lunar Lander"
         case .lunarLanderContinuous: return "Lunar Lander Continuous"
+        case .carRacing: return "Car Racing"
+        case .carRacingDiscrete: return "Car Racing Discrete"
         }
     }
     
@@ -113,6 +117,8 @@ enum EnvironmentType: String, Codable, CaseIterable, Identifiable {
         case .pendulum: return "circle.circle"
         case .lunarLander: return "airplane"
         case .lunarLanderContinuous: return "airplane.circle.fill"
+        case .carRacing: return "flag.checkered"
+        case .carRacingDiscrete: return "flag.checkered.circle.fill"
         }
     }
     
@@ -129,6 +135,8 @@ enum EnvironmentType: String, Codable, CaseIterable, Identifiable {
         case .lunarLanderContinuous: return .teal
         case .acrobot: return .red
         case .pendulum: return .indigo
+        case .carRacing: return .pink
+        case .carRacingDiscrete: return .gray
         }
     }
     
@@ -136,15 +144,15 @@ enum EnvironmentType: String, Codable, CaseIterable, Identifiable {
         switch self {
         case .frozenLake, .blackjack, .taxi, .cliffWalking: return .toyText
         case .cartPole, .mountainCar, .mountainCarContinuous, .acrobot, .pendulum: return .classicControl
-        case .lunarLander, .lunarLanderContinuous: return .box2d
+        case .lunarLander, .lunarLanderContinuous, .carRacing, .carRacingDiscrete: return .box2d
         }
     }
     
     var defaultAlgorithm: String {
         switch self {
         case .frozenLake, .blackjack, .taxi, .cliffWalking: return "Q-Learning"
-        case .cartPole, .mountainCar, .acrobot, .lunarLander: return "DQN"
-        case .mountainCarContinuous, .pendulum, .lunarLanderContinuous: return "SAC"
+        case .cartPole, .mountainCar, .acrobot, .lunarLander, .carRacingDiscrete: return "DQN"
+        case .mountainCarContinuous, .pendulum, .lunarLanderContinuous, .carRacing: return "SAC"
         }
     }
 }
