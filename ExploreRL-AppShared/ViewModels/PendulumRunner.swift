@@ -309,8 +309,14 @@ import MLXNN
             throw AgentStorageError.dataCorrupted
         }
         
+        let excludedActorKeys = Set([
+            "actionScale", "actionBias", "epsilon", "logPiConstant",
+            "logStdMinArray", "logStdRangeHalf"
+        ])
+        
         if let actorWeights = weightsDict["actor"] {
-            let actorTuples = actorWeights.map { ($0.key, $0.value) }
+            let filteredWeights = actorWeights.filter { !excludedActorKeys.contains($0.key) }
+            let actorTuples = filteredWeights.map { ($0.key, $0.value) }
             let actorParams = NestedDictionary<String, MLXArray>.unflattened(actorTuples)
             agent.actor.update(parameters: actorParams)
         }

@@ -1664,7 +1664,7 @@ import Gymnazo
         let actorArch = NetworkArchitecture(
             networkType: "actor",
             inputSize: 8,
-            outputSize: 4,
+            outputSize: 2,
             hiddenSizes: [hiddenSize, hiddenSize],
             hiddenActivation: "relu",
             outputActivation: "tanh"

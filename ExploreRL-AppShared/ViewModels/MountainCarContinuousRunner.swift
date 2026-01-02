@@ -307,8 +307,14 @@ import MLXNN
             throw AgentStorageError.dataCorrupted
         }
         
+        let excludedActorKeys = Set([
+            "actionScale", "actionBias", "epsilon", "logPiConstant",
+            "logStdMinArray", "logStdRangeHalf"
+        ])
+        
         if let actorWeights = weightsDict["actor"] {
-            let actorTuples = actorWeights.map { ($0.key, $0.value) }
+            let filteredWeights = actorWeights.filter { !excludedActorKeys.contains($0.key) }
+            let actorTuples = filteredWeights.map { ($0.key, $0.value) }
             let actorParams = NestedDictionary<String, MLXArray>.unflattened(actorTuples)
             agent.actor.update(parameters: actorParams)
         }
@@ -321,7 +327,7 @@ import MLXNN
             agent.qEnsembleTarget.update(parameters: qParams)
         }
         
-        eval(agent.actor.parameters(), agent.qEnsemble, agent.qEnsembleTarget)
+        eval(agent.actor, agent.qEnsemble, agent.qEnsembleTarget)
         
         episodeMetrics = []
         episodeCount = savedAgent.episodesTrained + 1

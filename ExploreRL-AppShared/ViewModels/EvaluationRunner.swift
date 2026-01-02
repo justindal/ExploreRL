@@ -368,8 +368,14 @@ import MLXNN
 
         let weightsDict = try AgentStorage.shared.loadSACVmapWeights(for: agent)
         
+        let excludedActorKeys = Set([
+            "actionScale", "actionBias", "epsilon", "logPiConstant",
+            "logStdMinArray", "logStdRangeHalf"
+        ])
+        
         if let actorWeights = weightsDict["actor"], !actorWeights.isEmpty {
-            let actorTuples = actorWeights.map { ($0.key, $0.value) }
+            let filteredWeights = actorWeights.filter { !excludedActorKeys.contains($0.key) }
+            let actorTuples = filteredWeights.map { ($0.key, $0.value) }
             let actorParams = NestedDictionary<String, MLXArray>.unflattened(actorTuples)
             sacAgent.actor.update(parameters: actorParams)
         }
@@ -465,8 +471,14 @@ import MLXNN
         
         let weightsDict = try AgentStorage.shared.loadPendulumWeights(for: agent)
         
+        let excludedActorKeys = Set([
+            "actionScale", "actionBias", "epsilon", "logPiConstant",
+            "logStdMinArray", "logStdRangeHalf"
+        ])
+        
         if let actorWeights = weightsDict["actor"] {
-            let actorTuples = actorWeights.map { ($0.key, $0.value) }
+            let filteredWeights = actorWeights.filter { !excludedActorKeys.contains($0.key) }
+            let actorTuples = filteredWeights.map { ($0.key, $0.value) }
             let actorParams = NestedDictionary<String, MLXArray>.unflattened(actorTuples)
             sacAgent.actor.update(parameters: actorParams)
         }
@@ -477,7 +489,7 @@ import MLXNN
             sacAgent.qEnsemble.update(parameters: qParams)
         }
         
-        eval(sacAgent.actor.parameters(), sacAgent.qEnsemble)
+        eval(sacAgent.actor, sacAgent.qEnsemble)
         
         pendulumAgent = sacAgent
         
@@ -577,9 +589,14 @@ import MLXNN
         )
         
         let weightsDict = try AgentStorage.shared.loadLunarLanderContinuousWeights(for: agent)
+        let excludedActorKeys = Set([
+            "actionScale", "actionBias", "epsilon", "logPiConstant",
+            "logStdMinArray", "logStdRangeHalf"
+        ])
         
         if let actorWeights = weightsDict["actor"] {
-            let actorTuples = actorWeights.map { ($0.key, $0.value) }
+            let filteredWeights = actorWeights.filter { !excludedActorKeys.contains($0.key) }
+            let actorTuples = filteredWeights.map { ($0.key, $0.value) }
             let actorParams = NestedDictionary<String, MLXArray>.unflattened(actorTuples)
             sacAgent.actor.update(parameters: actorParams)
         }
@@ -590,7 +607,7 @@ import MLXNN
             sacAgent.qEnsemble.update(parameters: qParams)
         }
         
-        eval(sacAgent.actor.parameters(), sacAgent.qEnsemble)
+        eval(sacAgent.actor, sacAgent.qEnsemble)
         
         lunarLanderContinuousAgent = sacAgent
         
@@ -651,9 +668,15 @@ import MLXNN
         )
         
         let weightsDict = try AgentStorage.shared.loadCarRacingWeights(for: agent)
+
+        let excludedActorKeys = Set([
+            "actionScale", "actionBias", "epsilon", "logPiConstant",
+            "logStdMinArray", "logStdRangeHalf"
+        ])
         
         if let actorWeights = weightsDict["actor"] {
-            let actorTuples = actorWeights.map { ($0.key, $0.value) }
+            let filteredWeights = actorWeights.filter { !excludedActorKeys.contains($0.key) }
+            let actorTuples = filteredWeights.map { ($0.key, $0.value) }
             let actorParams = NestedDictionary<String, MLXArray>.unflattened(actorTuples)
             sacAgent.actor.update(parameters: actorParams)
         }
@@ -664,7 +687,7 @@ import MLXNN
             sacAgent.qEnsemble.update(parameters: qParams)
         }
         
-        eval(sacAgent.actor.parameters(), sacAgent.qEnsemble)
+        eval(sacAgent.actor, sacAgent.qEnsemble)
         
         carRacingAgent = sacAgent
         
