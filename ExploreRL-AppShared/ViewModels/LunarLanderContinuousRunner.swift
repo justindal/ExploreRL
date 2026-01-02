@@ -151,14 +151,6 @@ import MLXNN
                 batchSize: batchSize,
                 bufferSize: bufferSize
             )
-            
-            // warmup 
-            if let sacAgent = agent {
-                let dummyState = MLXArray.zeros([1, LunarLanderContinuousSAC.observationSize])
-                var tempKey = rngKey
-                let _ = sacAgent.chooseAction(state: dummyState, key: &tempKey, deterministic: true)
-                eval()
-            }
         }
         
         episodeMetrics.removeAll()

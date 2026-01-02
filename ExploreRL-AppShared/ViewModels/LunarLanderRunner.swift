@@ -163,13 +163,6 @@ import MLXNN
             bufferCapacity: 100_000,
             gradClipNorm: Float(gradClipNorm)
         )
-        // warmup 
-        if let agent = self.agent, let actionSpace = env.action_space as? Discrete {
-            let dummyState = MLXArray.zeros([1, LunarLanderDQN.observationSize])
-            var tempKey = rngKey
-            let _ = agent.chooseAction(state: dummyState, actionSpace: actionSpace, key: &tempKey)
-            eval()
-        }
         
         episodeMetrics.removeAll()
         totalReward = 0
