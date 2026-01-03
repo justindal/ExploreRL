@@ -72,26 +72,26 @@ import MLXNN
     var useSeed: Bool = TrainingDefaults.useSeed
     var seed: Int = TrainingDefaults.seed
     
-    var hiddenSize: Int = 64
+    var hiddenSize: Int = 256
     
     var learningRate: Double = 3e-4
-    var gamma: Double = 0.9999
-    var tau: Double = 0.01
+    var gamma: Double = 0.99
+    var tau: Double = 0.005
     
     var alpha: Double = 0.1
-    var batchSize: Int = 512
+    var batchSize: Int = 256
     var bufferSize: Int = 50_000
-    var warmupSteps: Int = TrainingDefaults.warmupSteps
+    var warmupSteps: Int = 1000
     var maxStepsPerEpisode: Int = 999
     var learnedStd: Bool = true
-    var useGSDE: Bool = true
+    var useGSDE: Bool = false
     var sdeSampleFreq: Int = -1
     
-    var autoAlpha: Bool = false
+    var autoAlpha: Bool = true
     var initAlpha: Double = 1.0
     var alphaLr: Double = 0.0003
-    var trainFreqSteps: Int = 32
-    var gradientStepsPerTrain: Int = 32
+    var trainFreqSteps: Int = 1
+    var gradientStepsPerTrain: Int = 1
     
     var goalVelocity: Double = 0.0
     
@@ -197,22 +197,22 @@ import MLXNN
         episodeMetrics = []
         committedEpisodeMetricsCount = 0
         totalSteps = 0
-        hiddenSize = 64
+        hiddenSize = 256
         learningRate = 3e-4
-        gamma = 0.9999
-        tau = 0.01
+        gamma = 0.99
+        tau = 0.005
         alpha = 0.1
-        batchSize = 512
+        batchSize = 256
         bufferSize = 50_000
-        warmupSteps = TrainingDefaults.warmupSteps
+        warmupSteps = 1000
         learnedStd = true
-        useGSDE = true
+        useGSDE = false
         sdeSampleFreq = -1
-        autoAlpha = false
+        autoAlpha = true
         initAlpha = 1.0
         alphaLr = 0.0003
-        trainFreqSteps = 32
-        gradientStepsPerTrain = 32
+        trainFreqSteps = 1
+        gradientStepsPerTrain = 1
         loadedAgentId = nil
         loadedAgentName = nil
         hasTrainedSinceLoad = false
