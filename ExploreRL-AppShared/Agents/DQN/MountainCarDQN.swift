@@ -20,10 +20,10 @@ nonisolated public class MountainCarQNetwork: Module, QNetworkProtocol {
     let layer4: Linear
 
     public init(numObservations: Int, numActions: Int, hiddenSize: Int = 128) {
-        self.layer1 = Linear(numObservations, hiddenSize)
-        self.layer2 = Linear(hiddenSize, hiddenSize)
-        self.layer3 = Linear(hiddenSize, hiddenSize)
-        self.layer4 = Linear(hiddenSize, numActions)
+        self.layer1 = kaimingLinear(numObservations, hiddenSize)
+        self.layer2 = kaimingLinear(hiddenSize, hiddenSize)
+        self.layer3 = kaimingLinear(hiddenSize, hiddenSize)
+        self.layer4 = kaimingLinear(hiddenSize, numActions)
         super.init()
     }
 

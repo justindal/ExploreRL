@@ -47,8 +47,8 @@ nonisolated public class MountainCarContinuousActorNetwork: Module, SACActorProt
         let logStdMax: Float = 2.0
         let logStdMin: Float = -5.0
         
-        self.layer1 = Linear(numObservations, hiddenSize)
-        self.layer2 = Linear(hiddenSize, hiddenSize)
+        self.layer1 = kaimingLinear(numObservations, hiddenSize)
+        self.layer2 = kaimingLinear(hiddenSize, hiddenSize)
         self.meanLayer = Linear(hiddenSize, numActions)
         self.learnedStd = learnedStd
         self.useGSDE = useGSDE
@@ -193,14 +193,13 @@ nonisolated public class MountainCarContinuousEnsembleQNetwork: Module, SACEnsem
         
         let inputSize = numObservations + numActions
         
-        // Xavier initialization for ensemble weights
-        let (w1, b1) = xavierEnsembleWeights(inputDimensions: inputSize, outputDimensions: hiddenSize, numEnsemble: numEnsemble)
+        let (w1, b1) = kaimingEnsembleWeights(inputDimensions: inputSize, outputDimensions: hiddenSize, numEnsemble: numEnsemble)
         self.layer1 = Linear(weight: w1, bias: b1)
         
-        let (w2, b2) = xavierEnsembleWeights(inputDimensions: hiddenSize, outputDimensions: hiddenSize, numEnsemble: numEnsemble)
+        let (w2, b2) = kaimingEnsembleWeights(inputDimensions: hiddenSize, outputDimensions: hiddenSize, numEnsemble: numEnsemble)
         self.layer2 = Linear(weight: w2, bias: b2)
         
-        let (w3, b3) = xavierEnsembleWeights(inputDimensions: hiddenSize, outputDimensions: 1, numEnsemble: numEnsemble)
+        let (w3, b3) = kaimingEnsembleWeights(inputDimensions: hiddenSize, outputDimensions: 1, numEnsemble: numEnsemble)
         self.layer3 = Linear(weight: w3, bias: b3)
         
         super.init()

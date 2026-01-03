@@ -37,8 +37,8 @@ nonisolated public class LunarLanderContinuousActorNetwork: Module, SACActorProt
         actionSpaceLow: Float = -1.0,
         actionSpaceHigh: Float = 1.0
     ) {
-        self.layer1 = Linear(numObservations, hiddenSize1)
-        self.layer2 = Linear(hiddenSize1, hiddenSize2)
+        self.layer1 = kaimingLinear(numObservations, hiddenSize1)
+        self.layer2 = kaimingLinear(hiddenSize1, hiddenSize2)
         self.meanLayer = Linear(hiddenSize2, numActions)
         self.logStdLayer = Linear(hiddenSize2, numActions)
 
@@ -107,13 +107,13 @@ nonisolated public class LunarLanderContinuousEnsembleQNetwork: Module, SACEnsem
         
         let inputSize = numObservations + numActions
         
-        let (w1, b1) = xavierEnsembleWeights(inputDimensions: inputSize, outputDimensions: hiddenSize1, numEnsemble: numEnsemble)
+        let (w1, b1) = kaimingEnsembleWeights(inputDimensions: inputSize, outputDimensions: hiddenSize1, numEnsemble: numEnsemble)
         self.layer1 = Linear(weight: w1, bias: b1)
         
-        let (w2, b2) = xavierEnsembleWeights(inputDimensions: hiddenSize1, outputDimensions: hiddenSize2, numEnsemble: numEnsemble)
+        let (w2, b2) = kaimingEnsembleWeights(inputDimensions: hiddenSize1, outputDimensions: hiddenSize2, numEnsemble: numEnsemble)
         self.layer2 = Linear(weight: w2, bias: b2)
         
-        let (w3, b3) = xavierEnsembleWeights(inputDimensions: hiddenSize2, outputDimensions: 1, numEnsemble: numEnsemble)
+        let (w3, b3) = kaimingEnsembleWeights(inputDimensions: hiddenSize2, outputDimensions: 1, numEnsemble: numEnsemble)
         self.layer3 = Linear(weight: w3, bias: b3)
         
         super.init()

@@ -19,9 +19,9 @@ nonisolated public class AcrobotQNetwork: Module, QNetworkProtocol {
     let layer3: Linear
 
     public init(numObservations: Int, numActions: Int, hiddenSize: Int = 128) {
-        self.layer1 = xavierLinear(numObservations, hiddenSize)
-        self.layer2 = xavierLinear(hiddenSize, hiddenSize)
-        self.layer3 = xavierLinear(hiddenSize, numActions)
+        self.layer1 = kaimingLinear(numObservations, hiddenSize)
+        self.layer2 = kaimingLinear(hiddenSize, hiddenSize)
+        self.layer3 = kaimingLinear(hiddenSize, numActions)
         super.init()
     }
 
