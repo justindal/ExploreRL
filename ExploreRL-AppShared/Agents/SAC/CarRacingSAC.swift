@@ -19,12 +19,21 @@ nonisolated public class CarRacingActorNetwork: Module, SACActorProtocol {
     private let logStdRangeHalf: MLXArray
     private let logPiConstant: MLXArray
     private let epsilon: MLXArray
+    
+    public let useSDE: Bool
+    public let numActions: Int
+    private var sdeNoise: MLXArray?
 
     public init(
         numObservations: Int,
         numActions: Int,
-        hiddenSize: Int = 256
+        hiddenSize: Int = 256,
+        useSDE: Bool = false
     ) {
+        self.useSDE = useSDE
+        self.numActions = numActions
+        self.sdeNoise = nil
+        
         self.layer1 = kaimingLinear(numObservations, hiddenSize)
         self.layer2 = kaimingLinear(hiddenSize, hiddenSize)
         self.meanLayer = Linear(hiddenSize, numActions)
@@ -39,6 +48,10 @@ nonisolated public class CarRacingActorNetwork: Module, SACActorProtocol {
         self.epsilon = MLXArray(Float(1e-6))
         
         super.init()
+    }
+    
+    public func resetNoise(key: MLXArray) {
+        self.sdeNoise = MLX.normal([1, numActions], key: key)
     }
 
     public func callAsFunction(_ x: MLXArray) -> (mean: MLXArray, logStd: MLXArray) {
@@ -55,7 +68,13 @@ nonisolated public class CarRacingActorNetwork: Module, SACActorProtocol {
         let (mean, logStd) = self(obs)
         let std = exp(logStd)
 
-        let noise = MLX.normal(mean.shape, key: key)
+        let noise: MLXArray
+        if useSDE, let persistentNoise = sdeNoise {
+            noise = MLX.broadcast(persistentNoise, to: mean.shape)
+        } else {
+            noise = MLX.normal(mean.shape, key: key)
+        }
+        
         let x_t = mean + std * noise
         let y_t = tanh(x_t)
 
@@ -160,14 +179,15 @@ public class CarRacingSAC: SACAgentVmap<CarRacingActorNetwork, CarRacingEnsemble
     public static let actionCount = 3
     
     public let observationSize: Int
+    public let useSDE: Bool
     
     public struct Defaults {
         public static let hiddenSize = 256
-        public static let learningRate: Float = 0.0003
+        public static let learningRate: Float = 0.00073
         public static let gamma: Float = 0.99
-        public static let tau: Float = 0.005
+        public static let tau: Float = 0.02
         public static let batchSize = 256
-        public static let bufferSize = 100000
+        public static let bufferSize = 300000
     }
     
     public init(
@@ -178,14 +198,17 @@ public class CarRacingSAC: SACAgentVmap<CarRacingActorNetwork, CarRacingEnsemble
         tau: Float = Defaults.tau,
         batchSize: Int = Defaults.batchSize,
         bufferSize: Int = Defaults.bufferSize,
+        useSDE: Bool = true,
         entCoefMode: EntropyCoefficientMode = .auto(initAlpha: 1.0, alphaLr: 0.0003, targetEntropy: nil)
     ) {
         self.observationSize = observationSize
+        self.useSDE = useSDE
         
         let actorNet = CarRacingActorNetwork(
             numObservations: observationSize,
             numActions: Self.actionCount,
-            hiddenSize: hiddenSize
+            hiddenSize: hiddenSize,
+            useSDE: useSDE
         )
         
         let qEnsemble = CarRacingEnsembleQNetwork(

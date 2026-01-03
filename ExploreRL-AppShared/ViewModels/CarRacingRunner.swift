@@ -81,14 +81,16 @@ import MLXNN
     var autoAlpha: Bool = true
     var initAlpha: Double = 1.0
     var alphaLr: Double = 0.0003
-    var trainFreqSteps: Int = 1
-    var gradientStepsPerTrain: Int = 1
+    var trainFreqSteps: Int = 8
+    var gradientStepsPerTrain: Int = 10
     
     var lapCompletePercent: Double = 0.95
     var domainRandomize: Bool = false
     
     var useFrameStack: Bool = true
     var frameStackSize: Int = 4
+    var frameSkip: Int = 2
+    var useSDE: Bool = true
     
     var currentObservationSize: Int {
         useFrameStack ? 144 * frameStackSize : 144
@@ -129,18 +131,18 @@ import MLXNN
             return
         }
 
-        let resizedEnv = ResizeObservation(
-            env: GrayscaleObservation(env: baseEnv),
-            shape: (12, 12)
-        )
+        let grayscaleEnv = GrayscaleObservation(env: baseEnv)
+        let resizedEnv = ResizeObservation(env: grayscaleEnv, shape: (12, 12))
+        let normalizedEnv = NormalizeObservation(env: resizedEnv)
+        let frameSkippedEnv = FrameSkip(env: normalizedEnv, skip: frameSkip)
 
         if useFrameStack {
-            var env = FrameStackObservation(env: resizedEnv, stackSize: frameStackSize, paddingType: .reset)
+            var env = FrameStackObservation(env: frameSkippedEnv, stackSize: frameStackSize, paddingType: .reset)
             let _ = env.reset()
             self.snapshot = renderEnabled ? (env.render() as? CarRacingSnapshot) : nil
             self.env = env
         } else {
-            var env = resizedEnv
+            var env = frameSkippedEnv
             let _ = env.reset()
             self.snapshot = renderEnabled ? (env.render() as? CarRacingSnapshot) : nil
             self.env = env
@@ -167,6 +169,7 @@ import MLXNN
                 tau: Float(tau),
                 batchSize: batchSize,
                 bufferSize: bufferSize,
+                useSDE: useSDE,
                 entCoefMode: entCoefMode
             )
         }
@@ -217,8 +220,8 @@ import MLXNN
         autoAlpha = true
         initAlpha = 1.0
         alphaLr = 0.0003
-        trainFreqSteps = 1
-        gradientStepsPerTrain = 1
+        trainFreqSteps = 8
+        gradientStepsPerTrain = 10
         batchSize = CarRacingSAC.Defaults.batchSize
         bufferSize = CarRacingSAC.Defaults.bufferSize
         
@@ -235,6 +238,8 @@ import MLXNN
         domainRandomize = false
         useFrameStack = true
         frameStackSize = 4
+        frameSkip = 2
+        useSDE = true
     }
 
     func startTraining() {
@@ -449,8 +454,7 @@ import MLXNN
     }
     
     private func preprocessObservation(_ obs: MLXArray) -> MLXArray {
-        let x = obs.asType(.float32) / MLXArray(Float32(255.0))
-        return x.reshaped([currentObservationSize])
+        return obs.asType(.float32).reshaped([currentObservationSize])
     }
     
     private func trainingLoop() async {
@@ -469,6 +473,12 @@ import MLXNN
             var warmupEnv = env
             let warmupResult = warmupEnv.reset()
             var warmupState = preprocessObservation(warmupResult.obs)
+            
+            if useSDE {
+                let (newKey, noiseKey) = MLX.split(key: rngKey)
+                rngKey = newKey
+                sacAgent.actor.resetNoise(key: noiseKey)
+            }
             
             let samplesToCollect = warmupSteps - totalSteps
             
@@ -501,6 +511,12 @@ import MLXNN
                 if stepResult.terminated || stepResult.truncated {
                     let resetResult = warmupEnv.reset()
                     warmupState = preprocessObservation(resetResult.obs)
+                    
+                    if useSDE {
+                        let (newKey, noiseKey) = MLX.split(key: rngKey)
+                        rngKey = newKey
+                        sacAgent.actor.resetNoise(key: noiseKey)
+                    }
                 }
                 
                 if i % 100 == 0 {
@@ -522,6 +538,12 @@ import MLXNN
             let result = env.reset()
             var state = preprocessObservation(result.obs)
             self.env = env
+            
+            if useSDE {
+                let (newKey, noiseKey) = MLX.split(key: rngKey)
+                rngKey = newKey
+                sacAgent.actor.resetNoise(key: noiseKey)
+            }
             
             await MainActor.run {
                 self.currentStep = 0
