@@ -43,6 +43,16 @@ struct CarRacingConfigurationView: View {
                 showBuffer: true
             )
             
+            SACEntropySection(
+                autoAlpha: $runner.autoAlpha,
+                initAlpha: $runner.initAlpha,
+                alphaLr: $runner.alphaLr,
+                alpha: $runner.alpha,
+                trainFreqSteps: $runner.trainFreqSteps,
+                gradientStepsPerTrain: $runner.gradientStepsPerTrain,
+                isTraining: runner.isTraining
+            )
+            
             SeedSection(
                 useSeed: $runner.useSeed,
                 seed: $runner.seed,

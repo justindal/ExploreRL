@@ -45,6 +45,16 @@ struct PendulumConfigurationView: View {
                 showWarmup: true
             )
             
+            SACEntropySection(
+                autoAlpha: $runner.autoAlpha,
+                initAlpha: $runner.initAlpha,
+                alphaLr: $runner.alphaLr,
+                alpha: $runner.alpha,
+                trainFreqSteps: $runner.trainFreqSteps,
+                gradientStepsPerTrain: $runner.gradientStepsPerTrain,
+                isTraining: runner.isTraining
+            )
+            
             environmentSection
         }
         .padding()

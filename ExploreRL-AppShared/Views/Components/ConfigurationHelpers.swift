@@ -708,3 +708,134 @@ struct SeedSection: View {
     }
 }
 
+struct SACEntropySection: View {
+    @Binding var autoAlpha: Bool
+    @Binding var initAlpha: Double
+    @Binding var alphaLr: Double
+    @Binding var alpha: Double
+    @Binding var trainFreqSteps: Int
+    @Binding var gradientStepsPerTrain: Int
+    let isTraining: Bool
+    
+    @State private var showAutoAlphaInfo = false
+    @State private var showTrainFreqInfo = false
+    @State private var showGradStepsInfo = false
+    
+    var body: some View {
+        DisclosureGroup("Entropy & Training Schedule") {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text("Auto Alpha")
+                        .lineLimit(1)
+                    InfoButton(
+                        isPresented: $showAutoAlphaInfo,
+                        title: "Auto Entropy Coefficient",
+                        description: "Automatically tune the entropy coefficient (alpha) using Adam optimization.",
+                        icon: "wand.and.stars"
+                    )
+                    Spacer()
+                    Toggle("", isOn: $autoAlpha)
+                        .labelsHidden()
+                        .fixedSize()
+                        .disabled(isTraining)
+                }
+                
+                if autoAlpha {
+                    HyperparameterSlider(
+                        title: "Initial Alpha",
+                        value: $initAlpha,
+                        range: 0.01...2.0,
+                        step: 0.01,
+                        decimals: 2,
+                        infoTitle: "Initial Alpha",
+                        infoDescription: "Starting value for the entropy coefficient. Will be tuned during training.",
+                        infoIcon: "thermometer.medium",
+                        isDisabled: isTraining
+                    )
+                    
+                    HyperparameterSlider(
+                        title: "Alpha LR",
+                        value: $alphaLr,
+                        range: 0.00001...0.01,
+                        step: 0.00001,
+                        decimals: 5,
+                        infoTitle: "Alpha Learning Rate",
+                        infoDescription: "Learning rate for the entropy coefficient optimizer.",
+                        infoIcon: "bolt.horizontal",
+                        isDisabled: isTraining
+                    )
+                } else {
+                    HyperparameterSlider(
+                        title: "Fixed Alpha",
+                        value: $alpha,
+                        range: 0.01...1.0,
+                        step: 0.01,
+                        decimals: 2,
+                        infoTitle: "Fixed Alpha",
+                        infoDescription: "Fixed entropy coefficient value. Higher values encourage more exploration.",
+                        infoIcon: "thermometer.medium",
+                        isDisabled: isTraining
+                    )
+                }
+                
+                Divider()
+                
+                trainFreqSlider
+                gradientStepsSlider
+            }
+            .padding(.top, 8)
+        }
+        .disabled(isTraining)
+    }
+    
+    private var trainFreqSlider: some View {
+        let freqBinding = Binding<Double>(
+            get: { Double(trainFreqSteps) },
+            set: { trainFreqSteps = max(1, Int($0.rounded())) }
+        )
+        
+        return VStack(alignment: .leading) {
+            HStack {
+                Text("Train Frequency")
+                    .lineLimit(1)
+                InfoButton(
+                    isPresented: $showTrainFreqInfo,
+                    title: "Train Frequency",
+                    description: "Run gradient updates every N environment steps. Default is 1.",
+                    icon: "repeat"
+                )
+                Spacer()
+                Text("\(trainFreqSteps) step\(trainFreqSteps == 1 ? "" : "s")")
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+            }
+            Slider(value: freqBinding, in: 1...10, step: 1)
+        }
+    }
+    
+    private var gradientStepsSlider: some View {
+        let stepsBinding = Binding<Double>(
+            get: { Double(gradientStepsPerTrain) },
+            set: { gradientStepsPerTrain = max(1, Int($0.rounded())) }
+        )
+        
+        return VStack(alignment: .leading) {
+            HStack {
+                Text("Gradient Steps")
+                    .lineLimit(1)
+                InfoButton(
+                    isPresented: $showGradStepsInfo,
+                    title: "Gradient Steps",
+                    description: "Number of gradient updates per training event. Default is 1.",
+                    icon: "arrow.down.to.line"
+                )
+                Spacer()
+                Text("\(gradientStepsPerTrain)")
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+            }
+            Slider(value: stepsBinding, in: 1...10, step: 1)
+        }
+    }
+}
+

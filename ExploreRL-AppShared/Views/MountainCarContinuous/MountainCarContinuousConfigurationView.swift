@@ -40,9 +40,24 @@ struct MountainCarContinuousConfigurationView: View {
                 tau: $runner.tau,
                 tauRange: 0.001...0.05,
                 batchSize: $runner.batchSize,
+                isTraining: runner.isTraining,
+                warmupSteps: $runner.warmupSteps,
+                showWarmup: true,
+                bufferSize: $runner.bufferSize,
+                showBuffer: true
+            )
+            
+            SACEntropySection(
+                autoAlpha: $runner.autoAlpha,
+                initAlpha: $runner.initAlpha,
+                alphaLr: $runner.alphaLr,
+                alpha: $runner.alpha,
+                trainFreqSteps: $runner.trainFreqSteps,
+                gradientStepsPerTrain: $runner.gradientStepsPerTrain,
                 isTraining: runner.isTraining
             )
             
+            networkSection
             explorationSection
             environmentSection
         }
@@ -81,15 +96,54 @@ struct MountainCarContinuousConfigurationView: View {
     private var explorationSection: some View {
         DisclosureGroup("Exploration") {
             VStack(alignment: .leading, spacing: 10) {
-                Toggle("Use SDE", isOn: $runner.useSDE)
-                    .onChange(of: runner.useSDE) { _, _ in
+                Toggle("Use gSDE", isOn: $runner.useGSDE)
+                    .onChange(of: runner.useGSDE) { _, _ in
                         runner.stopTraining()
                         runner.setupEnvironment()
                     }
                 
-                Text("When disabled, the policy uses a fixed standard deviation for exploration.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                if runner.useGSDE {
+                    HStack {
+                        Text("SDE Sample Freq")
+                        Spacer()
+                        TextField("-1", value: $runner.sdeSampleFreq, format: .number)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 80)
+                    }
+                    
+                    Text("Resample the gSDE exploration matrix. Use -1 to resample once per episode; use N>0 to resample every N steps.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Toggle("Learned Std", isOn: $runner.learnedStd)
+                        .onChange(of: runner.learnedStd) { _, _ in
+                            runner.stopTraining()
+                            runner.setupEnvironment()
+                        }
+                    
+                    Text("When enabled, the policy learns a state-dependent standard deviation. When disabled, uses a fixed std for exploration.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(.top, 8)
+        }
+        .disabled(runner.isTraining)
+    }
+    
+    private var networkSection: some View {
+        DisclosureGroup("Network") {
+            VStack(alignment: .leading, spacing: 10) {
+                Picker("Hidden Size", selection: $runner.hiddenSize) {
+                    Text("64").tag(64)
+                    Text("128").tag(128)
+                    Text("256").tag(256)
+                }
+                .pickerStyle(.segmented)
+                .onChange(of: runner.hiddenSize) { _, _ in
+                    runner.stopTraining()
+                    runner.setupEnvironment()
+                }
             }
             .padding(.top, 8)
         }
