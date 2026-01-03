@@ -19,13 +19,15 @@ nonisolated public class MountainCarContinuousActorNetwork: Module, SACActorProt
     let layer2: Linear
     let meanLayer: Linear
     let logStdLayer: Linear
-    let useSDE: Bool
+    let learnedStd: Bool
+    let useGSDE: Bool
+    let logStdParam: TrainableParameter?
+    
+    private var explorationMat: MLXArray?
 
     nonisolated public let actionScale: MLXArray
     nonisolated public let actionBias: MLXArray
     
-    private let logStdMax: Float = 2.0
-    private let logStdMin: Float = -5.0
     private let fixedLogStd: Float = -1.0
     private let logStdMinArray: MLXArray
     private let logStdRangeHalf: MLXArray
@@ -38,13 +40,37 @@ nonisolated public class MountainCarContinuousActorNetwork: Module, SACActorProt
         hiddenSize: Int = 256,
         actionSpaceLow: Float = -1.0,
         actionSpaceHigh: Float = 1.0,
-        useSDE: Bool = true
+        learnedStd: Bool = true,
+        logStdInit: Float = -3.67,
+        useGSDE: Bool = false
     ) {
+        let logStdMax: Float = 2.0
+        let logStdMin: Float = -5.0
+        
         self.layer1 = Linear(numObservations, hiddenSize)
         self.layer2 = Linear(hiddenSize, hiddenSize)
         self.meanLayer = Linear(hiddenSize, numActions)
-        self.logStdLayer = Linear(hiddenSize, numActions)
-        self.useSDE = useSDE
+        self.learnedStd = learnedStd
+        self.useGSDE = useGSDE
+        if useGSDE {
+            self.logStdParam = TrainableParameter(
+                MLXArray(Array(repeating: logStdInit, count: hiddenSize * numActions))
+                    .reshaped([hiddenSize, numActions])
+            )
+        } else {
+            self.logStdParam = nil
+        }
+
+        let logStdBias: MLXArray? = {
+            guard learnedStd, numActions > 0 else { return MLX.zeros([numActions]) }
+            let denom = Float(0.5 * (logStdMax - logStdMin))
+            let center = logStdMin + denom
+            let desiredTanh = max(-0.999, min(0.999, (logStdInit - center) / denom))
+            let biasValue = atanh(desiredTanh)
+            return MLXArray(Array(repeating: biasValue, count: numActions))
+        }()
+        let tmpLogStd = Linear(hiddenSize, numActions)
+        self.logStdLayer = Linear(weight: tmpLogStd.weight, bias: logStdBias)
 
         let scale = (actionSpaceHigh - actionSpaceLow) / 2.0
         let bias = (actionSpaceHigh + actionSpaceLow) / 2.0
@@ -59,12 +85,22 @@ nonisolated public class MountainCarContinuousActorNetwork: Module, SACActorProt
         super.init()
     }
 
+    public func resetNoise(key: inout MLXArray) {
+        guard useGSDE, let logStdParam else { return }
+        let (k1, k2) = MLX.split(key: key)
+        key = k2
+        
+        let std = exp(logStdParam.value) // [latent_sde_dim, action_dim]
+        let eps = MLX.normal(std.shape, key: k1)
+        explorationMat = eps * std
+    }
+
     public func callAsFunction(_ x: MLXArray) -> (mean: MLXArray, logStd: MLXArray) {
         var h = relu(layer1(x))
         h = relu(layer2(h))
         let mean = meanLayer(h)
         let logStd: MLXArray
-        if useSDE {
+        if learnedStd {
             var l = logStdLayer(h)
             l = tanh(l)
             logStd = logStdMinArray + logStdRangeHalf * (l + 1.0)
@@ -75,15 +111,58 @@ nonisolated public class MountainCarContinuousActorNetwork: Module, SACActorProt
     }
 
     public func sample(obs: MLXArray, key: MLXArray) -> (action: MLXArray, logProb: MLXArray, mean: MLXArray) {
-        let (mean, logStd) = self(obs)
+        var h = relu(layer1(obs))
+        h = relu(layer2(h))
+        let mean = meanLayer(h)
+        
+        if useGSDE, let logStdParam {
+            let latentSde = stopGradient(h) 
+            let stdMat = exp(logStdParam.value)
+            
+            let variance = matmul(pow(latentSde, 2.0), pow(stdMat, 2.0))
+            let distStd = sqrt(variance + epsilon)
+            let logStdForProb = log(distStd)
+            
+            let noise: MLXArray
+            if latentSde.shape.count == 2,
+               latentSde.shape[0] == 1,
+               let explorationMat {
+                noise = matmul(latentSde, explorationMat)
+            } else {
+                let batch = latentSde.shape[0]
+                let eps = MLX.normal([batch] + stdMat.shape, key: key)
+                let explorationMatrices = eps * stdMat.reshaped([1] + stdMat.shape)
+                let latentB = latentSde.reshaped([batch, 1, latentSde.shape[1]])
+                let out = matmul(latentB, explorationMatrices)
+                noise = out.reshaped([batch, mean.shape[1]])
+            }
+            
+            let x_t = mean + noise
+            let y_t = tanh(x_t)
+            let action = y_t * actionScale + actionBias
+            
+            let logProbNorm = -0.5 * (pow((x_t - mean) / distStd, 2.0) + 2.0 * logStdForProb + logPiConstant)
+            let logProbCorrection = log(1.0 - pow(y_t, 2.0) + epsilon)
+            let logProb = (logProbNorm - logProbCorrection).sum(axis: -1, keepDims: true)
+            return (action, logProb, mean)
+        }
+        
+        let logStd: MLXArray
+        if learnedStd {
+            var l = logStdLayer(h)
+            l = tanh(l)
+            logStd = logStdMinArray + logStdRangeHalf * (l + 1.0)
+        } else {
+            logStd = MLXArray(fixedLogStd)
+        }
         let std = exp(logStd)
-
+        
         let noise = MLX.normal(mean.shape, key: key)
         let x_t = mean + std * noise
         let y_t = tanh(x_t)
-
+        
         let action = y_t * actionScale + actionBias
-
+        
         let logProbNorm = -0.5 * (pow((x_t - mean) / std, 2.0) + 2.0 * logStd + logPiConstant)
         let logProbCorrection = log(1.0 - pow(y_t, 2.0) + epsilon)
         let logProb = (logProbNorm - logProbCorrection).sum(axis: -1, keepDims: true)
@@ -180,6 +259,7 @@ nonisolated public class MountainCarContinuousEnsembleQNetwork: Module, SACEnsem
 }
 
 public class MountainCarContinuousSAC: SACAgentVmap<MountainCarContinuousActorNetwork, MountainCarContinuousEnsembleQNetwork> {
+    public let hiddenSize: Int
     
     // MountainCarContinuous environment constants
     public static let observationSize = 2
@@ -187,17 +267,13 @@ public class MountainCarContinuousSAC: SACAgentVmap<MountainCarContinuousActorNe
     public static let actionLow: Float = -1.0
     public static let actionHigh: Float = 1.0
     
-    // Default hyperparameters tuned for MountainCarContinuous
     public struct Defaults {
         public static let hiddenSize = 256
         public static let learningRate: Float = 0.0003
         public static let gamma: Float = 0.99
         public static let tau: Float = 0.005
-        public static let alpha: Float = 0.2
         public static let batchSize = 256
         public static let bufferSize = 100000
-        public static let minLogAlpha: Float = -3.0
-        public static let maxLogAlpha: Float = -0.7
     }
     
     public init(
@@ -205,21 +281,23 @@ public class MountainCarContinuousSAC: SACAgentVmap<MountainCarContinuousActorNe
         learningRate: Float = Defaults.learningRate,
         gamma: Float = Defaults.gamma,
         tau: Float = Defaults.tau,
-        alpha: Float = Defaults.alpha,
         batchSize: Int = Defaults.batchSize,
         bufferSize: Int = Defaults.bufferSize,
-        minLogAlpha: Float = Defaults.minLogAlpha,
-        maxLogAlpha: Float = Defaults.maxLogAlpha,
-        useSDE: Bool = true
+        learnedStd: Bool = true,
+        entCoefMode: EntropyCoefficientMode = .auto(initAlpha: 1.0, alphaLr: 0.0003, targetEntropy: nil),
+        logStdInit: Float = -3.67,
+        useGSDE: Bool = false
     ) {
-        // Create MountainCarContinuous-specific networks
+        self.hiddenSize = hiddenSize
         let actorNet = MountainCarContinuousActorNetwork(
             numObservations: Self.observationSize,
             numActions: Self.actionCount,
             hiddenSize: hiddenSize,
             actionSpaceLow: Self.actionLow,
             actionSpaceHigh: Self.actionHigh,
-            useSDE: useSDE
+            learnedStd: learnedStd,
+            logStdInit: logStdInit,
+            useGSDE: useGSDE
         )
         
         let qEnsemble = MountainCarContinuousEnsembleQNetwork(
@@ -244,11 +322,9 @@ public class MountainCarContinuousSAC: SACAgentVmap<MountainCarContinuousActorNe
             learningRate: learningRate,
             gamma: gamma,
             tau: tau,
-            alpha: alpha,
             batchSize: batchSize,
             bufferSize: bufferSize,
-            minLogAlpha: minLogAlpha,
-            maxLogAlpha: maxLogAlpha
+            entCoefMode: entCoefMode
         )
     }
 }

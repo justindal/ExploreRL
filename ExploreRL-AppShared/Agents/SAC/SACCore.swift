@@ -33,7 +33,20 @@ nonisolated public class TrainableParameter: Module {
     }
 }
 
-/// Protocol for SAC actor networks
+public enum EntropyCoefficientMode: Sendable {
+    case fixed(alpha: Float)
+    case auto(initAlpha: Float, alphaLr: Float, targetEntropy: Float?)
+    
+    public static var defaultAuto: EntropyCoefficientMode {
+        .auto(initAlpha: 1.0, alphaLr: 0.0003, targetEntropy: nil)
+    }
+}
+
+public enum LearningRateScheduleMode: Sendable {
+    case constant
+    case linearDecay
+}
+
 public protocol SACActorProtocol: Module {
     nonisolated var actionScale: MLXArray { get }
     nonisolated var actionBias: MLXArray { get }
@@ -43,12 +56,10 @@ public protocol SACActorProtocol: Module {
     func getDeterministicAction(obs: MLXArray) -> MLXArray
 }
 
-/// Protocol for SAC critic networks (single Q-network)
 public protocol SACCriticProtocol: Module {
     func callAsFunction(obs: MLXArray, action: MLXArray) -> MLXArray
 }
 
-/// Protocol for ensemble Q-networks
 public protocol SACEnsembleCriticProtocol: Module {
     func callAsFunction(obs: MLXArray, action: MLXArray) -> MLXArray
     func minQ(obs: MLXArray, action: MLXArray) -> MLXArray
@@ -122,7 +133,6 @@ public class SACReplayBuffer {
     public var count: Int { size }
 }
 
-/// Base SAC agent class using twin Q-networks.
 public class SACAgent<Actor: SACActorProtocol, Critic: SACCriticProtocol>: ContinuousDeepRLAgent {
     public let actor: Actor
     public let qf1: Critic
@@ -130,8 +140,13 @@ public class SACAgent<Actor: SACActorProtocol, Critic: SACCriticProtocol>: Conti
     public let qf1Target: Critic
     public let qf2Target: Critic
     
-    public let actorOptimizer: Adam
-    public let qOptimizer: Adam
+    public var actorOptimizer: Adam
+    public var qOptimizer: Adam
+    public var alphaOptimizer: Adam?
+    
+    public let baseLearningRate: Float
+    public var learningRateSchedule: LearningRateScheduleMode = .constant
+    public var progressRemaining: Float = 1.0
     
     public let memory: SACReplayBuffer
     
@@ -145,11 +160,7 @@ public class SACAgent<Actor: SACActorProtocol, Critic: SACCriticProtocol>: Conti
     public var targetEntropyArray: MLXArray
     public let logAlphaModule: TrainableParameter
     
-    public let minLogAlpha: Float
-    public let maxLogAlpha: Float
-    private let minLogAlphaArray: MLXArray
-    private let maxLogAlphaArray: MLXArray
-    private let alphaLearningRate: MLXArray
+    public let autoTuneAlpha: Bool
     
     public var steps: Int = 0
     
@@ -174,12 +185,10 @@ public class SACAgent<Actor: SACActorProtocol, Critic: SACCriticProtocol>: Conti
         learningRate: Float,
         gamma: Float,
         tau: Float,
-        alpha: Float,
         batchSize: Int,
         bufferSize: Int,
         policyUpdateDelay: Int = 2,
-        minLogAlpha: Float = -5.0,
-        maxLogAlpha: Float = 2.0
+        entCoefMode: EntropyCoefficientMode = .defaultAuto
     ) {
         self.actor = actor
         self.qf1 = qf1
@@ -193,6 +202,7 @@ public class SACAgent<Actor: SACActorProtocol, Critic: SACCriticProtocol>: Conti
         self.qf1Target.update(parameters: qf1.parameters())
         self.qf2Target.update(parameters: qf2.parameters())
         
+        self.baseLearningRate = learningRate
         self.actorOptimizer = Adam(learningRate: learningRate)
         self.qOptimizer = Adam(learningRate: learningRate)
         
@@ -201,20 +211,52 @@ public class SACAgent<Actor: SACActorProtocol, Critic: SACCriticProtocol>: Conti
         self.gamma = gamma
         self.tau = tau
         self.batchSize = batchSize
-        self.alpha = alpha
         self.policyUpdateDelay = max(1, policyUpdateDelay)
         
-        self.minLogAlpha = minLogAlpha
-        self.maxLogAlpha = maxLogAlpha
-        self.minLogAlphaArray = MLXArray(minLogAlpha)
-        self.maxLogAlphaArray = MLXArray(maxLogAlpha)
-        
-        self.targetEntropy = -Float(actionSize)
-        self.targetEntropyArray = MLXArray(-Float(actionSize))
-        self.logAlphaModule = TrainableParameter(log(alpha))
-        self.alphaLearningRate = MLXArray(learningRate)
+        switch entCoefMode {
+        case .fixed(let fixedAlpha):
+            self.autoTuneAlpha = false
+            self.alpha = fixedAlpha
+            self.targetEntropy = -Float(actionSize)
+            self.targetEntropyArray = MLXArray(-Float(actionSize))
+            self.logAlphaModule = TrainableParameter(Float.log(fixedAlpha))
+            self.alphaOptimizer = nil
+            
+        case .auto(let initAlpha, let alphaLr, let customTarget):
+            self.autoTuneAlpha = true
+            self.alpha = initAlpha
+            let te = customTarget ?? -Float(actionSize)
+            self.targetEntropy = te
+            self.targetEntropyArray = MLXArray(te)
+            self.logAlphaModule = TrainableParameter(Float.log(initAlpha))
+            self.alphaOptimizer = Adam(learningRate: alphaLr)
+        }
         
         eval(actor.parameters(), qf1, qf2, qf1Target, qf2Target, logAlphaModule)
+    }
+    
+    public func setLearningRateSchedule(_ mode: LearningRateScheduleMode) {
+        self.learningRateSchedule = mode
+    }
+    
+    public func setProgressRemaining(_ progress: Float) {
+        self.progressRemaining = max(0.0, min(1.0, progress))
+    }
+    
+    private func applyScheduledLearningRate() {
+        let lr: Float
+        switch learningRateSchedule {
+        case .constant:
+            lr = baseLearningRate
+        case .linearDecay:
+            lr = baseLearningRate * progressRemaining
+        }
+        
+        actorOptimizer.learningRate = lr
+        qOptimizer.learningRate = lr
+        if alphaOptimizer != nil {
+            alphaOptimizer?.learningRate = lr
+        }
     }
     
     public func chooseAction(state: MLXArray, key: inout MLXArray, deterministic: Bool = false) -> MLXArray {
@@ -297,9 +339,24 @@ public class SACAgent<Actor: SACActorProtocol, Critic: SACCriticProtocol>: Conti
         return (actorLossValue, meanLogPi)
     }
     
+    private func updateAlpha(meanLogPi: MLXArray) -> MLXArray {
+        guard autoTuneAlpha, let optimizer = alphaOptimizer else {
+            return MLXArray(Float32(0.0))
+        }
+        
+        let logPiDetached = stopGradient(meanLogPi + targetEntropyArray)
+        let alphaLoss = -(logAlphaModule.value * logPiDetached).mean()
+        let grad = -logPiDetached.mean()
+        let alphaGrads = NestedDictionary<String, MLXArray>.unflattened([("value", grad)])
+        optimizer.update(model: logAlphaModule, gradients: alphaGrads)
+        
+        return alphaLoss
+    }
+    
     public func updateArrays() -> (qLoss: MLXArray, actorLoss: MLXArray, alphaLoss: MLXArray)? {
         guard memory.count >= batchSize else { return nil }
         
+        applyScheduledLearningRate()
         steps += 1
         
         let (batchObs, batchNextObs, batchActions, batchRewards, batchTerminated) = memory.sample(batchSize: batchSize)
@@ -336,12 +393,7 @@ public class SACAgent<Actor: SACActorProtocol, Critic: SACCriticProtocol>: Conti
                 alphaVal: alphaVal
             )
             actorLossValue = actorLoss
-            
-            let currentAlpha = exp(logAlphaModule.value)
-            let entropyDiff = (stopGradient(meanLogPi) + targetEntropyArray).mean()
-            alphaLossArray = -currentAlpha * entropyDiff
-            logAlphaModule.value = logAlphaModule.value + alphaLearningRate * currentAlpha * entropyDiff
-            logAlphaModule.value = minimum(maximum(logAlphaModule.value, minLogAlphaArray), maxLogAlphaArray)
+            alphaLossArray = updateAlpha(meanLogPi: meanLogPi)
         }
         
         eval(totalQLoss, actorLossValue, alphaLossArray, actor.parameters(), qf1, qf2, qf1Target, qf2Target, logAlphaModule)
@@ -367,14 +419,18 @@ public class SACAgent<Actor: SACActorProtocol, Critic: SACCriticProtocol>: Conti
     }
 }
 
-/// SAC agent using vmap'd ensemble Q-networks.
 public class SACAgentVmap<Actor: SACActorProtocol, Ensemble: SACEnsembleCriticProtocol>: ContinuousDeepRLAgent {
     public let actor: Actor
     public let qEnsemble: Ensemble
     public let qEnsembleTarget: Ensemble
     
-    public let actorOptimizer: Adam
-    public let qOptimizer: Adam
+    public var actorOptimizer: Adam
+    public var qOptimizer: Adam
+    public var alphaOptimizer: Adam?
+    
+    public let baseLearningRate: Float
+    public var learningRateSchedule: LearningRateScheduleMode = .constant
+    public var progressRemaining: Float = 1.0
     
     public let memory: SACReplayBuffer
     
@@ -388,11 +444,7 @@ public class SACAgentVmap<Actor: SACActorProtocol, Ensemble: SACEnsembleCriticPr
     public var targetEntropyArray: MLXArray
     public let logAlphaModule: TrainableParameter
     
-    public let minLogAlpha: Float
-    public let maxLogAlpha: Float
-    private let minLogAlphaArray: MLXArray
-    private let maxLogAlphaArray: MLXArray
-    private let alphaLearningRate: MLXArray
+    public let autoTuneAlpha: Bool
     
     public var steps: Int = 0
     
@@ -417,12 +469,10 @@ public class SACAgentVmap<Actor: SACActorProtocol, Ensemble: SACEnsembleCriticPr
         learningRate: Float,
         gamma: Float,
         tau: Float,
-        alpha: Float,
         batchSize: Int,
         bufferSize: Int,
         policyUpdateDelay: Int = 2,
-        minLogAlpha: Float = -5.0,
-        maxLogAlpha: Float = 2.0
+        entCoefMode: EntropyCoefficientMode = .defaultAuto
     ) {
         self.actor = actor
         self.qEnsemble = qEnsemble
@@ -433,6 +483,7 @@ public class SACAgentVmap<Actor: SACActorProtocol, Ensemble: SACEnsembleCriticPr
         
         self.qEnsembleTarget.update(parameters: qEnsemble.parameters())
         
+        self.baseLearningRate = learningRate
         self.actorOptimizer = Adam(learningRate: learningRate)
         self.qOptimizer = Adam(learningRate: learningRate)
         
@@ -441,22 +492,54 @@ public class SACAgentVmap<Actor: SACActorProtocol, Ensemble: SACEnsembleCriticPr
         self.gamma = gamma
         self.tau = tau
         self.batchSize = batchSize
-        self.alpha = alpha
         self.policyUpdateDelay = max(1, policyUpdateDelay)
-        
-        self.minLogAlpha = minLogAlpha
-        self.maxLogAlpha = maxLogAlpha
-        self.minLogAlphaArray = MLXArray(minLogAlpha)
-        self.maxLogAlphaArray = MLXArray(maxLogAlpha)
-        
-        self.targetEntropy = -Float(actionSize)
-        self.targetEntropyArray = MLXArray(-Float(actionSize))
-        self.logAlphaModule = TrainableParameter(log(alpha))
-        self.alphaLearningRate = MLXArray(learningRate)
         
         self.gammaArray = MLXArray(gamma)
         
+        switch entCoefMode {
+        case .fixed(let fixedAlpha):
+            self.autoTuneAlpha = false
+            self.alpha = fixedAlpha
+            self.targetEntropy = -Float(actionSize)
+            self.targetEntropyArray = MLXArray(-Float(actionSize))
+            self.logAlphaModule = TrainableParameter(Float.log(fixedAlpha))
+            self.alphaOptimizer = nil
+            
+        case .auto(let initAlpha, let alphaLr, let customTarget):
+            self.autoTuneAlpha = true
+            self.alpha = initAlpha
+            let te = customTarget ?? -Float(actionSize)
+            self.targetEntropy = te
+            self.targetEntropyArray = MLXArray(te)
+            self.logAlphaModule = TrainableParameter(Float.log(initAlpha))
+            self.alphaOptimizer = Adam(learningRate: alphaLr)
+        }
+        
         eval(actor.parameters(), qEnsemble, qEnsembleTarget, logAlphaModule)
+    }
+    
+    public func setLearningRateSchedule(_ mode: LearningRateScheduleMode) {
+        self.learningRateSchedule = mode
+    }
+    
+    public func setProgressRemaining(_ progress: Float) {
+        self.progressRemaining = max(0.0, min(1.0, progress))
+    }
+    
+    private func applyScheduledLearningRate() {
+        let lr: Float
+        switch learningRateSchedule {
+        case .constant:
+            lr = baseLearningRate
+        case .linearDecay:
+            lr = baseLearningRate * progressRemaining
+        }
+        
+        actorOptimizer.learningRate = lr
+        qOptimizer.learningRate = lr
+        if alphaOptimizer != nil {
+            alphaOptimizer?.learningRate = lr
+        }
     }
     
     public func chooseAction(state: MLXArray, key: inout MLXArray, deterministic: Bool = false) -> MLXArray {
@@ -533,9 +616,24 @@ public class SACAgentVmap<Actor: SACActorProtocol, Ensemble: SACEnsembleCriticPr
         return (actorLossValue, meanLogPi)
     }
     
+    private func updateAlpha(meanLogPi: MLXArray) -> MLXArray {
+        guard autoTuneAlpha, let optimizer = alphaOptimizer else {
+            return MLXArray(Float32(0.0))
+        }
+        
+        let logPiDetached = stopGradient(meanLogPi + targetEntropyArray)
+        let alphaLoss = -(logAlphaModule.value * logPiDetached).mean()
+        let grad = -logPiDetached.mean()
+        let alphaGrads = NestedDictionary<String, MLXArray>.unflattened([("value", grad)])
+        optimizer.update(model: logAlphaModule, gradients: alphaGrads)
+        
+        return alphaLoss
+    }
+    
     public func updateArrays() -> (qLoss: MLXArray, actorLoss: MLXArray, alphaLoss: MLXArray)? {
         guard memory.count >= batchSize else { return nil }
         
+        applyScheduledLearningRate()
         steps += 1
         
         let (batchObs, batchNextObs, batchActions, batchRewards, batchTerminated) = memory.sample(batchSize: batchSize)
@@ -572,12 +670,7 @@ public class SACAgentVmap<Actor: SACActorProtocol, Ensemble: SACEnsembleCriticPr
                 alphaVal: alphaVal
             )
             actorLossValue = actorLoss
-            
-            let currentAlpha = exp(logAlphaModule.value)
-            let entropyDiff = (stopGradient(meanLogPi) + targetEntropyArray).mean()
-            alphaLossArray = -currentAlpha * entropyDiff
-            logAlphaModule.value = logAlphaModule.value + alphaLearningRate * currentAlpha * entropyDiff
-            logAlphaModule.value = minimum(maximum(logAlphaModule.value, minLogAlphaArray), maxLogAlphaArray)
+            alphaLossArray = updateAlpha(meanLogPi: meanLogPi)
         }
         
         eval(totalQLoss, actorLossValue, alphaLossArray, actor, qEnsemble, qEnsembleTarget, logAlphaModule)
@@ -633,11 +726,7 @@ public class SACAgentVmap<Actor: SACActorProtocol, Ensemble: SACEnsembleCriticPr
                 rngKey: k2,
                 alphaVal: alphaVal
             )
-            
-            let currentAlpha = exp(logAlphaModule.value)
-            let entropyDiff = (stopGradient(meanLogPi) + targetEntropyArray).mean()
-            logAlphaModule.value = logAlphaModule.value + alphaLearningRate * currentAlpha * entropyDiff
-            logAlphaModule.value = minimum(maximum(logAlphaModule.value, minLogAlphaArray), maxLogAlphaArray)
+            _ = updateAlpha(meanLogPi: meanLogPi)
             return totalQLoss + actorLossValue
         }
         

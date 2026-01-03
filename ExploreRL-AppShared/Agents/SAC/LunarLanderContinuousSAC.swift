@@ -32,14 +32,15 @@ nonisolated public class LunarLanderContinuousActorNetwork: Module, SACActorProt
     public init(
         numObservations: Int,
         numActions: Int,
-        hiddenSize: Int = 256,
+        hiddenSize1: Int = 256,
+        hiddenSize2: Int = 256,
         actionSpaceLow: Float = -1.0,
         actionSpaceHigh: Float = 1.0
     ) {
-        self.layer1 = Linear(numObservations, hiddenSize)
-        self.layer2 = Linear(hiddenSize, hiddenSize)
-        self.meanLayer = Linear(hiddenSize, numActions)
-        self.logStdLayer = Linear(hiddenSize, numActions)
+        self.layer1 = Linear(numObservations, hiddenSize1)
+        self.layer2 = Linear(hiddenSize1, hiddenSize2)
+        self.meanLayer = Linear(hiddenSize2, numActions)
+        self.logStdLayer = Linear(hiddenSize2, numActions)
 
         let scale = (actionSpaceHigh - actionSpaceLow) / 2.0
         let bias = (actionSpaceHigh + actionSpaceLow) / 2.0
@@ -94,23 +95,25 @@ nonisolated public class LunarLanderContinuousEnsembleQNetwork: Module, SACEnsem
     let layer3: Linear
     
     public let numEnsemble: Int
-    public let hiddenSize: Int
+    public let hiddenSize1: Int
+    public let hiddenSize2: Int
     
     private var vmappedForward: (([MLXArray]) -> [MLXArray])?
     
-    public init(numObservations: Int, numActions: Int, numEnsemble: Int = 2, hiddenSize: Int = 256) {
+    public init(numObservations: Int, numActions: Int, numEnsemble: Int = 2, hiddenSize1: Int = 256, hiddenSize2: Int = 256) {
         self.numEnsemble = numEnsemble
-        self.hiddenSize = hiddenSize
+        self.hiddenSize1 = hiddenSize1
+        self.hiddenSize2 = hiddenSize2
         
         let inputSize = numObservations + numActions
         
-        let (w1, b1) = xavierEnsembleWeights(inputDimensions: inputSize, outputDimensions: hiddenSize, numEnsemble: numEnsemble)
+        let (w1, b1) = xavierEnsembleWeights(inputDimensions: inputSize, outputDimensions: hiddenSize1, numEnsemble: numEnsemble)
         self.layer1 = Linear(weight: w1, bias: b1)
         
-        let (w2, b2) = xavierEnsembleWeights(inputDimensions: hiddenSize, outputDimensions: hiddenSize, numEnsemble: numEnsemble)
+        let (w2, b2) = xavierEnsembleWeights(inputDimensions: hiddenSize1, outputDimensions: hiddenSize2, numEnsemble: numEnsemble)
         self.layer2 = Linear(weight: w2, bias: b2)
         
-        let (w3, b3) = xavierEnsembleWeights(inputDimensions: hiddenSize, outputDimensions: 1, numEnsemble: numEnsemble)
+        let (w3, b3) = xavierEnsembleWeights(inputDimensions: hiddenSize2, outputDimensions: 1, numEnsemble: numEnsemble)
         self.layer3 = Linear(weight: w3, bias: b3)
         
         super.init()
@@ -176,32 +179,30 @@ public class LunarLanderContinuousSAC: SACAgentVmap<LunarLanderContinuousActorNe
     public static let actionHigh: Float = 1.0
     
     public struct Defaults {
-        public static let hiddenSize = 256
+        public static let hiddenSize1 = 400
+        public static let hiddenSize2 = 300
         public static let learningRate: Float = 0.00073
         public static let gamma: Float = 0.99
         public static let tau: Float = 0.01
-        public static let alpha: Float = 0.2
         public static let batchSize = 256
         public static let bufferSize = 1000000
-        public static let minLogAlpha: Float = -5.0
-        public static let maxLogAlpha: Float = 2.0
     }
     
     public init(
-        hiddenSize: Int = Defaults.hiddenSize,
+        hiddenSize1: Int = Defaults.hiddenSize1,
+        hiddenSize2: Int = Defaults.hiddenSize2,
         learningRate: Float = Defaults.learningRate,
         gamma: Float = Defaults.gamma,
         tau: Float = Defaults.tau,
-        alpha: Float = Defaults.alpha,
         batchSize: Int = Defaults.batchSize,
         bufferSize: Int = Defaults.bufferSize,
-        minLogAlpha: Float = Defaults.minLogAlpha,
-        maxLogAlpha: Float = Defaults.maxLogAlpha
+        entCoefMode: EntropyCoefficientMode = .auto(initAlpha: 1.0, alphaLr: 0.00073, targetEntropy: nil)
     ) {
         let actorNet = LunarLanderContinuousActorNetwork(
             numObservations: Self.observationSize,
             numActions: Self.actionCount,
-            hiddenSize: hiddenSize,
+            hiddenSize1: hiddenSize1,
+            hiddenSize2: hiddenSize2,
             actionSpaceLow: Self.actionLow,
             actionSpaceHigh: Self.actionHigh
         )
@@ -210,13 +211,15 @@ public class LunarLanderContinuousSAC: SACAgentVmap<LunarLanderContinuousActorNe
             numObservations: Self.observationSize,
             numActions: Self.actionCount,
             numEnsemble: 2,
-            hiddenSize: hiddenSize
+            hiddenSize1: hiddenSize1,
+            hiddenSize2: hiddenSize2
         )
         let qEnsembleTarget = LunarLanderContinuousEnsembleQNetwork(
             numObservations: Self.observationSize,
             numActions: Self.actionCount,
             numEnsemble: 2,
-            hiddenSize: hiddenSize
+            hiddenSize1: hiddenSize1,
+            hiddenSize2: hiddenSize2
         )
         
         super.init(
@@ -228,11 +231,9 @@ public class LunarLanderContinuousSAC: SACAgentVmap<LunarLanderContinuousActorNe
             learningRate: learningRate,
             gamma: gamma,
             tau: tau,
-            alpha: alpha,
             batchSize: batchSize,
             bufferSize: bufferSize,
-            minLogAlpha: minLogAlpha,
-            maxLogAlpha: maxLogAlpha
+            entCoefMode: entCoefMode
         )
     }
 }

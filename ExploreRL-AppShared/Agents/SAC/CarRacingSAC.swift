@@ -166,11 +166,8 @@ public class CarRacingSAC: SACAgentVmap<CarRacingActorNetwork, CarRacingEnsemble
         public static let learningRate: Float = 0.0003
         public static let gamma: Float = 0.99
         public static let tau: Float = 0.005
-        public static let alpha: Float = 0.2
         public static let batchSize = 256
         public static let bufferSize = 100000
-        public static let minLogAlpha: Float = -5.0
-        public static let maxLogAlpha: Float = 2.0
     }
     
     public init(
@@ -179,11 +176,9 @@ public class CarRacingSAC: SACAgentVmap<CarRacingActorNetwork, CarRacingEnsemble
         learningRate: Float = Defaults.learningRate,
         gamma: Float = Defaults.gamma,
         tau: Float = Defaults.tau,
-        alpha: Float = Defaults.alpha,
         batchSize: Int = Defaults.batchSize,
         bufferSize: Int = Defaults.bufferSize,
-        minLogAlpha: Float = Defaults.minLogAlpha,
-        maxLogAlpha: Float = Defaults.maxLogAlpha
+        entCoefMode: EntropyCoefficientMode = .auto(initAlpha: 1.0, alphaLr: 0.0003, targetEntropy: nil)
     ) {
         self.observationSize = observationSize
         
@@ -215,11 +210,9 @@ public class CarRacingSAC: SACAgentVmap<CarRacingActorNetwork, CarRacingEnsemble
             learningRate: learningRate,
             gamma: gamma,
             tau: tau,
-            alpha: alpha,
             batchSize: batchSize,
             bufferSize: bufferSize,
-            minLogAlpha: minLogAlpha,
-            maxLogAlpha: maxLogAlpha
+            entCoefMode: entCoefMode
         )
     }
 }
