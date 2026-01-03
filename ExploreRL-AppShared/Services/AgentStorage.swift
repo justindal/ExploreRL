@@ -1185,6 +1185,7 @@ import Gymnazo
         name: String,
         actor: Module,
         qEnsemble: Module,
+        logAlphaValue: MLXArray?,
         environmentType: EnvironmentType,
         algorithmType: String = "SAC",
         episodesTrained: Int,
@@ -1213,6 +1214,9 @@ import Gymnazo
         }
         for (key, value) in qEnsemble.parameters().flattened() {
             combinedWeights["qEnsemble.\(key)"] = value
+        }
+        if let logAlpha = logAlphaValue {
+            combinedWeights["entCoef.logAlpha"] = logAlpha
         }
         
         try saveWeights(combinedWeights, to: agentDir.appendingPathComponent(weightsFileName))
@@ -1248,6 +1252,7 @@ import Gymnazo
         newName: String,
         actor: Module,
         qEnsemble: Module,
+        logAlphaValue: MLXArray?,
         episodesTrained: Int,
         trainingTimeSeconds: Double? = nil,
         alpha: Double,
@@ -1266,6 +1271,9 @@ import Gymnazo
         }
         for (key, value) in qEnsemble.parameters().flattened() {
             combinedWeights["qEnsemble.\(key)"] = value
+        }
+        if let logAlpha = logAlphaValue {
+            combinedWeights["entCoef.logAlpha"] = logAlpha
         }
         
         let weightsPath = agentsDirectory.appendingPathComponent(agent.agentDataPath)
@@ -1309,6 +1317,7 @@ import Gymnazo
         
         var actorWeights: [String: MLXArray] = [:]
         var qEnsembleWeights: [String: MLXArray] = [:]
+        var entCoefWeights: [String: MLXArray] = [:]
         
         for (key, value) in allWeights {
             if key.hasPrefix("actor.") {
@@ -1316,14 +1325,15 @@ import Gymnazo
             } else if key.hasPrefix("qEnsemble.") {
                 qEnsembleWeights[String(key.dropFirst("qEnsemble.".count))] = value
             } else if key.hasPrefix("qf1.") {
-                // Legacy twin Q-network format
                 qEnsembleWeights[key] = value
             } else if key.hasPrefix("qf2.") {
                 qEnsembleWeights[key] = value
+            } else if key.hasPrefix("entCoef.") {
+                entCoefWeights[String(key.dropFirst("entCoef.".count))] = value
             }
         }
         
-        return ["actor": actorWeights, "qEnsemble": qEnsembleWeights]
+        return ["actor": actorWeights, "qEnsemble": qEnsembleWeights, "entCoef": entCoefWeights]
     }
     
     func saveMountainCarContinuousAgent(
@@ -1507,6 +1517,7 @@ import Gymnazo
         name: String,
         actor: Module,
         qEnsemble: Module,
+        logAlphaValue: MLXArray?,
         episodesTrained: Int,
         trainingTimeSeconds: Double? = nil,
         alpha: Double,
@@ -1537,6 +1548,7 @@ import Gymnazo
             name: name,
             actor: actor,
             qEnsemble: qEnsemble,
+            logAlphaValue: logAlphaValue,
             environmentType: .mountainCarContinuous,
             algorithmType: "SAC-Vmap",
             episodesTrained: episodesTrained,
@@ -1555,6 +1567,7 @@ import Gymnazo
         newName: String,
         actor: Module,
         qEnsemble: Module,
+        logAlphaValue: MLXArray?,
         episodesTrained: Int,
         trainingTimeSeconds: Double? = nil,
         alpha: Double,
@@ -1567,6 +1580,7 @@ import Gymnazo
             newName: newName,
             actor: actor,
             qEnsemble: qEnsemble,
+            logAlphaValue: logAlphaValue,
             episodesTrained: episodesTrained,
             trainingTimeSeconds: trainingTimeSeconds,
             alpha: alpha,
@@ -1587,6 +1601,7 @@ import Gymnazo
         name: String,
         actor: Module,
         qEnsemble: Module,
+        logAlphaValue: MLXArray?,
         episodesTrained: Int,
         trainingTimeSeconds: Double? = nil,
         alpha: Double,
@@ -1617,6 +1632,7 @@ import Gymnazo
             name: name,
             actor: actor,
             qEnsemble: qEnsemble,
+            logAlphaValue: logAlphaValue,
             environmentType: .pendulum,
             episodesTrained: episodesTrained,
             trainingTimeSeconds: trainingTimeSeconds,
@@ -1634,6 +1650,7 @@ import Gymnazo
         newName: String,
         actor: Module,
         qEnsemble: Module,
+        logAlphaValue: MLXArray?,
         episodesTrained: Int,
         trainingTimeSeconds: Double? = nil,
         alpha: Double,
@@ -1646,6 +1663,7 @@ import Gymnazo
             newName: newName,
             actor: actor,
             qEnsemble: qEnsemble,
+            logAlphaValue: logAlphaValue,
             episodesTrained: episodesTrained,
             trainingTimeSeconds: trainingTimeSeconds,
             alpha: alpha,
@@ -1666,6 +1684,7 @@ import Gymnazo
         name: String,
         actor: Module,
         qEnsemble: Module,
+        logAlphaValue: MLXArray?,
         episodesTrained: Int,
         trainingTimeSeconds: Double? = nil,
         alpha: Double,
@@ -1673,13 +1692,15 @@ import Gymnazo
         averageReward: Double,
         hyperparameters: [String: Double],
         environmentConfig: [String: String],
-        hiddenSize: Int = 256
+        hiddenSizes: [Int] = [256, 256]
     ) throws -> SavedAgent {
+        let hs1 = hiddenSizes.first ?? 256
+        let hs2 = hiddenSizes.dropFirst().first ?? hs1
         let actorArch = NetworkArchitecture(
             networkType: "actor",
             inputSize: 8,
             outputSize: 2,
-            hiddenSizes: [hiddenSize, hiddenSize],
+            hiddenSizes: [hs1, hs2],
             hiddenActivation: "relu",
             outputActivation: "tanh"
         )
@@ -1687,7 +1708,7 @@ import Gymnazo
             networkType: "critic",
             inputSize: 10,
             outputSize: 1,
-            hiddenSizes: [hiddenSize, hiddenSize],
+            hiddenSizes: [hs1, hs2],
             hiddenActivation: "relu",
             outputActivation: nil
         )
@@ -1696,6 +1717,7 @@ import Gymnazo
             name: name,
             actor: actor,
             qEnsemble: qEnsemble,
+            logAlphaValue: logAlphaValue,
             environmentType: .lunarLanderContinuous,
             episodesTrained: episodesTrained,
             trainingTimeSeconds: trainingTimeSeconds,
@@ -1713,6 +1735,7 @@ import Gymnazo
         newName: String,
         actor: Module,
         qEnsemble: Module,
+        logAlphaValue: MLXArray?,
         episodesTrained: Int,
         trainingTimeSeconds: Double? = nil,
         alpha: Double,
@@ -1725,6 +1748,7 @@ import Gymnazo
             newName: newName,
             actor: actor,
             qEnsemble: qEnsemble,
+            logAlphaValue: logAlphaValue,
             episodesTrained: episodesTrained,
             trainingTimeSeconds: trainingTimeSeconds,
             alpha: alpha,
@@ -1745,6 +1769,7 @@ import Gymnazo
         name: String,
         actor: Module,
         qEnsemble: Module,
+        logAlphaValue: MLXArray?,
         episodesTrained: Int,
         trainingTimeSeconds: Double? = nil,
         alpha: Double,
@@ -1777,6 +1802,7 @@ import Gymnazo
             name: name,
             actor: actor,
             qEnsemble: qEnsemble,
+            logAlphaValue: logAlphaValue,
             environmentType: .carRacing,
             episodesTrained: episodesTrained,
             trainingTimeSeconds: trainingTimeSeconds,
@@ -1794,6 +1820,7 @@ import Gymnazo
         newName: String,
         actor: Module,
         qEnsemble: Module,
+        logAlphaValue: MLXArray?,
         episodesTrained: Int,
         trainingTimeSeconds: Double? = nil,
         alpha: Double,
@@ -1806,6 +1833,7 @@ import Gymnazo
             newName: newName,
             actor: actor,
             qEnsemble: qEnsemble,
+            logAlphaValue: logAlphaValue,
             episodesTrained: episodesTrained,
             trainingTimeSeconds: trainingTimeSeconds,
             alpha: alpha,

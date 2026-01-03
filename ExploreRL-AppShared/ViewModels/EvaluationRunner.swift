@@ -21,6 +21,8 @@ import MLXNN
     var targetFPS: Double = 30.0
     var showVisualization = true
     
+    var deterministicContinuousActions: Bool = true
+    
     var episodeRewards: [Double] = []
     var episodeSteps: [Int] = []
     
@@ -153,6 +155,7 @@ import MLXNN
     private func setupFrozenLake(_ agent: SavedAgent) throws {
         let mapName = agent.environmentConfig["mapName"] ?? "4x4"
         let isSlippery = agent.environmentConfig["isSlippery"] == "true"
+        let maxSteps = Int(agent.environmentConfig["maxStepsPerEpisode"] ?? "100") ?? 100
         
         var kwargs: [String: Any] = [
             "render_mode": "rgb_array",
@@ -175,7 +178,7 @@ import MLXNN
         kwargs["desc"] = desc
         frozenLakeMap = desc
         
-        guard let env = Gymnazo.make("FrozenLake", kwargs: kwargs) as? any Env<Int, Int> else {
+        guard let env = Gymnazo.make("FrozenLake", maxEpisodeSteps: maxSteps, kwargs: kwargs) as? any Env<Int, Int> else {
             throw AgentStorageError.dataCorrupted
         }
         frozenLakeEnv = env
@@ -210,6 +213,7 @@ import MLXNN
     private func setupBlackjack(_ agent: SavedAgent) throws {
         let natural = agent.environmentConfig["natural"] == "true"
         let sab = agent.environmentConfig["sab"] == "true"
+        let maxSteps = Int(agent.environmentConfig["maxStepsPerEpisode"] ?? "100") ?? 100
         
         var kwargs: [String: Any] = [
             "natural": natural,
@@ -220,7 +224,7 @@ import MLXNN
             kwargs["render_mode"] = "rgb_array"
         }
         
-        guard let env = Gymnazo.make("Blackjack", kwargs: kwargs) as? any Env<BlackjackObservation, Int> else {
+        guard let env = Gymnazo.make("Blackjack", maxEpisodeSteps: maxSteps, kwargs: kwargs) as? any Env<BlackjackObservation, Int> else {
             throw AgentStorageError.dataCorrupted
         }
         blackjackEnv = env
@@ -357,13 +361,40 @@ import MLXNN
         _ = env.reset()
         mountainCarContinuousEnv = env
         
+        let initAlpha = Float(agent.finalEpsilon)
+        
+        let hiddenSize: Int = {
+            if let hs = agent.hyperparameters["hiddenSize"] {
+                return max(1, Int(hs.rounded()))
+            }
+            if let actorArch = agent.networkArchitecture?.first(where: { $0.networkType == "actor" }),
+               let hs = actorArch.hiddenSizes.first {
+                return hs
+            }
+            return 256
+        }()
+        
+        let learnedStd: Bool = {
+            if let ls = agent.hyperparameters["learnedStd"] { return ls > 0.5 }
+            if let sde = agent.hyperparameters["useSDE"] { return sde > 0.5 }
+            return true
+        }()
+        
+        let useGSDE: Bool = {
+            if let ug = agent.hyperparameters["useGSDE"] { return ug > 0.5 }
+            return false
+        }()
+        
         let sacAgent = MountainCarContinuousSAC(
+            hiddenSize: hiddenSize,
             learningRate: 0,
             gamma: 0.99,
             tau: 0.005,
-            alpha: Float(agent.finalEpsilon),
             batchSize: 256,
-            bufferSize: 1000
+            bufferSize: 1000,
+            learnedStd: learnedStd,
+            entCoefMode: .fixed(alpha: initAlpha),
+            useGSDE: useGSDE
         )
 
         let weightsDict = try AgentStorage.shared.loadSACVmapWeights(for: agent)
@@ -387,6 +418,11 @@ import MLXNN
             let qParams = NestedDictionary<String, MLXArray>.unflattened(qTuples)
             sacAgent.qEnsemble.update(parameters: qParams)
             sacAgent.qEnsembleTarget.update(parameters: qParams)
+        }
+        
+        if let entCoefWeights = weightsDict["entCoef"], let logAlpha = entCoefWeights["logAlpha"] {
+            sacAgent.logAlphaModule.value = logAlpha
+            _ = sacAgent.syncAlpha()
         }
         
         eval(sacAgent.actor, sacAgent.qEnsemble, sacAgent.qEnsembleTarget)
@@ -464,9 +500,9 @@ import MLXNN
             learningRate: 0,
             gamma: 0.99,
             tau: 0.005,
-            alpha: Float(agent.finalEpsilon),
             batchSize: 256,
-            bufferSize: 1000
+            bufferSize: 1000,
+            entCoefMode: .fixed(alpha: Float(agent.finalEpsilon))
         )
         
         let weightsDict = try AgentStorage.shared.loadPendulumWeights(for: agent)
@@ -579,13 +615,26 @@ import MLXNN
         _ = env.reset()
         lunarLanderContinuousEnv = env
         
+        let (hiddenSize1, hiddenSize2): (Int, Int) = {
+            if let h1 = agent.hyperparameters["hiddenSize1"], let h2 = agent.hyperparameters["hiddenSize2"] {
+                return (max(1, Int(h1.rounded())), max(1, Int(h2.rounded())))
+            }
+            if let actorArch = agent.networkArchitecture?.first(where: { $0.networkType == "actor" }),
+               actorArch.hiddenSizes.count >= 2 {
+                return (actorArch.hiddenSizes[0], actorArch.hiddenSizes[1])
+            }
+            return (256, 256)
+        }()
+        
         let sacAgent = LunarLanderContinuousSAC(
+            hiddenSize1: hiddenSize1,
+            hiddenSize2: hiddenSize2,
             learningRate: 0,
             gamma: 0.99,
             tau: 0.005,
-            alpha: Float(agent.finalEpsilon),
             batchSize: 256,
-            bufferSize: 1000
+            bufferSize: 1000,
+            entCoefMode: .fixed(alpha: Float(agent.finalEpsilon))
         )
         
         let weightsDict = try AgentStorage.shared.loadLunarLanderContinuousWeights(for: agent)
@@ -607,7 +656,12 @@ import MLXNN
             sacAgent.qEnsemble.update(parameters: qParams)
         }
         
-        eval(sacAgent.actor, sacAgent.qEnsemble)
+        if let entCoefWeights = weightsDict["entCoef"], let logAlpha = entCoefWeights["logAlpha"] {
+            sacAgent.logAlphaModule.value = logAlpha
+            _ = sacAgent.syncAlpha()
+        }
+        
+        eval(sacAgent.actor, sacAgent.qEnsemble, sacAgent.logAlphaModule)
         
         lunarLanderContinuousAgent = sacAgent
         
@@ -662,9 +716,9 @@ import MLXNN
             learningRate: 0,
             gamma: 0.99,
             tau: 0.005,
-            alpha: Float(agent.finalEpsilon),
             batchSize: 256,
-            bufferSize: 1000
+            bufferSize: 1000,
+            entCoefMode: .fixed(alpha: Float(agent.finalEpsilon))
         )
         
         let weightsDict = try AgentStorage.shared.loadCarRacingWeights(for: agent)
@@ -917,7 +971,9 @@ import MLXNN
         
         guard let actionSpace = env.action_space as? Discrete else { return }
         
-        while !terminated && !truncated && isRunning {
+        let maxSteps = Int(loadedAgent?.environmentConfig["maxStepsPerEpisode"] ?? "100") ?? 100
+        
+        while !terminated && !truncated && isRunning && steps < maxSteps {
             var key = rngKey
             let action = agent.chooseAction(actionSpace: actionSpace, state: state, key: &key)
             rngKey = key
@@ -965,7 +1021,9 @@ import MLXNN
         
         guard let actionSpace = env.action_space as? Discrete else { return }
         
-        while !terminated && !truncated && isRunning {
+        let maxSteps = Int(loadedAgent?.environmentConfig["maxStepsPerEpisode"] ?? "100") ?? 100
+        
+        while !terminated && !truncated && isRunning && steps < maxSteps {
             var key = rngKey
             let action = agent.chooseAction(actionSpace: actionSpace, state: state, key: &key)
             rngKey = key
@@ -1009,6 +1067,7 @@ import MLXNN
     private func setupTaxi(_ agent: SavedAgent) throws {
         let isRainy = agent.environmentConfig["isRainy"] == "true"
         let ficklePassenger = agent.environmentConfig["ficklePassenger"] == "true"
+        let maxSteps = Int(agent.environmentConfig["maxStepsPerEpisode"] ?? "200") ?? 200
         
         var kwargs: [String: Any] = [
             "is_rainy": isRainy,
@@ -1019,7 +1078,7 @@ import MLXNN
             kwargs["render_mode"] = "rgb_array"
         }
         
-        guard let env = Gymnazo.make("Taxi", kwargs: kwargs) as? any Env<Int, Int> else {
+        guard let env = Gymnazo.make("Taxi", maxEpisodeSteps: maxSteps, kwargs: kwargs) as? any Env<Int, Int> else {
             throw AgentStorageError.dataCorrupted
         }
         taxiEnv = env
@@ -1060,7 +1119,7 @@ import MLXNN
         
         guard let actionSpace = env.action_space as? Discrete else { return }
         
-        let maxSteps = 200
+        let maxSteps = Int(loadedAgent?.environmentConfig["maxStepsPerEpisode"] ?? "200") ?? 200
         
         while !terminated && !truncated && isRunning && steps < maxSteps {
             var key = rngKey
@@ -1100,6 +1159,7 @@ import MLXNN
     
     private func setupCliffWalking(_ agent: SavedAgent) throws {
         let isSlippery = agent.environmentConfig["isSlippery"] == "true"
+        let maxSteps = Int(agent.environmentConfig["maxStepsPerEpisode"] ?? "200") ?? 200
         
         var kwargs: [String: Any] = [
             "is_slippery": isSlippery
@@ -1109,7 +1169,7 @@ import MLXNN
             kwargs["render_mode"] = "rgb_array"
         }
         
-        guard let env = Gymnazo.make("CliffWalking", kwargs: kwargs) as? any Env<Int, Int> else {
+        guard let env = Gymnazo.make("CliffWalking", maxEpisodeSteps: maxSteps, kwargs: kwargs) as? any Env<Int, Int> else {
             throw AgentStorageError.dataCorrupted
         }
         cliffWalkingEnv = env
@@ -1150,7 +1210,7 @@ import MLXNN
         
         guard let actionSpace = env.action_space as? Discrete else { return }
         
-        let maxSteps = 200
+        let maxSteps = Int(loadedAgent?.environmentConfig["maxStepsPerEpisode"] ?? "200") ?? 200
         
         while !terminated && !truncated && isRunning && steps < maxSteps {
             var key = rngKey
@@ -1294,11 +1354,20 @@ import MLXNN
         var steps = 0
         var reward = 0.0
         
-        let maxSteps = 1000
+        let maxSteps = Int(loadedAgent?.environmentConfig["maxStepsPerEpisode"] ?? "1000") ?? 1000
+        
+        let sdeSampleFreq = Int(loadedAgent?.hyperparameters["sdeSampleFreq"] ?? -1)
+        if !deterministicContinuousActions, agent.actor.useGSDE {
+            agent.actor.resetNoise(key: &rngKey)
+        }
         
         while !terminated && !truncated && isRunning && steps < maxSteps {
+            if !deterministicContinuousActions, agent.actor.useGSDE, sdeSampleFreq > 0, steps > 0, (steps % sdeSampleFreq == 0) {
+                agent.actor.resetNoise(key: &rngKey)
+            }
+            
             var key = rngKey
-            let action = agent.chooseAction(state: state, key: &key, deterministic: true)
+            let action = agent.chooseAction(state: state, key: &key, deterministic: deterministicContinuousActions)
             rngKey = key
             
             eval(action)
@@ -1399,11 +1468,11 @@ import MLXNN
         var steps = 0
         var reward = 0.0
         
-        let maxSteps = 200
+        let maxSteps = Int(loadedAgent?.environmentConfig["maxStepsPerEpisode"] ?? "200") ?? 200
         
         while !terminated && !truncated && isRunning && steps < maxSteps {
             var key = rngKey
-            let action = agent.chooseAction(state: state, key: &key, deterministic: true)
+            let action = agent.chooseAction(state: state, key: &key, deterministic: deterministicContinuousActions)
             rngKey = key
             
             eval(action)
@@ -1456,7 +1525,7 @@ import MLXNN
         var steps = 0
         var reward = 0.0
         
-        let maxSteps = 1000
+        let maxSteps = Int(loadedAgent?.environmentConfig["maxStepsPerEpisode"] ?? "1000") ?? 1000
         
         while !terminated && !truncated && isRunning && steps < maxSteps {
             let qValues = agent.policyNetwork(state.expandedDimensions(axis: 0))
@@ -1510,11 +1579,11 @@ import MLXNN
         var steps = 0
         var reward = 0.0
         
-        let maxSteps = 1000
+        let maxSteps = Int(loadedAgent?.environmentConfig["maxStepsPerEpisode"] ?? "1000") ?? 1000
         
         while !terminated && !truncated && isRunning && steps < maxSteps {
             var key = rngKey
-            let action = agent.chooseAction(state: state, key: &key, deterministic: true)
+            let action = agent.chooseAction(state: state, key: &key, deterministic: deterministicContinuousActions)
             rngKey = key
             
             eval(action)
@@ -1572,11 +1641,11 @@ import MLXNN
         var steps = 0
         var reward = 0.0
         
-        let maxSteps = 1000
+        let maxSteps = Int(loadedAgent?.environmentConfig["maxStepsPerEpisode"] ?? "1000") ?? 1000
         
         while !terminated && !truncated && isRunning && steps < maxSteps {
             var key = rngKey
-            let action = agent.chooseAction(state: state, key: &key, deterministic: true)
+            let action = agent.chooseAction(state: state, key: &key, deterministic: deterministicContinuousActions)
             rngKey = key
             
             eval(action)
@@ -1629,7 +1698,7 @@ import MLXNN
         var steps = 0
         var reward = 0.0
         
-        let maxSteps = 1000
+        let maxSteps = Int(loadedAgent?.environmentConfig["maxStepsPerEpisode"] ?? "1000") ?? 1000
         
         while !terminated && !truncated && isRunning && steps < maxSteps {
             let qValues = agent.policyNetwork(state.expandedDimensions(axis: 0))
