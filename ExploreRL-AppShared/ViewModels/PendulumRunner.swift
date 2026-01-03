@@ -75,11 +75,17 @@ import MLXNN
     var learningRate: Double = Double(PendulumSAC.Defaults.learningRate)
     var gamma: Double = Double(PendulumSAC.Defaults.gamma)
     var tau: Double = Double(PendulumSAC.Defaults.tau)
-    var alpha: Double = Double(PendulumSAC.Defaults.alpha)
+    var alpha: Double = 1.0
     var batchSize: Int = PendulumSAC.Defaults.batchSize
     var bufferSize: Int = PendulumSAC.Defaults.bufferSize
     var warmupSteps: Int = TrainingDefaults.warmupSteps > 0 ? TrainingDefaults.warmupSteps : PendulumSAC.Defaults.batchSize
     var maxStepsPerEpisode: Int = TrainingDefaults.maxStepsPerEpisode
+    
+    var autoAlpha: Bool = true
+    var initAlpha: Double = 1.0
+    var alphaLr: Double = 0.0003
+    var trainFreqSteps: Int = 1
+    var gradientStepsPerTrain: Int = 1
     
     var gravity: Double = 10.0
     
@@ -131,13 +137,20 @@ import MLXNN
         }
         
         if agent == nil {
+            let entCoefMode: EntropyCoefficientMode
+            if autoAlpha {
+                entCoefMode = .auto(initAlpha: Float(initAlpha), alphaLr: Float(alphaLr), targetEntropy: nil)
+            } else {
+                entCoefMode = .fixed(alpha: Float(alpha))
+            }
+            
             agent = PendulumSAC(
                 learningRate: Float(learningRate),
                 gamma: Float(gamma),
                 tau: Float(tau),
-                alpha: Float(alpha),
                 batchSize: batchSize,
-                bufferSize: bufferSize
+                bufferSize: bufferSize,
+                entCoefMode: entCoefMode
             )
         }
         
@@ -166,7 +179,12 @@ import MLXNN
         episodeMetrics = []
         committedEpisodeMetricsCount = 0
         totalSteps = 0
-        alpha = 0.2
+        alpha = 1.0
+        autoAlpha = true
+        initAlpha = 1.0
+        alphaLr = 0.0003
+        trainFreqSteps = 1
+        gradientStepsPerTrain = 1
         loadedAgentId = nil
         loadedAgentName = nil
         hasTrainedSinceLoad = false
@@ -219,6 +237,7 @@ import MLXNN
             name: name,
             actor: agent.actor,
             qEnsemble: agent.qEnsemble,
+            logAlphaValue: agent.logAlphaModule.value,
             episodesTrained: totalEpisodesTrained,
             trainingTimeSeconds: totalTrainingTimeSeconds,
             alpha: alpha,
@@ -229,6 +248,11 @@ import MLXNN
                 "gamma": gamma,
                 "tau": tau,
                 "alpha": alpha,
+                "autoAlpha": autoAlpha ? 1.0 : 0.0,
+                "initAlpha": initAlpha,
+                "alphaLr": alphaLr,
+                "trainFreqSteps": Double(trainFreqSteps),
+                "gradientStepsPerTrain": Double(gradientStepsPerTrain),
                 "batchSize": Double(batchSize),
                 "bufferSize": Double(bufferSize),
                 "warmupSteps": Double(warmupSteps),
@@ -259,6 +283,7 @@ import MLXNN
             newName: name,
             actor: agent.actor,
             qEnsemble: agent.qEnsemble,
+            logAlphaValue: agent.logAlphaModule.value,
             episodesTrained: totalEpisodesTrained,
             trainingTimeSeconds: totalTrainingTimeSeconds,
             alpha: alpha,
@@ -269,6 +294,11 @@ import MLXNN
                 "gamma": gamma,
                 "tau": tau,
                 "alpha": alpha,
+                "autoAlpha": autoAlpha ? 1.0 : 0.0,
+                "initAlpha": initAlpha,
+                "alphaLr": alphaLr,
+                "trainFreqSteps": Double(trainFreqSteps),
+                "gradientStepsPerTrain": Double(gradientStepsPerTrain),
                 "batchSize": Double(batchSize),
                 "bufferSize": Double(bufferSize),
                 "warmupSteps": Double(warmupSteps),
@@ -296,6 +326,11 @@ import MLXNN
         if let g = savedAgent.hyperparameters["gamma"] { gamma = g }
         if let t = savedAgent.hyperparameters["tau"] { tau = t }
         if let a = savedAgent.hyperparameters["alpha"] { alpha = a }
+        if let aa = savedAgent.hyperparameters["autoAlpha"] { autoAlpha = aa > 0.5 }
+        if let ia = savedAgent.hyperparameters["initAlpha"] { initAlpha = ia }
+        if let alr = savedAgent.hyperparameters["alphaLr"] { alphaLr = alr }
+        if let tf = savedAgent.hyperparameters["trainFreqSteps"] { trainFreqSteps = max(1, Int(tf)) }
+        if let gs = savedAgent.hyperparameters["gradientStepsPerTrain"] { gradientStepsPerTrain = max(1, Int(gs)) }
         if let bs = savedAgent.hyperparameters["batchSize"] { batchSize = Int(bs) }
         if let buf = savedAgent.hyperparameters["bufferSize"] { bufferSize = Int(buf) }
         if let wSteps = savedAgent.hyperparameters["warmupSteps"] { warmupSteps = Int(wSteps) }
@@ -339,7 +374,13 @@ import MLXNN
             agent.qEnsembleTarget.update(parameters: qParams)
         }
         
-        eval(agent.actor, agent.qEnsemble, agent.qEnsembleTarget)
+        if let entCoefWeights = weightsDict["entCoef"], let logAlpha = entCoefWeights["logAlpha"] {
+            agent.logAlphaModule.value = logAlpha
+            _ = agent.syncAlpha()
+            self.alpha = Double(agent.alpha)
+        }
+        
+        eval(agent.actor, agent.qEnsemble, agent.qEnsembleTarget, agent.logAlphaModule)
         
         episodeMetrics = []
         committedEpisodeMetricsCount = 0
@@ -535,8 +576,10 @@ import MLXNN
                 steps += 1
                 totalSteps += 1
 
-                if totalSteps >= warmupSteps {
-                    sacAgent.updateNoSync()
+                if totalSteps >= warmupSteps && totalSteps % trainFreqSteps == 0 {
+                    for _ in 0..<gradientStepsPerTrain {
+                        sacAgent.updateNoSync()
+                    }
                 }
                 
                 let now = Date()

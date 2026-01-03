@@ -72,15 +72,26 @@ import MLXNN
     var useSeed: Bool = TrainingDefaults.useSeed
     var seed: Int = TrainingDefaults.seed
     
-    var learningRate: Double = Double(MountainCarContinuousSAC.Defaults.learningRate)
-    var gamma: Double = Double(MountainCarContinuousSAC.Defaults.gamma)
-    var tau: Double = Double(MountainCarContinuousSAC.Defaults.tau)
-    var alpha: Double = Double(MountainCarContinuousSAC.Defaults.alpha)
-    var batchSize: Int = MountainCarContinuousSAC.Defaults.batchSize
-    var bufferSize: Int = MountainCarContinuousSAC.Defaults.bufferSize
-    var warmupSteps: Int = TrainingDefaults.warmupSteps > 0 ? TrainingDefaults.warmupSteps : MountainCarContinuousSAC.Defaults.batchSize
+    var hiddenSize: Int = 64
+    
+    var learningRate: Double = 3e-4
+    var gamma: Double = 0.9999
+    var tau: Double = 0.01
+    
+    var alpha: Double = 0.1
+    var batchSize: Int = 512
+    var bufferSize: Int = 50_000
+    var warmupSteps: Int = TrainingDefaults.warmupSteps
     var maxStepsPerEpisode: Int = 999
-    var useSDE: Bool = true
+    var learnedStd: Bool = true
+    var useGSDE: Bool = true
+    var sdeSampleFreq: Int = -1
+    
+    var autoAlpha: Bool = false
+    var initAlpha: Double = 1.0
+    var alphaLr: Double = 0.0003
+    var trainFreqSteps: Int = 32
+    var gradientStepsPerTrain: Int = 32
     
     var goalVelocity: Double = 0.0
     
@@ -133,20 +144,33 @@ import MLXNN
         
         let shouldRecreateAgent: Bool
         if let existing = agent {
-            shouldRecreateAgent = existing.actor.useSDE != useSDE
+            shouldRecreateAgent =
+                existing.actor.learnedStd != learnedStd ||
+                existing.actor.useGSDE != useGSDE ||
+                existing.autoTuneAlpha != autoAlpha ||
+                existing.hiddenSize != hiddenSize
         } else {
             shouldRecreateAgent = true
         }
         
         if shouldRecreateAgent {
+            let entCoefMode: EntropyCoefficientMode
+            if autoAlpha {
+                entCoefMode = .auto(initAlpha: Float(initAlpha), alphaLr: Float(alphaLr), targetEntropy: nil)
+            } else {
+                entCoefMode = .fixed(alpha: Float(alpha))
+            }
+            
             agent = MountainCarContinuousSAC(
+                hiddenSize: hiddenSize,
                 learningRate: Float(learningRate),
                 gamma: Float(gamma),
                 tau: Float(tau),
-                alpha: Float(alpha),
                 batchSize: batchSize,
                 bufferSize: bufferSize,
-                useSDE: useSDE
+                learnedStd: learnedStd,
+                entCoefMode: entCoefMode,
+                useGSDE: useGSDE
             )
         }
         
@@ -173,7 +197,22 @@ import MLXNN
         episodeMetrics = []
         committedEpisodeMetricsCount = 0
         totalSteps = 0
-        alpha = 0.2
+        hiddenSize = 64
+        learningRate = 3e-4
+        gamma = 0.9999
+        tau = 0.01
+        alpha = 0.1
+        batchSize = 512
+        bufferSize = 50_000
+        warmupSteps = TrainingDefaults.warmupSteps
+        learnedStd = true
+        useGSDE = true
+        sdeSampleFreq = -1
+        autoAlpha = false
+        initAlpha = 1.0
+        alphaLr = 0.0003
+        trainFreqSteps = 32
+        gradientStepsPerTrain = 32
         loadedAgentId = nil
         loadedAgentName = nil
         hasTrainedSinceLoad = false
@@ -225,17 +264,26 @@ import MLXNN
             name: name,
             actor: agent.actor,
             qEnsemble: agent.qEnsemble,
+            logAlphaValue: agent.logAlphaModule.value,
             episodesTrained: totalEpisodesTrained,
             trainingTimeSeconds: totalTrainingTimeSeconds,
             alpha: alpha,
             bestReward: combinedBestReward,
             averageReward: averageReward,
             hyperparameters: [
+                "hiddenSize": Double(hiddenSize),
                 "learningRate": learningRate,
                 "gamma": gamma,
                 "tau": tau,
                 "alpha": alpha,
-                "useSDE": useSDE ? 1.0 : 0.0,
+                "learnedStd": learnedStd ? 1.0 : 0.0,
+                "useGSDE": useGSDE ? 1.0 : 0.0,
+                "sdeSampleFreq": Double(sdeSampleFreq),
+                "autoAlpha": autoAlpha ? 1.0 : 0.0,
+                "initAlpha": initAlpha,
+                "alphaLr": alphaLr,
+                "trainFreqSteps": Double(trainFreqSteps),
+                "gradientStepsPerTrain": Double(gradientStepsPerTrain),
                 "batchSize": Double(batchSize),
                 "bufferSize": Double(bufferSize),
                 "warmupSteps": Double(warmupSteps),
@@ -244,7 +292,8 @@ import MLXNN
             environmentConfig: [
                 "maxStepsPerEpisode": "\(maxStepsPerEpisode)",
                 "goal_velocity": "\(goalVelocity)"
-            ]
+            ],
+            hiddenSize: hiddenSize
         )
         
         loadedAgentId = saved.id
@@ -266,17 +315,26 @@ import MLXNN
             newName: name,
             actor: agent.actor,
             qEnsemble: agent.qEnsemble,
+            logAlphaValue: agent.logAlphaModule.value,
             episodesTrained: totalEpisodesTrained,
             trainingTimeSeconds: totalTrainingTimeSeconds,
             alpha: alpha,
             bestReward: combinedBestReward,
             averageReward: averageReward,
             hyperparameters: [
+                "hiddenSize": Double(hiddenSize),
                 "learningRate": learningRate,
                 "gamma": gamma,
                 "tau": tau,
                 "alpha": alpha,
-                "useSDE": useSDE ? 1.0 : 0.0,
+                "learnedStd": learnedStd ? 1.0 : 0.0,
+                "useGSDE": useGSDE ? 1.0 : 0.0,
+                "sdeSampleFreq": Double(sdeSampleFreq),
+                "autoAlpha": autoAlpha ? 1.0 : 0.0,
+                "initAlpha": initAlpha,
+                "alphaLr": alphaLr,
+                "trainFreqSteps": Double(trainFreqSteps),
+                "gradientStepsPerTrain": Double(gradientStepsPerTrain),
                 "batchSize": Double(batchSize),
                 "bufferSize": Double(bufferSize),
                 "warmupSteps": Double(warmupSteps),
@@ -304,7 +362,31 @@ import MLXNN
         if let g = savedAgent.hyperparameters["gamma"] { gamma = g }
         if let t = savedAgent.hyperparameters["tau"] { tau = t }
         if let a = savedAgent.hyperparameters["alpha"] { alpha = a }
-        if let sde = savedAgent.hyperparameters["useSDE"] { useSDE = sde > 0.5 }
+        
+        if let hs = savedAgent.hyperparameters["hiddenSize"] {
+            hiddenSize = max(1, Int(hs.rounded()))
+        } else if let actorArch = savedAgent.networkArchitecture?.first(where: { $0.networkType == "actor" }),
+                  let hs = actorArch.hiddenSizes.first {
+            hiddenSize = hs
+        } else {
+            hiddenSize = 256
+        }
+        if let ls = savedAgent.hyperparameters["learnedStd"] { learnedStd = ls > 0.5 }
+        else if let sde = savedAgent.hyperparameters["useSDE"] { learnedStd = sde > 0.5 }
+        
+        if let ug = savedAgent.hyperparameters["useGSDE"] {
+            useGSDE = ug > 0.5
+        } else {
+            useGSDE = false
+        }
+        if let sf = savedAgent.hyperparameters["sdeSampleFreq"] {
+            sdeSampleFreq = Int(sf.rounded())
+        }
+        if let aa = savedAgent.hyperparameters["autoAlpha"] { autoAlpha = aa > 0.5 }
+        if let ia = savedAgent.hyperparameters["initAlpha"] { initAlpha = ia }
+        if let alr = savedAgent.hyperparameters["alphaLr"] { alphaLr = alr }
+        if let tf = savedAgent.hyperparameters["trainFreqSteps"] { trainFreqSteps = max(1, Int(tf)) }
+        if let gs = savedAgent.hyperparameters["gradientStepsPerTrain"] { gradientStepsPerTrain = max(1, Int(gs)) }
         if let bs = savedAgent.hyperparameters["batchSize"] { batchSize = Int(bs) }
         if let buf = savedAgent.hyperparameters["bufferSize"] { bufferSize = Int(buf) }
         if let wSteps = savedAgent.hyperparameters["warmupSteps"] { warmupSteps = Int(wSteps) }
@@ -348,7 +430,13 @@ import MLXNN
             agent.qEnsembleTarget.update(parameters: qParams)
         }
         
-        eval(agent.actor, agent.qEnsemble, agent.qEnsembleTarget)
+        if let entCoefWeights = weightsDict["entCoef"], let logAlpha = entCoefWeights["logAlpha"] {
+            agent.logAlphaModule.value = logAlpha
+            _ = agent.syncAlpha()
+            self.alpha = Double(agent.alpha)
+        }
+        
+        eval(agent.actor, agent.qEnsemble, agent.qEnsembleTarget, agent.logAlphaModule)
         
         episodeMetrics = []
         committedEpisodeMetricsCount = 0
@@ -509,6 +597,10 @@ import MLXNN
             var state = result.obs
             self.env = env
             
+            if useGSDE {
+                sacAgent.actor.resetNoise(key: &rngKey)
+            }
+            
             await MainActor.run {
                 self.currentStep = 0
                 self.episodeReward = 0
@@ -521,6 +613,10 @@ import MLXNN
             var truncated = false
             
             while !terminated && !truncated && isTraining && steps < maxStepsPerEpisode {
+                if useGSDE, sdeSampleFreq > 0, steps > 0, (steps % sdeSampleFreq == 0) {
+                    sacAgent.actor.resetNoise(key: &rngKey)
+                }
+                
                 let action = sacAgent.chooseAction(state: state, key: &rngKey, deterministic: false)
                 
                 let stepResult = env.step(action)
@@ -544,8 +640,10 @@ import MLXNN
                 steps += 1
                 totalSteps += 1
 
-                if totalSteps >= warmupSteps {
-                    sacAgent.updateNoSync()
+                if totalSteps >= warmupSteps && totalSteps % trainFreqSteps == 0 {
+                    for _ in 0..<gradientStepsPerTrain {
+                        sacAgent.updateNoSync()
+                    }
                 }
                 
                 let now = Date()

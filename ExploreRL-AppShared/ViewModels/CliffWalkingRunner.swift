@@ -273,6 +273,7 @@ import MLX
                 "minEpsilon": Double(minEpsilon)
             ],
             environmentConfig: [
+                "maxStepsPerEpisode": "\(maxStepsPerEpisode)",
                 "isSlippery": isSlippery ? "true" : "false"
             ]
         )
@@ -340,6 +341,9 @@ import MLX
         if let minEps = savedAgent.hyperparameters["minEpsilon"] { minEpsilon = Float(minEps) }
         
         if let slipperyConfig = savedAgent.environmentConfig["isSlippery"] { isSlippery = slipperyConfig == "true" }
+        if let maxSteps = savedAgent.environmentConfig["maxStepsPerEpisode"], let steps = Int(maxSteps) {
+            maxStepsPerEpisode = steps
+        }
         
         setupEnvironment()
         

@@ -322,6 +322,7 @@ import MLX
                 "minEpsilon": Double(minEpsilon)
             ],
             environmentConfig: [
+                "maxStepsPerEpisode": "\(maxStepsPerEpisode)",
                 "mapName": mapName,
                 "mapSize": mapName == "Custom" ? "\(customMapSize)" : mapName,
                 "isSlippery": isSlippery ? "true" : "false",
@@ -393,6 +394,9 @@ import MLX
         
         if let mapNameConfig = savedAgent.environmentConfig["mapName"] { mapName = mapNameConfig }
         if let slippery = savedAgent.environmentConfig["isSlippery"] { isSlippery = slippery == "true" }
+        if let maxSteps = savedAgent.environmentConfig["maxStepsPerEpisode"], let steps = Int(maxSteps) {
+            maxStepsPerEpisode = steps
+        }
         if mapName == "Custom", let sizeStr = savedAgent.environmentConfig["mapSize"],
            let size = Int(sizeStr) {
             customMapSize = size

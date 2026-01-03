@@ -275,6 +275,7 @@ import MLX
                 "minEpsilon": Double(minEpsilon)
             ],
             environmentConfig: [
+                "maxStepsPerEpisode": "\(maxStepsPerEpisode)",
                 "isRainy": isRainy ? "true" : "false",
                 "ficklePassenger": ficklePassenger ? "true" : "false"
             ]
@@ -344,6 +345,9 @@ import MLX
         
         if let rainyConfig = savedAgent.environmentConfig["isRainy"] { isRainy = rainyConfig == "true" }
         if let fickleConfig = savedAgent.environmentConfig["ficklePassenger"] { ficklePassenger = fickleConfig == "true" }
+        if let maxSteps = savedAgent.environmentConfig["maxStepsPerEpisode"], let steps = Int(maxSteps) {
+            maxStepsPerEpisode = steps
+        }
         
         setupEnvironment()
         

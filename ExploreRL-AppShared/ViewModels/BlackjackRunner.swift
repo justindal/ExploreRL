@@ -296,6 +296,7 @@ import MLX
                 "minEpsilon": Double(minEpsilon)
             ],
             environmentConfig: [
+                "maxStepsPerEpisode": "\(maxStepsPerEpisode)",
                 "natural": natural ? "true" : "false",
                 "sab": sab ? "true" : "false"
             ]
@@ -365,6 +366,9 @@ import MLX
         
         if let naturalConfig = savedAgent.environmentConfig["natural"] { natural = naturalConfig == "true" }
         if let sabConfig = savedAgent.environmentConfig["sab"] { sab = sabConfig == "true" }
+        if let maxSteps = savedAgent.environmentConfig["maxStepsPerEpisode"], let steps = Int(maxSteps) {
+            maxStepsPerEpisode = steps
+        }
         
         setupEnvironment()
         

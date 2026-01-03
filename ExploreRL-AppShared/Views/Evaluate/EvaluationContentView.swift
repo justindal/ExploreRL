@@ -272,6 +272,15 @@ struct EvaluationContentView: View {
             }
             
             Toggle("Show Visualization", isOn: $runner.showVisualization)
+            
+            if let envType = runner.loadedAgent?.environmentType,
+               envType == .mountainCarContinuous ||
+               envType == .pendulum ||
+               envType == .lunarLanderContinuous ||
+               envType == .carRacing {
+                Toggle("Deterministic Actions", isOn: $runner.deterministicContinuousActions)
+                    .disabled(runner.isRunning)
+            }
         }
         .padding()
         .background(Color.gray.opacity(0.08))

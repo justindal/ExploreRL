@@ -73,19 +73,54 @@ import MLXNN
     var useSeed: Bool = TrainingDefaults.useSeed
     var seed: Int = TrainingDefaults.seed
     
+    var hiddenSize1: Int = LunarLanderContinuousSAC.Defaults.hiddenSize1
+    var hiddenSize2: Int = LunarLanderContinuousSAC.Defaults.hiddenSize2
+    
     var learningRate: Double = Double(LunarLanderContinuousSAC.Defaults.learningRate)
+    var useLinearLrSchedule: Bool = true
+    var autoLrScheduleTotalTimesteps: Bool = true
+    var lrScheduleTotalTimesteps: Int = 500_000
+    
+    var effectiveLrScheduleTotalTimesteps: Int {
+        if autoLrScheduleTotalTimesteps {
+            let planned = Int64(episodesPerRun) * Int64(maxStepsPerEpisode)
+            return max(1, Int(min(planned, Int64(Int.max))))
+        }
+        return max(1, lrScheduleTotalTimesteps)
+    }
     var gamma: Double = Double(LunarLanderContinuousSAC.Defaults.gamma)
     var tau: Double = Double(LunarLanderContinuousSAC.Defaults.tau)
-    var alpha: Double = Double(LunarLanderContinuousSAC.Defaults.alpha)
+    var alpha: Double = 1.0
     var batchSize: Int = LunarLanderContinuousSAC.Defaults.batchSize
     var bufferSize: Int = LunarLanderContinuousSAC.Defaults.bufferSize
-    var warmupSteps: Int = 1000
+    var warmupSteps: Int = 10_000
     var maxStepsPerEpisode: Int = 1000
+    
+    var autoAlpha: Bool = true
+    var initAlpha: Double = 1.0
+    var alphaLr: Double = 0.00073
+    var trainFreqSteps: Int = 1
+    var gradientStepsPerTrain: Int = 1
     
     var envGravity: Double = -10.0
     var enableWind: Bool = false
     var windPower: Double = 15.0
     var turbulencePower: Double = 1.5
+    
+    private struct AgentInitConfig: Equatable {
+        let hiddenSize1: Int
+        let hiddenSize2: Int
+        let learningRate: Double
+        let gamma: Double
+        let tau: Double
+        let batchSize: Int
+        let bufferSize: Int
+        let autoAlpha: Bool
+        let alpha: Double
+        let initAlpha: Double
+        let alphaLr: Double
+    }
+    private var lastAgentInitConfig: AgentInitConfig? = nil
     
     private var episodesCompletedInRun: Int = 0
     private var env: (any Env<MLXArray, MLXArray>)?
@@ -147,15 +182,50 @@ import MLXNN
             self.rngKey = MLX.key(0)
         }
         
-        if agent == nil {
+        let currentCfg = AgentInitConfig(
+            hiddenSize1: hiddenSize1,
+            hiddenSize2: hiddenSize2,
+            learningRate: learningRate,
+            gamma: gamma,
+            tau: tau,
+            batchSize: batchSize,
+            bufferSize: bufferSize,
+            autoAlpha: autoAlpha,
+            alpha: alpha,
+            initAlpha: initAlpha,
+            alphaLr: alphaLr
+        )
+        
+        if agent == nil || lastAgentInitConfig != currentCfg {
+            let entCoefMode: EntropyCoefficientMode
+            if autoAlpha {
+                entCoefMode = .auto(initAlpha: Float(initAlpha), alphaLr: Float(alphaLr), targetEntropy: nil)
+            } else {
+                entCoefMode = .fixed(alpha: Float(alpha))
+            }
+            
             agent = LunarLanderContinuousSAC(
+                hiddenSize1: hiddenSize1,
+                hiddenSize2: hiddenSize2,
                 learningRate: Float(learningRate),
                 gamma: Float(gamma),
                 tau: Float(tau),
-                alpha: Float(alpha),
                 batchSize: batchSize,
-                bufferSize: bufferSize
+                bufferSize: bufferSize,
+                entCoefMode: entCoefMode
             )
+            lastAgentInitConfig = currentCfg
+        }
+        
+        if let agent = agent {
+            if useLinearLrSchedule {
+                agent.setLearningRateSchedule(.linearDecay)
+            } else {
+                agent.setLearningRateSchedule(.constant)
+            }
+            let total = Double(effectiveLrScheduleTotalTimesteps)
+            let progress = max(0.0, 1.0 - Double(totalSteps) / total)
+            agent.setProgressRemaining(Float(progress))
         }
         
         episodeMetrics.removeAll()
@@ -180,7 +250,12 @@ import MLXNN
         accumulatedTrainingTimeSeconds = 0
         trainingSessionStartDate = nil
         agent = nil
-        alpha = Double(LunarLanderContinuousSAC.Defaults.alpha)
+        alpha = 1.0
+        autoAlpha = true
+        initAlpha = 1.0
+        alphaLr = 0.00073
+        trainFreqSteps = 1
+        gradientStepsPerTrain = 1
         loadedAgentId = nil
         loadedAgentName = nil
         hasTrainedSinceLoad = false
@@ -192,14 +267,24 @@ import MLXNN
     }
     
     func resetToDefaults() {
+        hiddenSize1 = LunarLanderContinuousSAC.Defaults.hiddenSize1
+        hiddenSize2 = LunarLanderContinuousSAC.Defaults.hiddenSize2
         learningRate = Double(LunarLanderContinuousSAC.Defaults.learningRate)
+        useLinearLrSchedule = true
+        autoLrScheduleTotalTimesteps = false
+        lrScheduleTotalTimesteps = 500_000
         gamma = Double(LunarLanderContinuousSAC.Defaults.gamma)
         tau = Double(LunarLanderContinuousSAC.Defaults.tau)
-        alpha = Double(LunarLanderContinuousSAC.Defaults.alpha)
+        alpha = 1.0
+        autoAlpha = true
+        initAlpha = 1.0
+        alphaLr = 0.00073
+        trainFreqSteps = 1
+        gradientStepsPerTrain = 1
         batchSize = LunarLanderContinuousSAC.Defaults.batchSize
         bufferSize = LunarLanderContinuousSAC.Defaults.bufferSize
         
-        warmupSteps = 1000
+        warmupSteps = 10_000
         renderEnabled = TrainingDefaults.renderEnabled
         episodesPerRun = TrainingDefaults.episodesPerRun
         episodesCompletedInRun = 0
@@ -254,16 +339,27 @@ import MLXNN
             name: name,
             actor: agent.actor,
             qEnsemble: agent.qEnsemble,
+            logAlphaValue: agent.logAlphaModule.value,
             episodesTrained: totalEpisodesTrained,
             trainingTimeSeconds: totalTrainingTimeSeconds,
             alpha: alpha,
             bestReward: combinedBestReward,
             averageReward: averageReward,
             hyperparameters: [
+                "hiddenSize1": Double(hiddenSize1),
+                "hiddenSize2": Double(hiddenSize2),
                 "learningRate": learningRate,
+                "useLinearLrSchedule": useLinearLrSchedule ? 1.0 : 0.0,
+                "autoLrScheduleTotalTimesteps": autoLrScheduleTotalTimesteps ? 1.0 : 0.0,
+                "lrScheduleTotalTimesteps": Double(lrScheduleTotalTimesteps),
                 "gamma": gamma,
                 "tau": tau,
                 "alpha": alpha,
+                "autoAlpha": autoAlpha ? 1.0 : 0.0,
+                "initAlpha": initAlpha,
+                "alphaLr": alphaLr,
+                "trainFreqSteps": Double(trainFreqSteps),
+                "gradientStepsPerTrain": Double(gradientStepsPerTrain),
                 "batchSize": Double(batchSize),
                 "bufferSize": Double(bufferSize),
                 "warmupSteps": Double(warmupSteps),
@@ -275,7 +371,8 @@ import MLXNN
                 "enable_wind": enableWind ? "true" : "false",
                 "wind_power": "\(windPower)",
                 "turbulence_power": "\(turbulencePower)"
-            ]
+            ],
+            hiddenSizes: [hiddenSize1, hiddenSize2]
         )
         
         loadedAgentId = saved.id
@@ -297,16 +394,27 @@ import MLXNN
             newName: name,
             actor: agent.actor,
             qEnsemble: agent.qEnsemble,
+            logAlphaValue: agent.logAlphaModule.value,
             episodesTrained: totalEpisodesTrained,
             trainingTimeSeconds: totalTrainingTimeSeconds,
             alpha: alpha,
             bestReward: combinedBestReward,
             averageReward: averageReward,
             hyperparameters: [
+                "hiddenSize1": Double(hiddenSize1),
+                "hiddenSize2": Double(hiddenSize2),
                 "learningRate": learningRate,
+                "useLinearLrSchedule": useLinearLrSchedule ? 1.0 : 0.0,
+                "autoLrScheduleTotalTimesteps": autoLrScheduleTotalTimesteps ? 1.0 : 0.0,
+                "lrScheduleTotalTimesteps": Double(lrScheduleTotalTimesteps),
                 "gamma": gamma,
                 "tau": tau,
                 "alpha": alpha,
+                "autoAlpha": autoAlpha ? 1.0 : 0.0,
+                "initAlpha": initAlpha,
+                "alphaLr": alphaLr,
+                "trainFreqSteps": Double(trainFreqSteps),
+                "gradientStepsPerTrain": Double(gradientStepsPerTrain),
                 "batchSize": Double(batchSize),
                 "bufferSize": Double(bufferSize),
                 "warmupSteps": Double(warmupSteps),
@@ -330,10 +438,26 @@ import MLXNN
         accumulatedTrainingTimeSeconds = savedAgent.trainingTimeSeconds ?? 0
         trainingSessionStartDate = nil
         
+        if let h1 = savedAgent.hyperparameters["hiddenSize1"] { hiddenSize1 = Int(h1.rounded()) }
+        if let h2 = savedAgent.hyperparameters["hiddenSize2"] { hiddenSize2 = Int(h2.rounded()) }
+        else if let actorArch = savedAgent.networkArchitecture?.first(where: { $0.networkType == "actor" }),
+                actorArch.hiddenSizes.count >= 2 {
+            hiddenSize1 = actorArch.hiddenSizes[0]
+            hiddenSize2 = actorArch.hiddenSizes[1]
+        }
+        
         if let lr = savedAgent.hyperparameters["learningRate"] { learningRate = lr }
+        if let sched = savedAgent.hyperparameters["useLinearLrSchedule"] { useLinearLrSchedule = sched > 0.5 }
+        if let auto = savedAgent.hyperparameters["autoLrScheduleTotalTimesteps"] { autoLrScheduleTotalTimesteps = auto > 0.5 }
+        if let total = savedAgent.hyperparameters["lrScheduleTotalTimesteps"] { lrScheduleTotalTimesteps = max(1, Int(total.rounded())) }
         if let g = savedAgent.hyperparameters["gamma"] { gamma = g }
         if let t = savedAgent.hyperparameters["tau"] { tau = t }
         if let a = savedAgent.hyperparameters["alpha"] { alpha = a }
+        if let aa = savedAgent.hyperparameters["autoAlpha"] { autoAlpha = aa > 0.5 }
+        if let ia = savedAgent.hyperparameters["initAlpha"] { initAlpha = ia }
+        if let alr = savedAgent.hyperparameters["alphaLr"] { alphaLr = alr }
+        if let tf = savedAgent.hyperparameters["trainFreqSteps"] { trainFreqSteps = max(1, Int(tf)) }
+        if let gs = savedAgent.hyperparameters["gradientStepsPerTrain"] { gradientStepsPerTrain = max(1, Int(gs)) }
         if let bs = savedAgent.hyperparameters["batchSize"] { batchSize = Int(bs) }
         if let buf = savedAgent.hyperparameters["bufferSize"] { bufferSize = Int(buf) }
         if let wSteps = savedAgent.hyperparameters["warmupSteps"] { warmupSteps = Int(wSteps) }
@@ -387,7 +511,13 @@ import MLXNN
             agent.qEnsembleTarget.update(parameters: qParams)
         }
         
-        eval(agent.actor, agent.qEnsemble, agent.qEnsembleTarget)
+        if let entCoefWeights = weightsDict["entCoef"], let logAlpha = entCoefWeights["logAlpha"] {
+            agent.logAlphaModule.value = logAlpha
+            _ = agent.syncAlpha()
+            self.alpha = Double(agent.alpha)
+        }
+        
+        eval(agent.actor, agent.qEnsemble, agent.qEnsembleTarget, agent.logAlphaModule)
         
         episodeMetrics = []
         committedEpisodeMetricsCount = 0
@@ -496,6 +626,12 @@ import MLXNN
                 warmupState = stepResult.obs
                 totalSteps += 1
                 
+                if useLinearLrSchedule, let agent = self.agent {
+                    let total = Double(effectiveLrScheduleTotalTimesteps)
+                    let progress = max(0.0, 1.0 - Double(totalSteps) / total)
+                    agent.setProgressRemaining(Float(progress))
+                }
+                
                 if stepResult.terminated || stepResult.truncated {
                     let resetResult = warmupEnv.reset()
                     warmupState = resetResult.obs
@@ -555,9 +691,17 @@ import MLXNN
                 episodeRewardLocal += stepResult.reward
                 steps += 1
                 totalSteps += 1
+                
+                if useLinearLrSchedule {
+                    let total = Double(effectiveLrScheduleTotalTimesteps)
+                    let progress = max(0.0, 1.0 - Double(totalSteps) / total)
+                    sacAgent.setProgressRemaining(Float(progress))
+                }
 
-                if totalSteps >= warmupSteps {
-                    sacAgent.updateNoSync()
+                if totalSteps >= warmupSteps && totalSteps % trainFreqSteps == 0 {
+                    for _ in 0..<gradientStepsPerTrain {
+                        sacAgent.updateNoSync()
+                    }
                 }
 
                 if !turboMode {
