@@ -87,6 +87,11 @@ import MLXNN
     
     var goalVelocity: Double = 0.0
     
+    var useRewardShaping: Bool = true
+    var velocityShapingCoef: Double = 10.0
+    var positionShapingCoef: Double = 10.0
+    var successBonusReward: Double = 100.0
+    
     var earlyStopEnabled: Bool = TrainingDefaults.earlyStopEnabled
     var earlyStopWindow: Int = TrainingDefaults.earlyStopWindow
     var earlyStopRewardThreshold: Double = -110
@@ -132,17 +137,40 @@ import MLXNN
             kwargs["render_mode"] = "human"
         }
         
-        guard let madeEnv = Gymnazo.make(
+        guard let baseEnv = Gymnazo.make(
             "MountainCar",
             maxEpisodeSteps: maxStepsPerEpisode,
             kwargs: kwargs
-        ) as? any Env<MLXArray, Int> else {
+        ) as? TimeLimit<OrderEnforcing<PassiveEnvChecker<MountainCar>>> else {
             print("Failed to create MountainCar environment")
             return
         }
         
-        self.env = madeEnv
-        _ = self.env?.reset()
+        if useRewardShaping {
+            let velCoef = velocityShapingCoef
+            let posCoef = positionShapingCoef
+            let successBonus = successBonusReward
+            
+            var shapedEnv = baseEnv.rewardsShaped { reward, obs, terminated in
+                let pos = Double(obs[0].item(Float.self))
+                let vel = Double(obs[1].item(Float.self))
+                var shaped = reward
+                shaped += Swift.abs(vel) * velCoef
+                if pos > -0.4 {
+                    shaped += (pos + 0.4) * posCoef
+                }
+                if terminated {
+                    shaped += successBonus
+                }
+                return shaped
+            }
+            _ = shapedEnv.reset()
+            self.env = shapedEnv
+        } else {
+            var env = baseEnv
+            _ = env.reset()
+            self.env = env
+        }
         updateSnapshot()
         
         if useSeed {
@@ -229,6 +257,10 @@ import MLXNN
         targetFPS = TrainingDefaults.targetFPS
         turboMode = TrainingDefaults.turboMode
         goalVelocity = 0.0
+        useRewardShaping = true
+        velocityShapingCoef = 10.0
+        positionShapingCoef = 10.0
+        successBonusReward = 100.0
     }
     
     func startTraining() {
@@ -578,21 +610,11 @@ import MLXNN
                 self.env = env
                 
                 let nextState = stepResult.obs
-                var reward = Float(stepResult.reward)
+                let reward = stepResult.reward
                 terminated = stepResult.terminated
                 truncated = stepResult.truncated
                 
-                let pos = nextState[0].item(Float.self)
-                let vel = nextState[1].item(Float.self)
-                reward += abs(vel) * 10.0
-                if pos > -0.4 {
-                    reward += (pos + 0.4) * 10.0
-                }
-                if terminated {
-                    reward += 100.0
-                }
-                
-                let usedReward = clipReward ? min(max(Double(reward), clipRewardMin), clipRewardMax) : Double(reward)
+                let usedReward = clipReward ? min(max(reward, clipRewardMin), clipRewardMax) : reward
                 
                 dqnAgent.store(
                     state: state,
