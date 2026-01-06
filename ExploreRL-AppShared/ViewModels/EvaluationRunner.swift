@@ -1642,6 +1642,12 @@ import MLXNN
         var reward = 0.0
         
         let maxSteps = Int(loadedAgent?.environmentConfig["maxStepsPerEpisode"] ?? "1000") ?? 1000
+
+        if !deterministicContinuousActions, agent.actor.useSDE {
+            let (newKey, noiseKey) = MLX.split(key: rngKey)
+            rngKey = newKey
+            agent.actor.resetNoise(key: noiseKey)
+        }
         
         while !terminated && !truncated && isRunning && steps < maxSteps {
             var key = rngKey

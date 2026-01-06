@@ -32,6 +32,24 @@ struct CarRacingChartsView: View {
                 color: .purple,
                 averageValue: nil
             )
+
+            MetricChart(
+                title: "Mean Log π",
+                data: runner.episodeMetrics.filter { $0.meanLogProb != nil },
+                xValue: { $0.episode },
+                yValue: { $0.meanLogProb ?? 0 },
+                color: .cyan,
+                averageValue: nil
+            )
+
+            MetricChart(
+                title: "Entropy (Est)",
+                data: runner.episodeMetrics.filter { $0.entropyEstimate != nil },
+                xValue: { $0.episode },
+                yValue: { $0.entropyEstimate ?? 0 },
+                color: .orange,
+                averageValue: nil
+            )
             
             MetricChart(
                 title: "Reward Moving Avg",

@@ -35,10 +35,10 @@ nonisolated public class TrainableParameter: Module {
 
 public enum EntropyCoefficientMode: Sendable {
     case fixed(alpha: Float)
-    case auto(initAlpha: Float, alphaLr: Float, targetEntropy: Float?)
+    case auto(initAlpha: Float, alphaLr: Float, targetEntropy: Float?, minAlpha: Float = 0.01)
     
     public static var defaultAuto: EntropyCoefficientMode {
-        .auto(initAlpha: 1.0, alphaLr: 0.0003, targetEntropy: nil)
+        .auto(initAlpha: 1.0, alphaLr: 0.0003, targetEntropy: nil, minAlpha: 0.01)
     }
 }
 
@@ -161,6 +161,8 @@ public class SACAgent<Actor: SACActorProtocol, Critic: SACCriticProtocol>: Conti
     public let logAlphaModule: TrainableParameter
     
     public let autoTuneAlpha: Bool
+    public let minLogAlpha: Float
+    public private(set) var lastMeanLogPi: Float? = nil
     
     public var steps: Int = 0
     
@@ -221,8 +223,9 @@ public class SACAgent<Actor: SACActorProtocol, Critic: SACCriticProtocol>: Conti
             self.targetEntropyArray = MLXArray(-Float(actionSize))
             self.logAlphaModule = TrainableParameter(Float.log(fixedAlpha))
             self.alphaOptimizer = nil
+            self.minLogAlpha = Float.log(fixedAlpha)
             
-        case .auto(let initAlpha, let alphaLr, let customTarget):
+        case .auto(let initAlpha, let alphaLr, let customTarget, let minAlpha):
             self.autoTuneAlpha = true
             self.alpha = initAlpha
             let te = customTarget ?? -Float(actionSize)
@@ -230,6 +233,7 @@ public class SACAgent<Actor: SACActorProtocol, Critic: SACCriticProtocol>: Conti
             self.targetEntropyArray = MLXArray(te)
             self.logAlphaModule = TrainableParameter(Float.log(initAlpha))
             self.alphaOptimizer = Adam(learningRate: alphaLr)
+            self.minLogAlpha = Float.log(minAlpha)
         }
         
         eval(actor.parameters(), qf1, qf2, qf1Target, qf2Target, logAlphaModule)
@@ -350,6 +354,11 @@ public class SACAgent<Actor: SACActorProtocol, Critic: SACCriticProtocol>: Conti
         let alphaGrads = NestedDictionary<String, MLXArray>.unflattened([("value", grad)])
         optimizer.update(model: logAlphaModule, gradients: alphaGrads)
         
+        let currentLogAlpha = logAlphaModule.value.item(Float.self)
+        if currentLogAlpha < minLogAlpha {
+            logAlphaModule.value = MLXArray(minLogAlpha)
+        }
+        
         return alphaLoss
     }
     
@@ -385,6 +394,8 @@ public class SACAgent<Actor: SACActorProtocol, Critic: SACCriticProtocol>: Conti
         
         var actorLossValue = MLXArray(Float32(0.0))
         var alphaLossArray = MLXArray(Float32(0.0))
+        var meanLogPiForEval = MLXArray(Float32(0.0))
+        var hasMeanLogPi = false
         
         if shouldUpdatePolicy {
             let (actorLoss, meanLogPi) = updateActor(
@@ -394,9 +405,14 @@ public class SACAgent<Actor: SACActorProtocol, Critic: SACCriticProtocol>: Conti
             )
             actorLossValue = actorLoss
             alphaLossArray = updateAlpha(meanLogPi: meanLogPi)
+            meanLogPiForEval = meanLogPi
+            hasMeanLogPi = true
         }
         
-        eval(totalQLoss, actorLossValue, alphaLossArray, actor.parameters(), qf1, qf2, qf1Target, qf2Target, logAlphaModule)
+        eval(totalQLoss, actorLossValue, alphaLossArray, meanLogPiForEval, actor.parameters(), qf1, qf2, qf1Target, qf2Target, logAlphaModule)
+        if hasMeanLogPi {
+            lastMeanLogPi = meanLogPiForEval.item(Float.self)
+        }
         
         return (totalQLoss, actorLossValue, alphaLossArray)
     }
@@ -445,6 +461,8 @@ public class SACAgentVmap<Actor: SACActorProtocol, Ensemble: SACEnsembleCriticPr
     public let logAlphaModule: TrainableParameter
     
     public let autoTuneAlpha: Bool
+    public let minLogAlpha: Float
+    public private(set) var lastMeanLogPi: Float? = nil
     
     public var steps: Int = 0
     
@@ -504,8 +522,9 @@ public class SACAgentVmap<Actor: SACActorProtocol, Ensemble: SACEnsembleCriticPr
             self.targetEntropyArray = MLXArray(-Float(actionSize))
             self.logAlphaModule = TrainableParameter(Float.log(fixedAlpha))
             self.alphaOptimizer = nil
+            self.minLogAlpha = Float.log(fixedAlpha)
             
-        case .auto(let initAlpha, let alphaLr, let customTarget):
+        case .auto(let initAlpha, let alphaLr, let customTarget, let minAlpha):
             self.autoTuneAlpha = true
             self.alpha = initAlpha
             let te = customTarget ?? -Float(actionSize)
@@ -513,6 +532,7 @@ public class SACAgentVmap<Actor: SACActorProtocol, Ensemble: SACEnsembleCriticPr
             self.targetEntropyArray = MLXArray(te)
             self.logAlphaModule = TrainableParameter(Float.log(initAlpha))
             self.alphaOptimizer = Adam(learningRate: alphaLr)
+            self.minLogAlpha = Float.log(minAlpha)
         }
         
         eval(actor.parameters(), qEnsemble, qEnsembleTarget, logAlphaModule)
@@ -627,6 +647,11 @@ public class SACAgentVmap<Actor: SACActorProtocol, Ensemble: SACEnsembleCriticPr
         let alphaGrads = NestedDictionary<String, MLXArray>.unflattened([("value", grad)])
         optimizer.update(model: logAlphaModule, gradients: alphaGrads)
         
+        let currentLogAlpha = logAlphaModule.value.item(Float.self)
+        if currentLogAlpha < minLogAlpha {
+            logAlphaModule.value = MLXArray(minLogAlpha)
+        }
+        
         return alphaLoss
     }
     
@@ -662,6 +687,8 @@ public class SACAgentVmap<Actor: SACActorProtocol, Ensemble: SACEnsembleCriticPr
         
         var actorLossValue = MLXArray(Float32(0.0))
         var alphaLossArray = MLXArray(Float32(0.0))
+        var meanLogPiForEval = MLXArray(Float32(0.0))
+        var hasMeanLogPi = false
         
         if shouldUpdatePolicy {
             let (actorLoss, meanLogPi) = updateActor(
@@ -671,9 +698,14 @@ public class SACAgentVmap<Actor: SACActorProtocol, Ensemble: SACEnsembleCriticPr
             )
             actorLossValue = actorLoss
             alphaLossArray = updateAlpha(meanLogPi: meanLogPi)
+            meanLogPiForEval = meanLogPi
+            hasMeanLogPi = true
         }
         
-        eval(totalQLoss, actorLossValue, alphaLossArray, actor, qEnsemble, qEnsembleTarget, logAlphaModule)
+        eval(totalQLoss, actorLossValue, alphaLossArray, meanLogPiForEval, actor, qEnsemble, qEnsembleTarget, logAlphaModule)
+        if hasMeanLogPi {
+            lastMeanLogPi = meanLogPiForEval.item(Float.self)
+        }
         
         return (totalQLoss, actorLossValue, alphaLossArray)
     }

@@ -82,7 +82,8 @@ nonisolated public class CarRacingActorNetwork: Module, SACActorProtocol {
 
         let logProbNorm = -0.5 * (pow((x_t - mean) / std, 2.0) + 2.0 * logStd + logPiConstant)
         let logProbCorrection = log(1.0 - pow(y_t, 2.0) + epsilon)
-        let logProb = (logProbNorm - logProbCorrection).sum(axis: -1, keepDims: true)
+        let logScale = log(actionScale).sum()
+        let logProb = (logProbNorm - logProbCorrection).sum(axis: -1, keepDims: true) - logScale
         
         return (action, logProb, mean)
     }

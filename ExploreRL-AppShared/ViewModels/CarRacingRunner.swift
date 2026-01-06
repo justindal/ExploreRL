@@ -89,7 +89,6 @@ import MLXNN
     
     var useFrameStack: Bool = true
     var frameStackSize: Int = 4
-    var frameSkip: Int = 2
     var useSDE: Bool = true
     
     var currentObservationSize: Int {
@@ -133,16 +132,14 @@ import MLXNN
 
         let grayscaleEnv = GrayscaleObservation(env: baseEnv)
         let resizedEnv = ResizeObservation(env: grayscaleEnv, shape: (12, 12))
-        let normalizedEnv = NormalizeObservation(env: resizedEnv)
-        let frameSkippedEnv = FrameSkip(env: normalizedEnv, skip: frameSkip)
 
         if useFrameStack {
-            var env = FrameStackObservation(env: frameSkippedEnv, stackSize: frameStackSize, paddingType: .reset)
+            var env = FrameStackObservation(env: resizedEnv, stackSize: frameStackSize, paddingType: .reset)
             let _ = env.reset()
             self.snapshot = renderEnabled ? (env.render() as? CarRacingSnapshot) : nil
             self.env = env
         } else {
-            var env = frameSkippedEnv
+            var env = resizedEnv
             let _ = env.reset()
             self.snapshot = renderEnabled ? (env.render() as? CarRacingSnapshot) : nil
             self.env = env
@@ -238,7 +235,6 @@ import MLXNN
         domainRandomize = false
         useFrameStack = true
         frameStackSize = 4
-        frameSkip = 2
         useSDE = true
     }
 
@@ -454,7 +450,8 @@ import MLXNN
     }
     
     private func preprocessObservation(_ obs: MLXArray) -> MLXArray {
-        return obs.asType(.float32).reshaped([currentObservationSize])
+        let x = obs.asType(.float32) / MLXArray(Float32(255.0))
+        return x.reshaped([currentObservationSize])
     }
     
     private func trainingLoop() async {
@@ -555,6 +552,8 @@ import MLXNN
             var steps = 0
             var terminated = false
             var truncated = false
+            var logProbSum: Double = 0
+            var logProbCount: Int = 0
             
             while !terminated && !truncated && isTraining && steps < maxStepsPerEpisode {
                 let action = sacAgent.chooseAction(state: state, key: &rngKey, deterministic: false)
@@ -583,6 +582,10 @@ import MLXNN
                 if totalSteps >= warmupSteps && totalSteps % trainFreqSteps == 0 {
                     for _ in 0..<gradientStepsPerTrain {
                         sacAgent.updateNoSync()
+                        if let v = sacAgent.lastMeanLogPi {
+                            logProbSum += Double(v)
+                            logProbCount += 1
+                        }
                     }
                 }
 
@@ -630,6 +633,8 @@ import MLXNN
             let finalSteps = steps
             let finalReward = episodeRewardLocal
             let finalAlpha = Double(sacAgent.syncAlpha())
+            let meanLogProb = logProbCount > 0 ? (logProbSum / Double(logProbCount)) : nil
+            let entropyEstimate = meanLogProb.map { -$0 }
             
             await MainActor.run {
                 let completedEpisodeNumber = self.loadedEpisodeCount + self.uncommittedEpisodeCount + 1
@@ -645,7 +650,9 @@ import MLXNN
                     epsilon: 0,
                     alpha: finalAlpha,
                     averageGradNorm: nil,
-                    rewardMovingAverage: movingAvg
+                    rewardMovingAverage: movingAvg,
+                    meanLogProb: meanLogProb,
+                    entropyEstimate: entropyEstimate
                 )
                 
                 self.episodesCompletedInRun += 1
