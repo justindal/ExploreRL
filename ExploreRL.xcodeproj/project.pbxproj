@@ -416,7 +416,7 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/justindal/Gymnazo.git";
 			requirement = {
-				branch = "fix/dqn-params";
+				branch = main;
 				kind = branch;
 			};
 		};
