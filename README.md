@@ -1,121 +1,114 @@
 # ExploreRL
 
-ExploreRL is a native Swift app for iOS and macOS that lets you visualize and experiment with reinforcement learning (RL). The project uses [Gymnazo](https://github.com/justindal/Gymnazo) (a Swift port of Gymnasium) for environments and [MLX Swift](https://github.com/ml-explore/mlx-swift/) to leverage Apple Silicon and to implement reinforcement learning algorithms.
+ExploreRL is a SwiftUI app for iOS and macOS that lets you visualize and experiment with reinforcement learning (RL). The project uses [Gymnazo](https://github.com/justindal/Gymnazo) for environments and utilities, as well as [MLX Swift](https://github.com/ml-explore/mlx-swift/) to leverage Apple Silicon and to implement reinforcement learning algorithms.
 
 ## Features
 
-- **Train** RL agents on Gymnasium environments
-- **Evaluate** saved agents without further training
-- **Visualize** agent behavior, rewards, and learning metrics in real time
-- **Save/Load** trained agents with hyperparameters and weights
-- **Import/Export** saved agents (share policies / Q-tables)
-- **Adjust** hyperparameters (learning rate, gamma, epsilon, batch size, etc.)
+- Train RL agents in classic environments on-device
+- Evaluate saved agents without further training
+- Visualize agent behavior, rewards, and learning metrics in real time
+- Save/Load trained agents with hyperparameters and weights
+- Import/Export saved agents (share policies / Q-tables)
+- Adjust hyperparameters (learning rate, gamma, epsilon, batch size, etc.)
+- View system info, performance benchmarks
+- View educational pages for algorithms, environments, and RL concepts
 
-## Supported Environments
+## App Tabs
 
-| Environment             | Category        | Algorithm          | Action Space |
-| ----------------------- | --------------- | ------------------ | ------------ |
-| Frozen Lake             | Toy Text        | Q-Learning / SARSA | Discrete(4)  |
-| Blackjack               | Toy Text        | Q-Learning / SARSA | Discrete(2)  |
-| Taxi                    | Toy Text        | Q-Learning / SARSA | Discrete(6)  |
-| Cliff Walking           | Toy Text        | Q-Learning / SARSA | Discrete(4)  |
-| Cart Pole               | Classic Control | DQN                | Discrete(2)  |
-| Mountain Car            | Classic Control | DQN                | Discrete(3)  |
-| Mountain Car Continuous | Classic Control | SAC                | Box(1)       |
-| Acrobot                 | Classic Control | DQN                | Discrete(3)  |
-| Pendulum                | Classic Control | SAC                | Box(1)       |
-| Lunar Lander            | Box2D           | DQN                | Discrete(4)  |
-| Lunar Lander Continuous | Box2D           | SAC                | Box(2)       |
-
+- Library: Browse, load, evaluate, import, export, and delete saved sessions
+- Train: Configure environments and hyperparameters, then train with live charts/rendering
+- Evaluate: Run saved agents in evaluation episodes without further learning
+- Explore: In-app educational pages for algorithms, environments, and RL concepts
+- Settings: System checks, benchmark tools, FAQ, import/export helpers, and app metadata
 
 ## Implemented Algorithms
 
-- **Tabular**: Q-Learning, SARSA
-- **Deep RL**: DQN (Deep Q-Network), SAC (Soft Actor-Critic)
+- Q-Learning (tabular)
+- SARSA (tabular)
+- DQN
+- SAC
+
+Algorithm choices are filtered at runtime based on environment action/observation space compatibility.
+
+## Environment Coverage
+
+ExploreRL supports the following environments from Gymnazo:
+
+- Toy Text: `FrozenLake`, `FrozenLake8x8`, `Blackjack`, `Taxi`, `CliffWalking`
+- Classic Control: `CartPole`, `MountainCar`, `MountainCarContinuous`, `Acrobot`, `Pendulum`
+- Box2D: `LunarLander`, `LunarLanderContinuous`, `CarRacing`, `CarRacingDiscrete`
+
+
+## Session Persistence
+
+Saved sessions include:
+
+- Environment ID and environment settings
+- Algorithm type and training hyperparameters
+- Training state/metrics
+- Algorithm checkpoints (weights plus metadata)
+
+Import/export is supported through archive files with `.xrlsession` extension.
 
 ## Project Structure
 
-```
+```text
 ExploreRL/
-├── ExploreRL-iOS/           # iOS app target
-├── ExploreRL-macOS/         # macOS app target
-└── ExploreRL-AppShared/     # Shared code between platforms
-    ├── Agents/              # RL algorithm implementations
-    │   ├── DQN/             # Deep Q-Network agents
-    │   ├── SAC/             # Soft Actor-Critic agents
-    │   ├── Tabular/         # Q-Learning, SARSA
-    │   └── Utils/           # Network utilities
-    ├── Models/              # Data models and state
-    ├── Services/            # Agent storage and persistence
-    ├── ViewModels/          # Environment runners
-    └── Views/               # SwiftUI views
-        ├── Main/            # Main navigation
-        ├── Library/         # Saved agents management
-        ├── Train/           # Training landing page
-        ├── Evaluate/        # Evaluation mode
-        ├── Components/      # Shared UI components
-        └── [Environment]/   # Per-environment views
+├── ExploreRL/
+│   ├── Core/
+│   ├── Root/
+│   └── Features/
+│       ├── Explore/
+│       ├── Train/
+│       ├── Evaluate/
+│       ├── Library/
+│       └── Settings/
+├── ExploreRL.xcodeproj/
+└── README.md
 ```
+
+## Dependencies
+
+- `Gymnazo`
+- `mlx-swift`
+- `swift-collections`
+- `swift-numerics`
 
 ## Getting Started
 
 ### Prerequisites
 
-- macOS with Xcode 15+
+- macOS with Xcode 16+
+- Apple Silicon for MLX operations
 - iOS 18+ / macOS 15+
-- Apple Silicon (Intel not supported)
 
-### Dependencies
+> Note: Training performance will vary by device. Devices with newer hardware and more memory will have a better experience. ExploreRL was tested on the following devices:
+> - MacBook Pro M4 Pro  (14 CPU, 20 GPU)
+> - iPad Pro (M2)
+> - iPhone 17 Pro (A17 Pro)
 
-- [MLX Swift](https://github.com/ml-explore/mlx-swift/) - Neural network training on Apple Silicon
-- [Gymnazo](https://github.com/justindal/Gymnazo) - Swift port of Gymnasium environments and tools
+### Open and Run
 
-### Run
+1. Open `ExploreRL.xcodeproj` in Xcode.
+2. Select the `ExploreRL` scheme.
+3. Choose an iOS simulator or macOS destination.
+4. Build and run.
 
-1. Open the project in Xcode
-2. Select `ExploreRL-iOS` or `ExploreRL-macOS` target and run.
+### Command-Line Build
 
-## Using the App
+```bash
+xcodebuild -scheme ExploreRL -destination "platform=macOS" build
+```
 
-### Training
+## Typical Workflow
 
-1. Select an environment from the **Train** section
-2. Configure hyperparameters in the settings panel
-3. Start training and watch metrics update in real time
-4. Save your trained agent to the Library
-
-### Evaluation
-
-1. Go to the **Evaluate** tab
-2. Select a saved agent
-3. Run evaluation episodes to test performance
-
-### Library
-
-- View all saved agents and their statistics
-- Filter by environment type
-- Sort by date, name, episodes, or reward
-- Duplicate, rename, or delete agents
-
-## Roadmap
-
-- [x] FrozenLake with Q-Learning/SARSA
-- [x] Blackjack with Q-Learning/SARSA
-- [x] Taxi with Q-Learning/SARSA
-- [x] CliffWalking with Q-Learning/SARSA
-- [x] CartPole, MountainCar, Acrobot with DQN
-- [x] Pendulum, MountainCarContinuous with SAC
-- [x] LunarLander with DQN
-- [x] LunarLanderContinuous with SAC
-- [x] Save/load agents with weights
-- [x] Evaluation mode
-- [ ] Export training logs
-- [ ] Other Gymnasium environments
-- [ ] More algorithms (PPO, A2C, TD3)
-- [ ] Experiment comparison view
+1. Open an environment in Train
+2. Adjust environment and algorithm settings
+3. Start training and watch metrics/rendering
+4. Save a session to Library
+5. Open the session in Evaluate for rollout checks
+6. Import/export sessions as needed
 
 ## License
 
-See [LICENSE](LICENSE) for details.
-
----
+See [LICENSE](LICENSE).
