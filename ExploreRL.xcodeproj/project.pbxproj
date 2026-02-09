@@ -7,7 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		B9B9D1602F32B3E300425F61 /* Gymnazo in Frameworks */ = {isa = PBXBuildFile; productRef = B9B9D15F2F32B3E300425F61 /* Gymnazo */; };
+		B97CD36D2F3A1B910064AC05 /* Box2D in Frameworks */ = {isa = PBXBuildFile; productRef = B97CD36C2F3A1B910064AC05 /* Box2D */; };
+		B97CD36F2F3A1B910064AC05 /* Gymnazo in Frameworks */ = {isa = PBXBuildFile; productRef = B97CD36E2F3A1B910064AC05 /* Gymnazo */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -28,7 +29,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				B9B9D1602F32B3E300425F61 /* Gymnazo in Frameworks */,
+				B97CD36F2F3A1B910064AC05 /* Gymnazo in Frameworks */,
+				B97CD36D2F3A1B910064AC05 /* Box2D in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -80,7 +82,8 @@
 			);
 			name = ExploreRL;
 			packageProductDependencies = (
-				B9B9D15F2F32B3E300425F61 /* Gymnazo */,
+				B97CD36C2F3A1B910064AC05 /* Box2D */,
+				B97CD36E2F3A1B910064AC05 /* Gymnazo */,
 			);
 			productName = ExploreRL;
 			productReference = B90233BB2F3106DD00378E2A /* ExploreRL.app */;
@@ -111,7 +114,7 @@
 			mainGroup = B954BC912ECA6A9B0081CE3F;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				B900B5D92ED926C2004D94B4 /* XCLocalSwiftPackageReference "../Gymnazo" */,
+				B97CD36B2F3A1B910064AC05 /* XCRemoteSwiftPackageReference "Gymnazo" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = B954BC9B2ECA6A9B0081CE3F /* Products */;
@@ -408,17 +411,26 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCLocalSwiftPackageReference section */
-		B900B5D92ED926C2004D94B4 /* XCLocalSwiftPackageReference "../Gymnazo" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = ../Gymnazo;
+/* Begin XCRemoteSwiftPackageReference section */
+		B97CD36B2F3A1B910064AC05 /* XCRemoteSwiftPackageReference "Gymnazo" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/justindal/Gymnazo.git";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
 		};
-/* End XCLocalSwiftPackageReference section */
+/* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		B9B9D15F2F32B3E300425F61 /* Gymnazo */ = {
+		B97CD36C2F3A1B910064AC05 /* Box2D */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = B900B5D92ED926C2004D94B4 /* XCLocalSwiftPackageReference "../Gymnazo" */;
+			package = B97CD36B2F3A1B910064AC05 /* XCRemoteSwiftPackageReference "Gymnazo" */;
+			productName = Box2D;
+		};
+		B97CD36E2F3A1B910064AC05 /* Gymnazo */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B97CD36B2F3A1B910064AC05 /* XCRemoteSwiftPackageReference "Gymnazo" */;
 			productName = Gymnazo;
 		};
 /* End XCSwiftPackageProductDependency section */

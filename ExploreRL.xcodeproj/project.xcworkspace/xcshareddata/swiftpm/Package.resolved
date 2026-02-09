@@ -1,6 +1,15 @@
 {
-  "originHash" : "6da8bfd9c79b78bf99ffb655576cd294756c63b4538f124eabb5a6f4a1c377b9",
+  "originHash" : "adfe8078a70a4eee6354af2d99a550c82c33dab157ebaf48c17d97088f1406b9",
   "pins" : [
+    {
+      "identity" : "gymnazo",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/justindal/Gymnazo.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "a3917953c64ecedd13ba0a2b2d8ecd962b9d74f6"
+      }
+    },
     {
       "identity" : "mlx-swift",
       "kind" : "remoteSourceControl",
