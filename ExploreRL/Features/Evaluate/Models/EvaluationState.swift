@@ -30,7 +30,8 @@ struct EvaluationState {
 
     var stdReward: Double? {
         guard episodeRewards.count > 1, let mean = meanReward else { return nil }
-        let variance = episodeRewards.reduce(0) { $0 + ($1 - mean) * ($1 - mean) }
+        let variance =
+            episodeRewards.reduce(0) { $0 + ($1 - mean) * ($1 - mean) }
             / Double(episodeRewards.count)
         return variance.squareRoot()
     }
@@ -42,7 +43,8 @@ struct EvaluationState {
 
     var stdLength: Double? {
         guard episodeLengths.count > 1, let mean = meanLength else { return nil }
-        let variance = episodeLengths.reduce(0.0) { $0 + (Double($1) - mean) * (Double($1) - mean) }
+        let variance =
+            episodeLengths.reduce(0.0) { $0 + (Double($1) - mean) * (Double($1) - mean) }
             / Double(episodeLengths.count)
         return variance.squareRoot()
     }

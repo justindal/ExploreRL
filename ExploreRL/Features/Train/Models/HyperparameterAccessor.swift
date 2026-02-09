@@ -187,20 +187,33 @@ struct HyperparameterAccessor {
             }
         case .dqn:
             switch id {
-            case "gamma": config.dqn.gamma = value
-            case "tau": config.dqn.tau = value
-            case "explorationFraction": config.dqn.explorationFraction = value
-            case "explorationInitialEps": config.dqn.explorationInitialEps = value
-            case "explorationFinalEps": config.dqn.explorationFinalEps = value
-            case "maxGradNorm": config.dqn.maxGradNorm = value
-            case "warmupFraction": config.dqn.warmupFraction = value
+            case "gamma":
+                config.dqn.gamma = clamp(value, min: 0.0, max: 1.0)
+            case "tau":
+                config.dqn.tau = clamp(value, min: 0.0, max: 1.0)
+            case "explorationFraction":
+                config.dqn.explorationFraction = clamp(value, min: 1e-9, max: 1.0)
+            case "explorationInitialEps":
+                let initial = clamp(value, min: 0.0, max: 1.0)
+                config.dqn.explorationInitialEps = initial
+                config.dqn.explorationFinalEps = min(config.dqn.explorationFinalEps, initial)
+            case "explorationFinalEps":
+                let final = clamp(value, min: 0.0, max: 1.0)
+                config.dqn.explorationFinalEps = min(final, config.dqn.explorationInitialEps)
+            case "maxGradNorm":
+                config.dqn.maxGradNorm = max(0.0, value)
+            case "warmupFraction":
+                config.dqn.warmupFraction = clamp(value, min: 0.0, max: 1.0)
             default: break
             }
         case .sac:
             switch id {
-            case "gamma": config.sac.gamma = value
-            case "tau": config.sac.tau = value
-            case "warmupFraction": config.sac.warmupFraction = value
+            case "gamma":
+                config.sac.gamma = clamp(value, min: 0.0, max: 1.0)
+            case "tau":
+                config.sac.tau = clamp(value, min: 0.0, max: 1.0)
+            case "warmupFraction":
+                config.sac.warmupFraction = clamp(value, min: 0.0, max: 1.0)
             default: break
             }
         }
@@ -210,39 +223,66 @@ struct HyperparameterAccessor {
         switch config.algorithm {
         case .dqn:
             switch id {
-            case "learningRate": config.dqn.learningRate = value
-            case "learningRateFinal": config.dqn.learningRateFinal = value
-            case "learningRateDecayRate": config.dqn.learningRateDecayRate = value
-            case "learningRateMinValue": config.dqn.learningRateMinValue = value
-            case "learningRateGamma": config.dqn.learningRateGamma = value
-            case "warmupInitialValue": config.dqn.warmupInitialValue = value
-            case "optimizerBeta1": config.dqn.optimizerBeta1 = value
-            case "optimizerBeta2": config.dqn.optimizerBeta2 = value
-            case "optimizerEps": config.dqn.optimizerEps = value
+            case "learningRate":
+                config.dqn.learningRate = max(value, 1e-12)
+            case "learningRateFinal":
+                config.dqn.learningRateFinal = max(value, 0.0)
+            case "learningRateDecayRate":
+                config.dqn.learningRateDecayRate = max(value, 1e-6)
+            case "learningRateMinValue":
+                config.dqn.learningRateMinValue = max(value, 0.0)
+            case "learningRateGamma":
+                config.dqn.learningRateGamma = max(value, 1e-6)
+            case "warmupInitialValue":
+                config.dqn.warmupInitialValue = max(value, 0.0)
+            case "optimizerBeta1":
+                config.dqn.optimizerBeta1 = clamp(value, min: 0.0, max: 0.999_999)
+            case "optimizerBeta2":
+                config.dqn.optimizerBeta2 = clamp(value, min: 0.0, max: 0.999_999)
+            case "optimizerEps":
+                config.dqn.optimizerEps = max(value, 1e-12)
             default: break
             }
         case .sac:
             switch id {
-            case "learningRate": config.sac.learningRate = value
-            case "learningRateFinal": config.sac.learningRateFinal = value
-            case "learningRateDecayRate": config.sac.learningRateDecayRate = value
-            case "learningRateMinValue": config.sac.learningRateMinValue = value
-            case "learningRateGamma": config.sac.learningRateGamma = value
-            case "warmupInitialValue": config.sac.warmupInitialValue = value
-            case "fixedEntCoef": config.sac.fixedEntCoef = value
-            case "autoEntropyInit": config.sac.autoEntropyInit = value
+            case "learningRate":
+                config.sac.learningRate = max(value, 1e-12)
+            case "learningRateFinal":
+                config.sac.learningRateFinal = max(value, 0.0)
+            case "learningRateDecayRate":
+                config.sac.learningRateDecayRate = max(value, 1e-6)
+            case "learningRateMinValue":
+                config.sac.learningRateMinValue = max(value, 0.0)
+            case "learningRateGamma":
+                config.sac.learningRateGamma = max(value, 1e-6)
+            case "warmupInitialValue":
+                config.sac.warmupInitialValue = max(value, 0.0)
+            case "fixedEntCoef":
+                config.sac.fixedEntCoef = max(value, 0.0)
+            case "autoEntropyInit":
+                config.sac.autoEntropyInit = max(value, 1e-6)
             case "targetEntropy": config.sac.targetEntropy = value
             case "logStdInit": config.sac.logStdInit = value
-            case "clipMean": config.sac.clipMean = value
-            case "optimizerActorBeta1": config.sac.optimizerActorBeta1 = value
-            case "optimizerActorBeta2": config.sac.optimizerActorBeta2 = value
-            case "optimizerActorEps": config.sac.optimizerActorEps = value
-            case "optimizerCriticBeta1": config.sac.optimizerCriticBeta1 = value
-            case "optimizerCriticBeta2": config.sac.optimizerCriticBeta2 = value
-            case "optimizerCriticEps": config.sac.optimizerCriticEps = value
-            case "optimizerEntropyBeta1": config.sac.optimizerEntropyBeta1 = value
-            case "optimizerEntropyBeta2": config.sac.optimizerEntropyBeta2 = value
-            case "optimizerEntropyEps": config.sac.optimizerEntropyEps = value
+            case "clipMean":
+                config.sac.clipMean = max(value, 0.0)
+            case "optimizerActorBeta1":
+                config.sac.optimizerActorBeta1 = clamp(value, min: 0.0, max: 0.999_999)
+            case "optimizerActorBeta2":
+                config.sac.optimizerActorBeta2 = clamp(value, min: 0.0, max: 0.999_999)
+            case "optimizerActorEps":
+                config.sac.optimizerActorEps = max(value, 1e-12)
+            case "optimizerCriticBeta1":
+                config.sac.optimizerCriticBeta1 = clamp(value, min: 0.0, max: 0.999_999)
+            case "optimizerCriticBeta2":
+                config.sac.optimizerCriticBeta2 = clamp(value, min: 0.0, max: 0.999_999)
+            case "optimizerCriticEps":
+                config.sac.optimizerCriticEps = max(value, 1e-12)
+            case "optimizerEntropyBeta1":
+                config.sac.optimizerEntropyBeta1 = clamp(value, min: 0.0, max: 0.999_999)
+            case "optimizerEntropyBeta2":
+                config.sac.optimizerEntropyBeta2 = clamp(value, min: 0.0, max: 0.999_999)
+            case "optimizerEntropyEps":
+                config.sac.optimizerEntropyEps = max(value, 1e-12)
             default: break
             }
         default:
@@ -254,24 +294,38 @@ struct HyperparameterAccessor {
         switch config.algorithm {
         case .dqn:
             switch id {
-            case "batchSize": config.dqn.batchSize = value
-            case "bufferSize": config.dqn.bufferSize = value
-            case "learningStarts": config.dqn.learningStarts = value
-            case "targetUpdateInterval": config.dqn.targetUpdateInterval = value
-            case "trainFrequency": config.dqn.trainFrequency = value
-            case "gradientSteps": config.dqn.gradientSteps = value
+            case "batchSize":
+                config.dqn.batchSize = max(1, value)
+            case "bufferSize":
+                config.dqn.bufferSize = max(1, value)
+            case "learningStarts":
+                config.dqn.learningStarts = max(0, value)
+            case "targetUpdateInterval":
+                config.dqn.targetUpdateInterval = max(1, value)
+            case "trainFrequency":
+                config.dqn.trainFrequency = max(1, value)
+            case "gradientSteps":
+                config.dqn.gradientSteps = value == -1 ? -1 : max(1, value)
             default: break
             }
         case .sac:
             switch id {
-            case "batchSize": config.sac.batchSize = value
-            case "bufferSize": config.sac.bufferSize = value
-            case "learningStarts": config.sac.learningStarts = value
-            case "targetUpdateInterval": config.sac.targetUpdateInterval = value
-            case "gradientSteps": config.sac.gradientSteps = value
-            case "trainFrequency": config.sac.trainFrequency = value
-            case "sdeSampleFreq": config.sac.sdeSampleFreq = value
-            case "nCritics": config.sac.nCritics = value
+            case "batchSize":
+                config.sac.batchSize = max(1, value)
+            case "bufferSize":
+                config.sac.bufferSize = max(1, value)
+            case "learningStarts":
+                config.sac.learningStarts = max(0, value)
+            case "targetUpdateInterval":
+                config.sac.targetUpdateInterval = max(1, value)
+            case "gradientSteps":
+                config.sac.gradientSteps = value == -1 ? -1 : max(1, value)
+            case "trainFrequency":
+                config.sac.trainFrequency = max(1, value)
+            case "sdeSampleFreq":
+                config.sac.sdeSampleFreq = value < 0 ? -1 : value
+            case "nCritics":
+                config.sac.nCritics = max(1, value)
             default: break
             }
         default:
@@ -283,8 +337,16 @@ struct HyperparameterAccessor {
         switch config.algorithm {
         case .dqn:
             switch id {
-            case "optimizeMemoryUsage": config.dqn.optimizeMemoryUsage = value
-            case "handleTimeoutTermination": config.dqn.handleTimeoutTermination = value
+            case "optimizeMemoryUsage":
+                config.dqn.optimizeMemoryUsage = value
+                if value {
+                    config.dqn.handleTimeoutTermination = false
+                }
+            case "handleTimeoutTermination":
+                config.dqn.handleTimeoutTermination = value
+                if value {
+                    config.dqn.optimizeMemoryUsage = false
+                }
             case "normalizeImages": config.dqn.normalizeImages = value
             case "warmupEnabled": config.dqn.warmupEnabled = value
             default: break
@@ -300,8 +362,16 @@ struct HyperparameterAccessor {
             case "fullStd": config.sac.fullStd = value
             case "shareFeaturesExtractor": config.sac.shareFeaturesExtractor = value
             case "criticNormalizeImages": config.sac.criticNormalizeImages = value
-            case "optimizeMemoryUsage": config.sac.optimizeMemoryUsage = value
-            case "handleTimeoutTermination": config.sac.handleTimeoutTermination = value
+            case "optimizeMemoryUsage":
+                config.sac.optimizeMemoryUsage = value
+                if value {
+                    config.sac.handleTimeoutTermination = false
+                }
+            case "handleTimeoutTermination":
+                config.sac.handleTimeoutTermination = value
+                if value {
+                    config.sac.optimizeMemoryUsage = false
+                }
             case "warmupEnabled": config.sac.warmupEnabled = value
             default: break
             }
@@ -380,5 +450,9 @@ struct HyperparameterAccessor {
             char == "," || char == " " || char == "\n" || char == "\t" || char == ";"
         }
         return parts.compactMap { Int($0) }.filter { $0 > 0 }
+    }
+
+    private static func clamp<T: Comparable>(_ value: T, min minValue: T, max maxValue: T) -> T {
+        min(max(value, minValue), maxValue)
     }
 }

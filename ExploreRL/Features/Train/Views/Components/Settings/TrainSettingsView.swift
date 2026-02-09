@@ -4,6 +4,7 @@
 //
 
 import Gymnazo
+import MLX
 import SwiftUI
 
 struct TrainSettingsView: View {
@@ -46,6 +47,13 @@ struct TrainSettingsView: View {
             return AlgorithmType.allCases
         }
         return vm.availableAlgorithms(for: env)
+    }
+
+    private var supportsImageNormalization: Bool {
+        guard let env = vm.env(for: envID) else {
+            return false
+        }
+        return hasImageObservations(in: env.observationSpace)
     }
 
     private var hasEnvChanges: Bool {
@@ -100,6 +108,7 @@ struct TrainSettingsView: View {
                 case .training:
                     TrainingSettingsSection(
                         availableAlgorithms: availableAlgorithms,
+                        supportsImageNormalization: supportsImageNormalization,
                         config: $localTrainingConfig,
                         validationErrors: $trainingValidationErrors
                     )
@@ -187,5 +196,21 @@ struct TrainSettingsView: View {
         case .training:
             localTrainingConfig = EnvironmentDefaults.config(for: envID)
         }
+    }
+
+    private func hasImageObservations(in space: any Space) -> Bool {
+        if let box = boxSpace(from: space) {
+            return box.dtype == .uint8 && box.shape?.count == 3
+        }
+        if let anySpace = space as? AnySpace {
+            return hasImageObservations(in: anySpace.base)
+        }
+        if let dict = space as? Dict {
+            return dict.spaces.values.contains { hasImageObservations(in: $0) }
+        }
+        if let tuple = space as? Tuple {
+            return tuple.spaces.contains { hasImageObservations(in: $0) }
+        }
+        return false
     }
 }

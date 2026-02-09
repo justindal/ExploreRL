@@ -258,9 +258,10 @@ extension TrainViewModel {
         let dqn = try dqnAlgorithm(for: id, env: env, config: config)
 
         if !isResuming {
+            let dqnSettings = sanitizedDQNHyperparameters(config.dqn)
             updateTrainingState(for: id) { s in
                 s.currentTimestep = 0
-                s.explorationRate = config.dqn.explorationInitialEps
+                s.explorationRate = dqnSettings.explorationInitialEps
             }
             trainingTimings[id] = TrainingTiming(startedAt: .now)
         }
@@ -305,61 +306,62 @@ extension TrainViewModel {
                 "DQN requires a discrete action space"
             )
         }
+        let dqnSettings = sanitizedDQNHyperparameters(config.dqn)
 
         let trainFrequency = TrainFrequency(
-            frequency: max(1, config.dqn.trainFrequency),
-            unit: trainFrequencyUnit(from: config.dqn.trainFrequencyUnit)
+            frequency: max(1, dqnSettings.trainFrequency),
+            unit: trainFrequencyUnit(from: dqnSettings.trainFrequencyUnit)
         )
         let gradientSteps = gradientSteps(
-            mode: config.dqn.gradientStepsMode,
-            count: config.dqn.gradientSteps
+            mode: dqnSettings.gradientStepsMode,
+            count: dqnSettings.gradientSteps
         )
         let maxGradNorm =
-            config.dqn.maxGradNorm > 0 ? config.dqn.maxGradNorm : nil
+            dqnSettings.maxGradNorm > 0 ? dqnSettings.maxGradNorm : nil
 
         let dqnConfig = DQNConfig(
-            bufferSize: config.dqn.bufferSize,
-            learningStarts: config.dqn.learningStarts,
-            batchSize: config.dqn.batchSize,
-            tau: config.dqn.tau,
-            gamma: config.dqn.gamma,
+            bufferSize: dqnSettings.bufferSize,
+            learningStarts: dqnSettings.learningStarts,
+            batchSize: dqnSettings.batchSize,
+            tau: dqnSettings.tau,
+            gamma: dqnSettings.gamma,
             trainFrequency: trainFrequency,
             gradientSteps: gradientSteps,
-            targetUpdateInterval: config.dqn.targetUpdateInterval,
-            explorationFraction: config.dqn.explorationFraction,
-            explorationInitialEps: config.dqn.explorationInitialEps,
-            explorationFinalEps: config.dqn.explorationFinalEps,
+            targetUpdateInterval: dqnSettings.targetUpdateInterval,
+            explorationFraction: dqnSettings.explorationFraction,
+            explorationInitialEps: dqnSettings.explorationInitialEps,
+            explorationFinalEps: dqnSettings.explorationFinalEps,
             maxGradNorm: maxGradNorm,
-            optimizeMemoryUsage: config.dqn.optimizeMemoryUsage,
-            handleTimeoutTermination: config.dqn.handleTimeoutTermination
+            optimizeMemoryUsage: dqnSettings.optimizeMemoryUsage,
+            handleTimeoutTermination: dqnSettings.handleTimeoutTermination
         )
 
         let policyConfig = DQNPolicyConfig(
-            netArch: config.dqn.netArch,
+            netArch: dqnSettings.netArch,
             featuresExtractor: .auto,
-            activation: activationConfig(from: config.dqn.activation),
-            normalizeImages: config.dqn.normalizeImages
+            activation: activationConfig(from: dqnSettings.activation),
+            normalizeImages: dqnSettings.normalizeImages
         )
 
         let optimizerConfig = DQNOptimizerConfig(
             optimizer: .adam(
-                beta1: config.dqn.optimizerBeta1,
-                beta2: config.dqn.optimizerBeta2,
-                eps: config.dqn.optimizerEps
+                beta1: dqnSettings.optimizerBeta1,
+                beta2: dqnSettings.optimizerBeta2,
+                eps: dqnSettings.optimizerEps
             )
         )
 
         let learningRate = learningRateSchedule(
-            schedule: config.dqn.learningRateSchedule,
-            initial: Double(config.dqn.learningRate),
-            final: Double(config.dqn.learningRateFinal),
-            decayRate: Double(config.dqn.learningRateDecayRate),
-            minValue: Double(config.dqn.learningRateMinValue),
-            milestones: parseMilestones(config.dqn.learningRateMilestones),
-            gamma: Double(config.dqn.learningRateGamma),
-            warmupEnabled: config.dqn.warmupEnabled,
-            warmupFraction: config.dqn.warmupFraction,
-            warmupInitial: Double(config.dqn.warmupInitialValue)
+            schedule: dqnSettings.learningRateSchedule,
+            initial: Double(dqnSettings.learningRate),
+            final: Double(dqnSettings.learningRateFinal),
+            decayRate: Double(dqnSettings.learningRateDecayRate),
+            minValue: Double(dqnSettings.learningRateMinValue),
+            milestones: parseMilestones(dqnSettings.learningRateMilestones),
+            gamma: Double(dqnSettings.learningRateGamma),
+            warmupEnabled: dqnSettings.warmupEnabled,
+            warmupFraction: dqnSettings.warmupFraction,
+            warmupInitial: Double(dqnSettings.warmupInitialValue)
         )
 
         let dqn = DQN(
@@ -432,70 +434,71 @@ extension TrainViewModel {
             existing.setEnv(configuredEnv)
             return existing
         }
+        let sacSettings = sanitizedSACHyperparameters(config.sac)
 
         let trainFrequency = TrainFrequency(
-            frequency: max(1, config.sac.trainFrequency),
-            unit: trainFrequencyUnit(from: config.sac.trainFrequencyUnit)
+            frequency: max(1, sacSettings.trainFrequency),
+            unit: trainFrequencyUnit(from: sacSettings.trainFrequencyUnit)
         )
         let gradientSteps = gradientSteps(
-            mode: config.sac.gradientStepsMode,
-            count: config.sac.gradientSteps
+            mode: sacSettings.gradientStepsMode,
+            count: sacSettings.gradientSteps
         )
 
         let offPolicyConfig = OffPolicyConfig(
-            bufferSize: config.sac.bufferSize,
-            learningStarts: config.sac.learningStarts,
-            batchSize: config.sac.batchSize,
-            tau: config.sac.tau,
-            gamma: config.sac.gamma,
+            bufferSize: sacSettings.bufferSize,
+            learningStarts: sacSettings.learningStarts,
+            batchSize: sacSettings.batchSize,
+            tau: sacSettings.tau,
+            gamma: sacSettings.gamma,
             trainFrequency: trainFrequency,
             gradientSteps: gradientSteps,
-            targetUpdateInterval: config.sac.targetUpdateInterval,
-            optimizeMemoryUsage: config.sac.optimizeMemoryUsage,
-            handleTimeoutTermination: config.sac.handleTimeoutTermination,
-            useSDEAtWarmup: config.sac.useSDEAtWarmup,
-            sdeSampleFreq: config.sac.sdeSampleFreq,
+            targetUpdateInterval: sacSettings.targetUpdateInterval,
+            optimizeMemoryUsage: sacSettings.optimizeMemoryUsage,
+            handleTimeoutTermination: sacSettings.handleTimeoutTermination,
+            useSDEAtWarmup: sacSettings.useSDEAtWarmup,
+            sdeSampleFreq: sacSettings.sdeSampleFreq,
             sdeSupported: true
         )
 
         let netArch: NetArch =
-            config.sac.useSeparateNetworks
+            sacSettings.useSeparateNetworks
             ? .separate(
-                actor: config.sac.netArch,
-                critic: config.sac.criticNetArch
+                actor: sacSettings.netArch,
+                critic: sacSettings.criticNetArch
             )
-            : .shared(config.sac.netArch)
+            : .shared(sacSettings.netArch)
 
         let actorFeaturesExtractor: FeaturesExtractorConfig = .auto
         let criticFeaturesExtractor: FeaturesExtractorConfig? =
-            config.sac.shareFeaturesExtractor ? nil : .auto
-        let actorActivation = activationConfig(from: config.sac.activation)
+            sacSettings.shareFeaturesExtractor ? nil : .auto
+        let actorActivation = activationConfig(from: sacSettings.activation)
         let criticActivation = activationConfig(
-            from: config.sac.shareFeaturesExtractor
-                ? config.sac.activation : config.sac.criticActivation
+            from: sacSettings.shareFeaturesExtractor
+                ? sacSettings.activation : sacSettings.criticActivation
         )
         let criticNormalizeImages =
-            config.sac.shareFeaturesExtractor
-            ? config.sac.normalizeImages
-            : config.sac.criticNormalizeImages
+            sacSettings.shareFeaturesExtractor
+            ? sacSettings.normalizeImages
+            : sacSettings.criticNormalizeImages
         let criticNetArch =
-            config.sac.useSeparateNetworks ? config.sac.criticNetArch : nil
+            sacSettings.useSeparateNetworks ? sacSettings.criticNetArch : nil
 
         let networksConfig = SACNetworksConfig(
             actor: SACActorConfig(
                 netArch: netArch,
                 featuresExtractor: actorFeaturesExtractor,
                 activation: actorActivation,
-                useSDE: config.sac.useSDE,
-                logStdInit: config.sac.logStdInit,
-                fullStd: config.sac.fullStd,
-                clipMean: config.sac.clipMean,
-                normalizeImages: config.sac.normalizeImages
+                useSDE: sacSettings.useSDE,
+                logStdInit: sacSettings.logStdInit,
+                fullStd: sacSettings.fullStd,
+                clipMean: sacSettings.clipMean,
+                normalizeImages: sacSettings.normalizeImages
             ),
             critic: SACCriticConfig(
                 netArch: criticNetArch,
-                nCritics: config.sac.nCritics,
-                shareFeaturesExtractor: config.sac.shareFeaturesExtractor,
+                nCritics: sacSettings.nCritics,
+                shareFeaturesExtractor: sacSettings.shareFeaturesExtractor,
                 featuresExtractor: criticFeaturesExtractor,
                 normalizeImages: criticNormalizeImages,
                 activation: criticActivation
@@ -503,44 +506,44 @@ extension TrainViewModel {
         )
 
         let entCoef: EntropyCoef =
-            config.sac.autoEntropyTuning
-            ? .auto(init: config.sac.autoEntropyInit)
-            : .fixed(config.sac.fixedEntCoef)
+            sacSettings.autoEntropyTuning
+            ? .auto(init: sacSettings.autoEntropyInit)
+            : .fixed(sacSettings.fixedEntCoef)
         let targetEntropy =
-            config.sac.useTargetEntropy ? config.sac.targetEntropy : nil
+            sacSettings.useTargetEntropy ? sacSettings.targetEntropy : nil
         let entropyOptimizer: OptimizerConfig? =
-            config.sac.autoEntropyTuning
+            sacSettings.autoEntropyTuning
             ? .adam(
-                beta1: config.sac.optimizerEntropyBeta1,
-                beta2: config.sac.optimizerEntropyBeta2,
-                eps: config.sac.optimizerEntropyEps
+                beta1: sacSettings.optimizerEntropyBeta1,
+                beta2: sacSettings.optimizerEntropyBeta2,
+                eps: sacSettings.optimizerEntropyEps
             )
             : nil
         let optimizerConfig = SACOptimizerConfig(
             actor: .adam(
-                beta1: config.sac.optimizerActorBeta1,
-                beta2: config.sac.optimizerActorBeta2,
-                eps: config.sac.optimizerActorEps
+                beta1: sacSettings.optimizerActorBeta1,
+                beta2: sacSettings.optimizerActorBeta2,
+                eps: sacSettings.optimizerActorEps
             ),
             critic: .adam(
-                beta1: config.sac.optimizerCriticBeta1,
-                beta2: config.sac.optimizerCriticBeta2,
-                eps: config.sac.optimizerCriticEps
+                beta1: sacSettings.optimizerCriticBeta1,
+                beta2: sacSettings.optimizerCriticBeta2,
+                eps: sacSettings.optimizerCriticEps
             ),
             entropy: entropyOptimizer
         )
 
         let learningRate = learningRateSchedule(
-            schedule: config.sac.learningRateSchedule,
-            initial: Double(config.sac.learningRate),
-            final: Double(config.sac.learningRateFinal),
-            decayRate: Double(config.sac.learningRateDecayRate),
-            minValue: Double(config.sac.learningRateMinValue),
-            milestones: parseMilestones(config.sac.learningRateMilestones),
-            gamma: Double(config.sac.learningRateGamma),
-            warmupEnabled: config.sac.warmupEnabled,
-            warmupFraction: config.sac.warmupFraction,
-            warmupInitial: Double(config.sac.warmupInitialValue)
+            schedule: sacSettings.learningRateSchedule,
+            initial: Double(sacSettings.learningRate),
+            final: Double(sacSettings.learningRateFinal),
+            decayRate: Double(sacSettings.learningRateDecayRate),
+            minValue: Double(sacSettings.learningRateMinValue),
+            milestones: parseMilestones(sacSettings.learningRateMilestones),
+            gamma: Double(sacSettings.learningRateGamma),
+            warmupEnabled: sacSettings.warmupEnabled,
+            warmupFraction: sacSettings.warmupFraction,
+            warmupInitial: Double(sacSettings.warmupInitialValue)
         )
 
         let sac = SAC(
@@ -558,6 +561,93 @@ extension TrainViewModel {
 
         sacAlgorithms[id] = sac
         return sac
+    }
+
+    private func sanitizedDQNHyperparameters(_ values: DQNHyperparameters) -> DQNHyperparameters {
+        var output = values
+        output.learningRate = max(output.learningRate, 1e-12)
+        output.learningRateFinal = max(output.learningRateFinal, 0.0)
+        output.learningRateDecayRate = max(output.learningRateDecayRate, 1e-6)
+        output.learningRateMinValue = max(output.learningRateMinValue, 0.0)
+        output.learningRateGamma = max(output.learningRateGamma, 1e-6)
+        output.warmupFraction = clamp(output.warmupFraction, min: 0.0, max: 1.0)
+        output.warmupInitialValue = max(output.warmupInitialValue, 0.0)
+        output.bufferSize = max(1, output.bufferSize)
+        output.batchSize = max(1, output.batchSize)
+        output.learningStarts = max(0, output.learningStarts)
+        output.gamma = clamp(output.gamma, min: 0.0, max: 1.0)
+        output.tau = clamp(output.tau, min: 0.0, max: 1.0)
+        output.explorationFraction = clamp(output.explorationFraction, min: 1e-9, max: 1.0)
+        output.explorationInitialEps = clamp(output.explorationInitialEps, min: 0.0, max: 1.0)
+        output.explorationFinalEps = clamp(
+            output.explorationFinalEps,
+            min: 0.0,
+            max: output.explorationInitialEps
+        )
+        output.targetUpdateInterval = max(1, output.targetUpdateInterval)
+        output.trainFrequency = max(1, output.trainFrequency)
+        output.gradientSteps = output.gradientSteps == -1 ? -1 : max(1, output.gradientSteps)
+        output.maxGradNorm = max(0.0, output.maxGradNorm)
+        output.netArch = output.netArch.filter { $0 > 0 }
+        if output.netArch.isEmpty {
+            output.netArch = [64, 64]
+        }
+        output.optimizerBeta1 = clamp(output.optimizerBeta1, min: 0.0, max: 0.999_999)
+        output.optimizerBeta2 = clamp(output.optimizerBeta2, min: 0.0, max: 0.999_999)
+        output.optimizerEps = max(output.optimizerEps, 1e-12)
+        if output.optimizeMemoryUsage && output.handleTimeoutTermination {
+            output.optimizeMemoryUsage = false
+        }
+        return output
+    }
+
+    private func sanitizedSACHyperparameters(_ values: SACHyperparameters) -> SACHyperparameters {
+        var output = values
+        output.learningRate = max(output.learningRate, 1e-12)
+        output.learningRateFinal = max(output.learningRateFinal, 0.0)
+        output.learningRateDecayRate = max(output.learningRateDecayRate, 1e-6)
+        output.learningRateMinValue = max(output.learningRateMinValue, 0.0)
+        output.learningRateGamma = max(output.learningRateGamma, 1e-6)
+        output.warmupFraction = clamp(output.warmupFraction, min: 0.0, max: 1.0)
+        output.warmupInitialValue = max(output.warmupInitialValue, 0.0)
+        output.bufferSize = max(1, output.bufferSize)
+        output.batchSize = max(1, output.batchSize)
+        output.learningStarts = max(0, output.learningStarts)
+        output.gamma = clamp(output.gamma, min: 0.0, max: 1.0)
+        output.tau = clamp(output.tau, min: 0.0, max: 1.0)
+        output.targetUpdateInterval = max(1, output.targetUpdateInterval)
+        output.trainFrequency = max(1, output.trainFrequency)
+        output.gradientSteps = output.gradientSteps == -1 ? -1 : max(1, output.gradientSteps)
+        output.autoEntropyInit = max(output.autoEntropyInit, 1e-6)
+        output.fixedEntCoef = max(output.fixedEntCoef, 0.0)
+        output.netArch = output.netArch.filter { $0 > 0 }
+        if output.netArch.isEmpty {
+            output.netArch = [256, 256]
+        }
+        output.criticNetArch = output.criticNetArch.filter { $0 > 0 }
+        if output.criticNetArch.isEmpty {
+            output.criticNetArch = output.netArch
+        }
+        output.sdeSampleFreq = output.sdeSampleFreq < 0 ? -1 : output.sdeSampleFreq
+        output.clipMean = max(output.clipMean, 0.0)
+        output.nCritics = max(1, output.nCritics)
+        output.optimizerActorBeta1 = clamp(output.optimizerActorBeta1, min: 0.0, max: 0.999_999)
+        output.optimizerActorBeta2 = clamp(output.optimizerActorBeta2, min: 0.0, max: 0.999_999)
+        output.optimizerActorEps = max(output.optimizerActorEps, 1e-12)
+        output.optimizerCriticBeta1 = clamp(output.optimizerCriticBeta1, min: 0.0, max: 0.999_999)
+        output.optimizerCriticBeta2 = clamp(output.optimizerCriticBeta2, min: 0.0, max: 0.999_999)
+        output.optimizerCriticEps = max(output.optimizerCriticEps, 1e-12)
+        output.optimizerEntropyBeta1 = clamp(output.optimizerEntropyBeta1, min: 0.0, max: 0.999_999)
+        output.optimizerEntropyBeta2 = clamp(output.optimizerEntropyBeta2, min: 0.0, max: 0.999_999)
+        output.optimizerEntropyEps = max(output.optimizerEntropyEps, 1e-12)
+        if output.optimizeMemoryUsage && output.handleTimeoutTermination {
+            output.optimizeMemoryUsage = false
+        }
+        return output
+    }
+
+    private func clamp<T: Comparable>(_ value: T, min minValue: T, max maxValue: T) -> T {
+        min(max(value, minValue), maxValue)
     }
 
     private func trainFrequencyUnit(from raw: String) -> TrainFrequencyUnit {
