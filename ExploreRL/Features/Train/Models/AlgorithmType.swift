@@ -1,0 +1,41 @@
+//
+//  AlgorithmType.swift
+//  ExploreRL
+//
+
+import Foundation
+
+enum AlgorithmType: String, CaseIterable, Identifiable, Codable {
+    case qLearning = "Q-Learning"
+    case sarsa = "SARSA"
+    case dqn = "DQN"
+    case sac = "SAC"
+
+    var id: String { rawValue }
+
+    var isTabular: Bool {
+        switch self {
+        case .qLearning, .sarsa:
+            return true
+        case .dqn, .sac:
+            return false
+        }
+    }
+
+    var requiresDiscreteActions: Bool {
+        switch self {
+        case .qLearning, .sarsa, .dqn:
+            return true
+        case .sac:
+            return false
+        }
+    }
+
+    var requiresContinuousActions: Bool {
+        self == .sac
+    }
+
+    var requiresDiscreteObservations: Bool {
+        isTabular
+    }
+}
