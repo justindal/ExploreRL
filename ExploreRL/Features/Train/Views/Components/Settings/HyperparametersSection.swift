@@ -7,6 +7,7 @@ import SwiftUI
 
 struct HyperparametersSection: View {
     @Binding var config: TrainingConfig
+    let supportsImageNormalization: Bool
     @Binding var validationErrors: Set<String>
     @State private var stringValues: [String: String] = [:]
     @State private var expandedGroups: Set<String> = []
@@ -513,10 +514,13 @@ struct HyperparametersSection: View {
              "fullStd",
              "clipMean":
             return config.algorithm == .sac && config.sac.useSDE
+        case "normalizeImages":
+            return (config.algorithm == .dqn || config.algorithm == .sac) && supportsImageNormalization
+        case "criticNormalizeImages":
+            return config.algorithm == .sac && supportsImageNormalization
         case "nCritics",
              "shareFeaturesExtractor",
              "criticActivation",
-             "criticNormalizeImages",
              "useSeparateNetworks",
              "autoEntropyTuning",
              "useTargetEntropy",

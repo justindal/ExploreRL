@@ -50,7 +50,8 @@ struct TrainingConfig: Equatable, Codable {
         evalFrequency = try c.decodeIfPresent(Int.self, forKey: .evalFrequency) ?? 5000
         evalEpisodes = try c.decodeIfPresent(Int.self, forKey: .evalEpisodes) ?? 10
         seed = try c.decodeIfPresent(String.self, forKey: .seed) ?? ""
-        renderDuringTraining = try c.decodeIfPresent(Bool.self, forKey: .renderDuringTraining) ?? true
+        renderDuringTraining =
+            try c.decodeIfPresent(Bool.self, forKey: .renderDuringTraining) ?? true
         if let fps = try c.decodeIfPresent(Int.self, forKey: .renderFPS) {
             renderFPS = max(0, min(120, fps))
         } else {
@@ -66,7 +67,9 @@ struct TrainingConfig: Equatable, Codable {
                 renderFPS = 60
             }
         }
-        tabular = try c.decodeIfPresent(TabularHyperparameters.self, forKey: .tabular) ?? TabularHyperparameters()
+        tabular =
+            try c.decodeIfPresent(TabularHyperparameters.self, forKey: .tabular)
+            ?? TabularHyperparameters()
         dqn = try c.decodeIfPresent(DQNHyperparameters.self, forKey: .dqn) ?? DQNHyperparameters()
         sac = try c.decodeIfPresent(SACHyperparameters.self, forKey: .sac) ?? SACHyperparameters()
     }

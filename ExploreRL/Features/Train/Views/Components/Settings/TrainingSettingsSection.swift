@@ -7,6 +7,7 @@ import SwiftUI
 
 struct TrainingSettingsSection: View {
     let availableAlgorithms: [AlgorithmType]
+    let supportsImageNormalization: Bool
     @Binding var config: TrainingConfig
     @Binding var validationErrors: Set<String>
     @State private var hyperparameterErrors: Set<String> = []
@@ -18,6 +19,7 @@ struct TrainingSettingsSection: View {
             renderSection
             HyperparametersSection(
                 config: $config,
+                supportsImageNormalization: supportsImageNormalization,
                 validationErrors: $hyperparameterErrors
             )
         }
