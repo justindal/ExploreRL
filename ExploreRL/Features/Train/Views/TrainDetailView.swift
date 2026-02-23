@@ -411,15 +411,22 @@ struct TrainDetailView: View {
 
     private var resetButton: some View {
         Button {
+            guard !isResetting else { return }
             if hasTrainingProgress {
                 showResetAlert = true
             } else {
                 performReset()
             }
         } label: {
-            Label("Reset", systemImage: "arrow.counterclockwise")
+            Label(
+                isResetting ? "Resetting..." : "Reset",
+                systemImage: isResetting
+                    ? "arrow.triangle.2.circlepath"
+                    : "arrow.counterclockwise"
+            )
                 .frame(maxWidth: .infinity)
         }
+        .disabled(isResetting)
         .modify { button in
             let isTraining = trainingState.status == .training
             if #available(iOS 26.0, macOS 26.0, *) {
@@ -444,6 +451,10 @@ struct TrainDetailView: View {
 
     private var hasTrainingProgress: Bool {
         trainingState.currentTimestep > 0 || trainingState.episodeCount > 0
+    }
+
+    private var isResetting: Bool {
+        vm.isResetting(id: id)
     }
 
     private func performReset() {

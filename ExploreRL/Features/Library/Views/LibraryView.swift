@@ -9,6 +9,12 @@ struct LibraryView: View {
     @State private var preferredCompactColumn = NavigationSplitViewColumn.sidebar
     @State private var selectedSessionID: UUID?
     @State private var showImportPicker = false
+    @State private var searchText = ""
+    @State private var shareURL: URL?
+
+    private var filteredSessions: [SavedSession] {
+        viewModel.filteredSessions(matching: searchText)
+    }
 
     private var hasDeleteError: Binding<Bool> {
         Binding(
@@ -21,6 +27,13 @@ struct LibraryView: View {
         Binding(
             get: { viewModel.transferError != nil },
             set: { if !$0 { viewModel.transferError = nil } }
+        )
+    }
+
+    private var hasExportError: Binding<Bool> {
+        Binding(
+            get: { viewModel.exportError != nil },
+            set: { if !$0 { viewModel.exportError = nil } }
         )
     }
 
@@ -64,6 +77,26 @@ struct LibraryView: View {
         } message: {
             Text("Imported \(viewModel.lastImportedCount ?? 0) session(s).")
         }
+        .alert("Export Failed", isPresented: hasExportError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(viewModel.exportError ?? "")
+        }
+        .modify { content in
+            #if os(iOS)
+            content.sheet(isPresented: Binding(
+                get: { shareURL != nil },
+                set: { if !$0 { shareURL = nil } }
+            )) {
+                if let shareURL {
+                    SessionShareSheet(url: shareURL)
+                        .presentationDetents([.medium])
+                }
+            }
+            #else
+            content
+            #endif
+        }
         .fileImporter(
             isPresented: $showImportPicker,
             allowedContentTypes: [SessionStorage.archiveContentType],
@@ -76,6 +109,11 @@ struct LibraryView: View {
                 viewModel.transferError = error.localizedDescription
             }
         }
+        .searchable(
+            text: $searchText,
+            placement: .sidebar,
+            prompt: "Search sessions"
+        )
     }
 
     @ViewBuilder
@@ -87,19 +125,55 @@ struct LibraryView: View {
                     systemImage: "tray",
                     description: Text("Train an agent and save your progress to see it here.")
                 )
+            } else if filteredSessions.isEmpty {
+                ContentUnavailableView.search(text: searchText)
             } else {
                 List(selection: $selectedSessionID) {
-                    ForEach(viewModel.sessions) { session in
+                    ForEach(filteredSessions) { session in
                         NavigationLink(value: session.id) {
                             SavedSessionRow(
                                 session: session,
                                 size: viewModel.sessionSizes[session.id]
                             )
                         }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button(role: .destructive) {
+                                viewModel.delete(session: session)
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
+                        .contextMenu {
+                            Button {
+                                onLoad(session)
+                            } label: {
+                                Label("Load Session", systemImage: "play.fill")
+                            }
+                            Button {
+                                onEvaluate(session)
+                            } label: {
+                                Label("Evaluate", systemImage: "checkmark.circle")
+                            }
+                            Button {
+                                exportAndShare(session)
+                            } label: {
+                                Label("Export", systemImage: "square.and.arrow.up")
+                            }
+                            Divider()
+                            Button(role: .destructive) {
+                                viewModel.delete(session: session)
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
                     }
                     .onDelete { offsets in
-                        viewModel.deleteSessions(at: offsets)
+                        deleteFilteredSessions(at: offsets)
                     }
+                }
+                .listStyle(libraryListStyle)
+                .refreshable {
+                    viewModel.loadSessions()
                 }
             }
         }
@@ -119,6 +193,7 @@ struct LibraryView: View {
                     session: session,
                     onLoad: onLoad,
                     onEvaluate: onEvaluate,
+                    onExport: exportAndShare,
                     onDelete: { viewModel.delete(session: session) }
                 )
             } else {
@@ -138,6 +213,7 @@ struct LibraryView: View {
                 session: session,
                 onLoad: onLoad,
                 onEvaluate: onEvaluate,
+                onExport: exportAndShare,
                 onDelete: { viewModel.delete(session: session) }
             )
         } else if viewModel.sessions.isEmpty {
@@ -151,6 +227,38 @@ struct LibraryView: View {
                 "Select a Session",
                 systemImage: "sidebar.left"
             )
+        }
+    }
+
+    private var libraryListStyle: some ListStyle {
+#if os(macOS)
+        return SidebarListStyle()
+#else
+        return InsetGroupedListStyle()
+#endif
+    }
+
+    private func deleteFilteredSessions(at offsets: IndexSet) {
+        let idsToDelete = offsets.compactMap { index in
+            filteredSessions.indices.contains(index) ? filteredSessions[index] : nil
+        }.map(\.id)
+        viewModel.deleteSessions(withIDs: idsToDelete)
+    }
+
+    private func exportAndShare(_ session: SavedSession) {
+        do {
+            let exportURL = try viewModel.exportSession(session)
+            #if os(macOS)
+            SessionSharePresenter.present(url: exportURL)
+            #else
+            shareURL = nil
+            shareURL = exportURL
+            #endif
+        } catch {
+            #if !os(macOS)
+            shareURL = nil
+            #endif
+            viewModel.exportError = error.localizedDescription
         }
     }
 }

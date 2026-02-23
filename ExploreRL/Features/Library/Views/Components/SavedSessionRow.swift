@@ -8,7 +8,7 @@ struct SavedSessionRow: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Text(session.name)
-                    .font(.headline)
+                    .font(.body.weight(.semibold))
                     .lineLimit(1)
                 Spacer()
                 AlgorithmBadge(text: session.algorithmType.rawValue)
@@ -36,8 +36,9 @@ struct SavedSessionRow: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
+                .lineLimit(1)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 2)
     }
 
     private var metricsText: String {

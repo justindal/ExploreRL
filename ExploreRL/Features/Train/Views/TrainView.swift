@@ -33,19 +33,11 @@ struct TrainView: View {
                                 algorithms: []
                             )
                             .tag(spec.id)
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(Color.clear)
                         }
                     }
                 }
             }
-            .modify { view in
-                if #available(iOS 26.0, *), #available(macOS 26.0, *) {
-                    view.scrollEdgeEffectStyle(.hard, for: .top)
-                }
-            }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
+            .listStyle(trainListStyle)
             .navigationTitle("Environments")
         } detail: {
             if isLoadingSession {
@@ -82,5 +74,13 @@ struct TrainView: View {
         } message: {
             Text(loadError ?? "")
         }
+    }
+
+    private var trainListStyle: some ListStyle {
+#if os(macOS)
+        return SidebarListStyle()
+#else
+        return InsetGroupedListStyle()
+#endif
     }
 }

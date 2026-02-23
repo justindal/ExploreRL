@@ -9,12 +9,11 @@ struct LibraryDetailView: View {
     let session: SavedSession
     let onLoad: (SavedSession) -> Void
     let onEvaluate: (SavedSession) -> Void
+    let onExport: (SavedSession) -> Void
     let onDelete: () -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var showDeleteAlert = false
-    @State private var exportURL: URL?
-    @State private var exportError: String?
 
     var body: some View {
         ScrollView {
@@ -38,17 +37,6 @@ struct LibraryDetailView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("This will permanently delete this saved session and its trained model.")
-        }
-        .alert(
-            "Export Failed",
-            isPresented: Binding(
-                get: { exportError != nil },
-                set: { if !$0 { exportError = nil } }
-            )
-        ) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(exportError ?? "")
         }
     }
 
@@ -288,11 +276,7 @@ struct LibraryDetailView: View {
             }
 
             Button {
-                do {
-                    exportURL = try SessionStorage.shared.exportSession(session)
-                } catch {
-                    exportError = error.localizedDescription
-                }
+                onExport(session)
             } label: {
                 Label("Export Session", systemImage: "square.and.arrow.up")
                     .frame(maxWidth: .infinity)
@@ -309,27 +293,6 @@ struct LibraryDetailView: View {
                     button
                         .buttonStyle(.bordered)
                         .controlSize(.large)
-                }
-            }
-
-            if let exportURL {
-                ShareLink(item: exportURL) {
-                    Label("Share Export", systemImage: "square.and.arrow.up.on.square")
-                        .frame(maxWidth: .infinity)
-                }
-                .modify { link in
-                    if #available(iOS 26.0, macOS 26.0, *) {
-                        link
-                            .buttonStyle(.glass(.regular.tint(.indigo).interactive()))
-                            .controlSize(.large)
-                            #if os(macOS)
-                            .tint(.indigo)
-                            #endif
-                    } else {
-                        link
-                            .buttonStyle(.bordered)
-                            .controlSize(.large)
-                    }
                 }
             }
 
