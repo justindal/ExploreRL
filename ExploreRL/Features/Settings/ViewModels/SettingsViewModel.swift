@@ -43,6 +43,7 @@ final class SettingsViewModel {
     
     private(set) var benchmarkResults: [BenchmarkResult] = []
     private(set) var isRunningBenchmarks = false
+    let exploreRLInfoURL = URL(string: "https://www.justindaludado.com/explorerl")
 
     private let storage = SessionStorage.shared
 

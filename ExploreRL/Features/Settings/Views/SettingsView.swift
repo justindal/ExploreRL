@@ -45,6 +45,9 @@ struct SettingsView: View {
                 Section("About") {
                     LabeledContent("Version", value: "1.0.0")
                     LabeledContent("Gymnazo Version", value: "0.11.0")
+                    if let exploreRLInfoURL = viewModel.exploreRLInfoURL {
+                        Link("Learn More about ExploreRL", destination: exploreRLInfoURL)
+                    }
                 }
             }
             .formStyle(.grouped)
