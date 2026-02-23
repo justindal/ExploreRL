@@ -15,6 +15,7 @@ final class TrainViewModel {
     var trainingStates: [String: TrainingState] = [:]
     var renderSnapshots: [String: any Sendable] = [:]
     var reloadingEnvs: Set<String> = []
+    var resettingEnvs: Set<String> = []
     var trainingTasks: [String: Task<Void, Never>] = [:]
     var flushTasks: [String: Task<Void, Never>] = [:]
     var accumulators: [String: TrainingAccumulator] = [:]
@@ -36,6 +37,10 @@ final class TrainViewModel {
 
     func isReloading(id: String) -> Bool {
         reloadingEnvs.contains(id)
+    }
+
+    func isResetting(id: String) -> Bool {
+        resettingEnvs.contains(id)
     }
 
     func settings(for id: String) -> [String: SettingValue] {
@@ -199,6 +204,7 @@ final class TrainViewModel {
         sacAlgorithms.removeAll()
         trainingStates.removeAll()
         envStates.removeAll()
+        resettingEnvs.removeAll()
         envSettings.removeAll()
         trainingConfigs.removeAll()
         renderSnapshots.removeAll()

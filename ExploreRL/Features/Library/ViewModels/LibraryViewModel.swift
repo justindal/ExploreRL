@@ -7,6 +7,7 @@ final class LibraryViewModel {
     var sessionSizes: [UUID: Int64] = [:]
     var deleteError: String?
     var transferError: String?
+    var exportError: String?
     var lastImportedCount: Int?
 
     private let storage = SessionStorage.shared
@@ -51,5 +52,28 @@ final class LibraryViewModel {
         for session in toDelete {
             delete(session: session)
         }
+    }
+
+    func filteredSessions(matching query: String) -> [SavedSession] {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return sessions }
+
+        let normalized = trimmed.lowercased()
+        return sessions.filter { session in
+            session.name.lowercased().contains(normalized)
+                || session.environmentID.lowercased().contains(normalized)
+                || session.algorithmType.rawValue.lowercased().contains(normalized)
+        }
+    }
+
+    func deleteSessions(withIDs ids: [UUID]) {
+        let sessionsToDelete = sessions.filter { ids.contains($0.id) }
+        for session in sessionsToDelete {
+            delete(session: session)
+        }
+    }
+
+    func exportSession(_ session: SavedSession) throws -> URL {
+        try storage.exportSession(session)
     }
 }

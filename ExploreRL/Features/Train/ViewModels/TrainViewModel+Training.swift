@@ -97,10 +97,23 @@ extension TrainViewModel {
 
     @MainActor
     func resetTraining(for id: String) async {
-        Task { await tabularAgents[id]?.stop() }
-        Task { await dqnAlgorithms[id]?.stop() }
-        Task { await sacAlgorithms[id]?.stop() }
-        trainingTasks[id]?.cancel()
+        guard !resettingEnvs.contains(id) else { return }
+        resettingEnvs.insert(id)
+        defer { resettingEnvs.remove(id) }
+
+        let trainingTask = trainingTasks[id]
+        let tabularAgent = tabularAgents[id]
+        let dqn = dqnAlgorithms[id]
+        let sac = sacAlgorithms[id]
+
+        trainingTask?.cancel()
+        await tabularAgent?.stop()
+        await dqn?.stop()
+        await sac?.stop()
+        if let trainingTask {
+            await trainingTask.value
+        }
+
         trainingTasks[id] = nil
         stopFlushLoop(for: id)
         accumulators[id]?.reset()
