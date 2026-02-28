@@ -31,9 +31,70 @@ enum EnvironmentDefaults {
             return TrainingConfig()
         }
     }
-}
 
-// MARK: - DQN
+    static func totalTimestepsDefault(for envID: String, algorithm: AlgorithmType) -> Int {
+        switch envID {
+        case "CartPole":
+            switch algorithm {
+            case .dqn: return 50_000
+            case .ppo: return 100_000
+            default: return 50_000
+            }
+        case "MountainCar":
+            switch algorithm {
+            case .dqn: return 120_000
+            case .ppo: return 1_000_000
+            default: return 120_000
+            }
+        case "Acrobot":
+            switch algorithm {
+            case .dqn: return 100_000
+            case .ppo: return 1_000_000
+            default: return 100_000
+            }
+        case "LunarLander":
+            switch algorithm {
+            case .dqn: return 100_000
+            case .ppo: return 1_000_000
+            default: return 100_000
+            }
+        case "CarRacingDiscrete":
+            switch algorithm {
+            case .dqn: return 100_000
+            case .ppo: return 100_000
+            default: return 100_000
+            }
+        case "Pendulum":
+            switch algorithm {
+            case .ppo: return 100_000
+            case .sac, .td3: return 20_000
+            default: return 20_000
+            }
+        case "MountainCarContinuous":
+            switch algorithm {
+            case .ppo: return 20_000
+            case .sac: return 50_000
+            case .td3: return 300_000
+            default: return 50_000
+            }
+        case "LunarLanderContinuous":
+            switch algorithm {
+            case .ppo: return 1_000_000
+            case .sac: return 500_000
+            case .td3: return 300_000
+            default: return 500_000
+            }
+        case "CarRacing":
+            switch algorithm {
+            case .ppo: return 4_000_000
+            case .sac, .td3: return 1_000_000
+            default: return 1_000_000
+            }
+        default:
+            return TrainingConfig().totalTimesteps
+        }
+    }
+}
 
 extension EnvironmentDefaults {
 
@@ -52,6 +113,16 @@ extension EnvironmentDefaults {
         c.dqn.explorationFraction = 0.16
         c.dqn.explorationFinalEps = 0.04
         c.dqn.netArch = [256, 256]
+        c.ppo.learningRate = 1e-3
+        c.ppo.learningRateSchedule = "linear"
+        c.ppo.learningRateFinal = 0.0
+        c.ppo.nSteps = 32
+        c.ppo.batchSize = 256
+        c.ppo.nEpochs = 20
+        c.ppo.gamma = 0.98
+        c.ppo.gaeLambda = 0.8
+        c.ppo.clipRange = 0.2
+        c.ppo.entCoef = 0.0
         return c
     }
 
@@ -70,6 +141,11 @@ extension EnvironmentDefaults {
         c.dqn.explorationFraction = 0.2
         c.dqn.explorationFinalEps = 0.07
         c.dqn.netArch = [256, 256]
+        c.ppo.nSteps = 16
+        c.ppo.nEpochs = 4
+        c.ppo.gamma = 0.99
+        c.ppo.gaeLambda = 0.98
+        c.ppo.entCoef = 0.0
         return c
     }
 
@@ -85,10 +161,15 @@ extension EnvironmentDefaults {
         c.dqn.targetUpdateInterval = 250
         c.dqn.trainFrequency = 4
         c.dqn.gradientSteps = -1
-        c.dqn.gradientStepsMode = "asCollectedSteps"
+        c.dqn.gradientStepsMode = .asCollectedSteps
         c.dqn.explorationFraction = 0.12
         c.dqn.explorationFinalEps = 0.1
         c.dqn.netArch = [256, 256]
+        c.ppo.nSteps = 256
+        c.ppo.nEpochs = 4
+        c.ppo.gamma = 0.99
+        c.ppo.gaeLambda = 0.94
+        c.ppo.entCoef = 0.0
         return c
     }
 
@@ -104,10 +185,16 @@ extension EnvironmentDefaults {
         c.dqn.targetUpdateInterval = 250
         c.dqn.trainFrequency = 4
         c.dqn.gradientSteps = -1
-        c.dqn.gradientStepsMode = "asCollectedSteps"
+        c.dqn.gradientStepsMode = .asCollectedSteps
         c.dqn.explorationFraction = 0.12
         c.dqn.explorationFinalEps = 0.1
         c.dqn.netArch = [256, 256]
+        c.ppo.nSteps = 1024
+        c.ppo.batchSize = 64
+        c.ppo.nEpochs = 4
+        c.ppo.gamma = 0.999
+        c.ppo.gaeLambda = 0.98
+        c.ppo.entCoef = 0.01
         return c
     }
 
@@ -123,22 +210,38 @@ extension EnvironmentDefaults {
         c.dqn.targetUpdateInterval = 250
         c.dqn.trainFrequency = 4
         c.dqn.gradientSteps = -1
-        c.dqn.gradientStepsMode = "asCollectedSteps"
+        c.dqn.gradientStepsMode = .asCollectedSteps
         c.dqn.explorationFraction = 0.2
         c.dqn.explorationFinalEps = 0.05
         return c
     }
 }
 
-// MARK: - SAC
-
 extension EnvironmentDefaults {
 
     private static var pendulum: TrainingConfig {
         var c = TrainingConfig()
         c.algorithm = .sac
-        c.totalTimesteps = 20_000
+        c.totalTimesteps = 100_000
         c.sac.learningRate = 1e-3
+        c.td3.learningRate = 1e-3
+        c.td3.gamma = 0.98
+        c.td3.bufferSize = 200_000
+        c.td3.learningStarts = 10_000
+        c.td3.actionNoiseType = "normal"
+        c.td3.actionNoiseStd = 0.1
+        c.td3.gradientSteps = 1
+        c.td3.trainFrequency = 1
+        c.td3.netArch = [400, 300]
+        c.ppo.learningRate = 1e-3
+        c.ppo.nSteps = 1024
+        c.ppo.nEpochs = 10
+        c.ppo.gamma = 0.9
+        c.ppo.gaeLambda = 0.95
+        c.ppo.clipRange = 0.2
+        c.ppo.entCoef = 0.0
+        c.ppo.useSDE = true
+        c.ppo.sdeSampleFreq = 4
         return c
     }
 
@@ -159,6 +262,26 @@ extension EnvironmentDefaults {
         c.sac.useSDE = true
         c.sac.logStdInit = -3.67
         c.sac.netArch = [64, 64]
+        c.td3.learningRate = 1e-3
+        c.td3.actionNoiseType = "ou"
+        c.td3.actionNoiseStd = 0.5
+        c.td3.gradientSteps = 1
+        c.td3.trainFrequency = 1
+        c.td3.batchSize = 256
+        c.td3.netArch = [400, 300]
+        c.ppo.learningRate = 7.77e-05
+        c.ppo.nSteps = 8
+        c.ppo.batchSize = 256
+        c.ppo.nEpochs = 10
+        c.ppo.gamma = 0.9999
+        c.ppo.gaeLambda = 0.9
+        c.ppo.clipRange = 0.1
+        c.ppo.entCoef = 0.00429
+        c.ppo.vfCoef = 0.19
+        c.ppo.maxGradNorm = 5.0
+        c.ppo.useSDE = true
+        c.ppo.logStdInit = -3.29
+        c.ppo.orthoInit = false
         return c
     }
 
@@ -177,6 +300,21 @@ extension EnvironmentDefaults {
         c.sac.gradientSteps = 1
         c.sac.learningStarts = 10_000
         c.sac.netArch = [400, 300]
+        c.td3.learningRate = 1e-3
+        c.td3.gamma = 0.98
+        c.td3.bufferSize = 200_000
+        c.td3.learningStarts = 10_000
+        c.td3.actionNoiseType = "normal"
+        c.td3.actionNoiseStd = 0.1
+        c.td3.gradientSteps = 1
+        c.td3.trainFrequency = 1
+        c.td3.netArch = [400, 300]
+        c.ppo.nSteps = 1024
+        c.ppo.batchSize = 64
+        c.ppo.nEpochs = 4
+        c.ppo.gamma = 0.999
+        c.ppo.gaeLambda = 0.98
+        c.ppo.entCoef = 0.01
         return c
     }
 
@@ -194,6 +332,24 @@ extension EnvironmentDefaults {
         c.sac.learningStarts = 1_000
         c.sac.useSDE = true
         c.sac.useSDEAtWarmup = true
+        c.ppo.learningRate = 1e-4
+        c.ppo.learningRateSchedule = "linear"
+        c.ppo.learningRateFinal = 0.0
+        c.ppo.nSteps = 512
+        c.ppo.batchSize = 128
+        c.ppo.nEpochs = 10
+        c.ppo.gamma = 0.99
+        c.ppo.gaeLambda = 0.95
+        c.ppo.clipRange = 0.2
+        c.ppo.entCoef = 0.0
+        c.ppo.vfCoef = 0.5
+        c.ppo.maxGradNorm = 0.5
+        c.ppo.useSDE = true
+        c.ppo.sdeSampleFreq = 4
+        c.ppo.activation = "relu"
+        c.ppo.netArch = [256]
+        c.ppo.orthoInit = false
+        c.ppo.logStdInit = -2.0
         return c
     }
 }

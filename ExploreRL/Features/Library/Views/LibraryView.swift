@@ -5,15 +5,21 @@ struct LibraryView: View {
     var onEvaluate: (SavedSession) -> Void
 
     @State private var viewModel = LibraryViewModel()
-    @State private var columnVisibility = NavigationSplitViewVisibility.doubleColumn
-    @State private var preferredCompactColumn = NavigationSplitViewColumn.sidebar
+    @State private var columnVisibility = NavigationSplitViewVisibility
+        .doubleColumn
+    @State private var preferredCompactColumn = NavigationSplitViewColumn
+        .sidebar
     @State private var selectedSessionID: UUID?
     @State private var showImportPicker = false
     @State private var searchText = ""
     @State private var shareURL: URL?
+    @State private var sessionToDelete: SavedSession?
+    @State private var showFiltersPopover = false
+    @State private var draftSortOrder: SortOrder = .dateDesc
+    @State private var draftAlgorithmFilters: Set<AlgorithmFilter> = []
 
-    private var filteredSessions: [SavedSession] {
-        viewModel.filteredSessions(matching: searchText)
+    private var groupedSessions: [(envID: String, sessions: [SavedSession])] {
+        viewModel.groupedSessions(matching: searchText)
     }
 
     private var hasDeleteError: Binding<Bool> {
@@ -58,7 +64,11 @@ struct LibraryView: View {
             viewModel.loadSessions()
         }
         .onChange(of: viewModel.sessions) { _, _ in
-            if let selectedSessionID, !viewModel.sessions.contains(where: { $0.id == selectedSessionID }) {
+            if let selectedSessionID,
+                !viewModel.sessions.contains(where: {
+                    $0.id == selectedSessionID
+                })
+            {
                 self.selectedSessionID = nil
             }
         }
@@ -84,17 +94,19 @@ struct LibraryView: View {
         }
         .modify { content in
             #if os(iOS)
-            content.sheet(isPresented: Binding(
-                get: { shareURL != nil },
-                set: { if !$0 { shareURL = nil } }
-            )) {
-                if let shareURL {
-                    SessionShareSheet(url: shareURL)
-                        .presentationDetents([.medium])
+                content.sheet(
+                    isPresented: Binding(
+                        get: { shareURL != nil },
+                        set: { if !$0 { shareURL = nil } }
+                    )
+                ) {
+                    if let shareURL {
+                        SessionShareSheet(url: shareURL)
+                            .presentationDetents([.medium])
+                    }
                 }
-            }
             #else
-            content
+                content
             #endif
         }
         .fileImporter(
@@ -114,6 +126,32 @@ struct LibraryView: View {
             placement: .sidebar,
             prompt: "Search sessions"
         )
+        .confirmationDialog(
+            "Delete Session?",
+            isPresented: Binding(
+                get: { sessionToDelete != nil },
+                set: { if !$0 { sessionToDelete = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) {
+                if let session = sessionToDelete {
+                    viewModel.delete(session: session)
+                    if session.id == selectedSessionID {
+                        selectedSessionID = nil
+                    }
+                }
+            }
+            Button("Cancel", role: .cancel) {
+                sessionToDelete = nil
+            }
+        } message: {
+            if let session = sessionToDelete {
+                Text(
+                    "Are you sure you want to delete '\(session.name)'? This will permanently delete this saved session and its trained model."
+                )
+            }
+        }
     }
 
     @ViewBuilder
@@ -123,52 +161,64 @@ struct LibraryView: View {
                 ContentUnavailableView(
                     "No Saved Sessions",
                     systemImage: "tray",
-                    description: Text("Train an agent and save your progress to see it here.")
+                    description: Text(
+                        "Train an agent and save your progress to see it here."
+                    )
                 )
-            } else if filteredSessions.isEmpty {
+            } else if groupedSessions.isEmpty {
                 ContentUnavailableView.search(text: searchText)
             } else {
                 List(selection: $selectedSessionID) {
-                    ForEach(filteredSessions) { session in
-                        NavigationLink(value: session.id) {
-                            SavedSessionRow(
-                                session: session,
-                                size: viewModel.sessionSizes[session.id]
-                            )
-                        }
-                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                            Button(role: .destructive) {
-                                viewModel.delete(session: session)
-                            } label: {
-                                Label("Delete", systemImage: "trash")
+                    ForEach(groupedSessions, id: \.envID) { group in
+                        Section(group.envID) {
+                            ForEach(group.sessions) { session in
+                                NavigationLink(value: session.id) {
+                                    SavedSessionRow(session: session)
+                                }
+                                .swipeActions(
+                                    edge: .trailing,
+                                    allowsFullSwipe: true
+                                ) {
+                                    Button(role: .destructive) {
+                                        sessionToDelete = session
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                }
+                                .contextMenu {
+                                    Button {
+                                        onLoad(session)
+                                    } label: {
+                                        Label(
+                                            "Load Session",
+                                            systemImage: "play.fill"
+                                        )
+                                    }
+                                    Button {
+                                        onEvaluate(session)
+                                    } label: {
+                                        Label(
+                                            "Evaluate",
+                                            systemImage: "checkmark.circle"
+                                        )
+                                    }
+                                    Button {
+                                        exportAndShare(session)
+                                    } label: {
+                                        Label(
+                                            "Export",
+                                            systemImage: "square.and.arrow.up"
+                                        )
+                                    }
+                                    Divider()
+                                    Button(role: .destructive) {
+                                        sessionToDelete = session
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                }
                             }
                         }
-                        .contextMenu {
-                            Button {
-                                onLoad(session)
-                            } label: {
-                                Label("Load Session", systemImage: "play.fill")
-                            }
-                            Button {
-                                onEvaluate(session)
-                            } label: {
-                                Label("Evaluate", systemImage: "checkmark.circle")
-                            }
-                            Button {
-                                exportAndShare(session)
-                            } label: {
-                                Label("Export", systemImage: "square.and.arrow.up")
-                            }
-                            Divider()
-                            Button(role: .destructive) {
-                                viewModel.delete(session: session)
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
-                        }
-                    }
-                    .onDelete { offsets in
-                        deleteFilteredSessions(at: offsets)
                     }
                 }
                 .listStyle(libraryListStyle)
@@ -186,9 +236,37 @@ struct LibraryView: View {
                     Label("Import", systemImage: "square.and.arrow.down")
                 }
             }
+
+            ToolbarItem(placement: .automatic) {
+                Button {
+                    draftSortOrder = viewModel.sortOrder
+                    draftAlgorithmFilters = viewModel.algorithmFilters
+                    showFiltersPopover = true
+                } label: {
+                    Image(
+                        systemName: viewModel.algorithmFilters.isEmpty
+                            ? "line.3.horizontal.decrease.circle"
+                            : "line.3.horizontal.decrease.circle.fill"
+                    )
+                }
+                .popover(isPresented: $showFiltersPopover) {
+                    LibraryFiltersPopover(
+                        sortOrder: $draftSortOrder,
+                        algorithmFilters: $draftAlgorithmFilters,
+                        onApply: {
+                            viewModel.sortOrder = draftSortOrder
+                            viewModel.algorithmFilters = draftAlgorithmFilters
+                            showFiltersPopover = false
+                        }
+                    )
+                    .presentationCompactAdaptation(.popover)
+                }
+            }
         }
         .navigationDestination(for: UUID.self) { sessionID in
-            if let session = viewModel.sessions.first(where: { $0.id == sessionID }) {
+            if let session = viewModel.sessions.first(where: {
+                $0.id == sessionID
+            }) {
                 LibraryDetailView(
                     session: session,
                     onLoad: onLoad,
@@ -208,7 +286,10 @@ struct LibraryView: View {
     @ViewBuilder
     private var detailContent: some View {
         if let selectedSessionID,
-           let session = viewModel.sessions.first(where: { $0.id == selectedSessionID }) {
+            let session = viewModel.sessions.first(where: {
+                $0.id == selectedSessionID
+            })
+        {
             LibraryDetailView(
                 session: session,
                 onLoad: onLoad,
@@ -220,7 +301,9 @@ struct LibraryView: View {
             ContentUnavailableView(
                 "No Saved Sessions",
                 systemImage: "tray",
-                description: Text("Train an agent and save your progress to see it here.")
+                description: Text(
+                    "Train an agent and save your progress to see it here."
+                )
             )
         } else {
             ContentUnavailableView(
@@ -231,32 +314,25 @@ struct LibraryView: View {
     }
 
     private var libraryListStyle: some ListStyle {
-#if os(macOS)
-        return SidebarListStyle()
-#else
-        return InsetGroupedListStyle()
-#endif
-    }
-
-    private func deleteFilteredSessions(at offsets: IndexSet) {
-        let idsToDelete = offsets.compactMap { index in
-            filteredSessions.indices.contains(index) ? filteredSessions[index] : nil
-        }.map(\.id)
-        viewModel.deleteSessions(withIDs: idsToDelete)
+        #if os(macOS)
+            return SidebarListStyle()
+        #else
+            return InsetGroupedListStyle()
+        #endif
     }
 
     private func exportAndShare(_ session: SavedSession) {
         do {
             let exportURL = try viewModel.exportSession(session)
             #if os(macOS)
-            SessionSharePresenter.present(url: exportURL)
+                SessionSharePresenter.present(url: exportURL)
             #else
-            shareURL = nil
-            shareURL = exportURL
+                shareURL = nil
+                shareURL = exportURL
             #endif
         } catch {
             #if !os(macOS)
-            shareURL = nil
+                shareURL = nil
             #endif
             viewModel.exportError = error.localizedDescription
         }

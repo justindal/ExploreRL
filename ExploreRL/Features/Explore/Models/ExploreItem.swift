@@ -41,7 +41,7 @@ enum ExploreSection: String, CaseIterable, Identifiable {
     var items: [ExploreItem] {
         switch self {
         case .reinforcementLearning: [.rlLoop, .returns, .exploration, .replay, .neuralNetworks, .activationFunctions, .optimizers]
-        case .algorithms: [.qLearning, .sarsa, .dqn, .sac]
+        case .algorithms: [.qLearning, .sarsa, .dqn, .ppo, .sac, .td3]
         case .environments: [.frozenLake, .blackjack, .taxi, .cliffWalking, .cartPole, .mountainCar, .acrobot, .pendulum, .lunarLander, .carRacing]
         }
     }
@@ -59,7 +59,9 @@ enum ExploreItem: String, CaseIterable, Identifiable, Hashable {
     case qLearning
     case sarsa
     case dqn
+    case ppo
     case sac
+    case td3
 
     case frozenLake
     case blackjack
@@ -94,15 +96,15 @@ enum ExploreItem: String, CaseIterable, Identifiable, Hashable {
         case .blackjack, .taxi:
             ["Q‑Learning"]
         case .cartPole:
-            ["DQN"]
+            ["DQN", "PPO"]
         case .mountainCar, .acrobot:
-            ["DQN", "SAC"]
+            ["DQN", "PPO", "SAC"]
         case .pendulum:
-            ["SAC"]
+            ["PPO", "SAC", "TD3"]
         case .lunarLander:
-            ["DQN", "SAC"]
+            ["DQN", "PPO", "SAC", "TD3"]
         case .carRacing:
-            ["DQN", "SAC"]
+            ["DQN", "PPO", "SAC", "TD3"]
         default:
             []
         }
@@ -120,7 +122,9 @@ enum ExploreItem: String, CaseIterable, Identifiable, Hashable {
         case .qLearning: "Q‑Learning"
         case .sarsa: "SARSA"
         case .dqn: "DQN"
+        case .ppo: "PPO"
         case .sac: "SAC"
+        case .td3: "TD3"
         case .frozenLake: "Frozen Lake"
         case .blackjack: "Blackjack"
         case .taxi: "Taxi"
@@ -146,7 +150,9 @@ enum ExploreItem: String, CaseIterable, Identifiable, Hashable {
         case .qLearning: "Off-policy tabular method"
         case .sarsa: "On-policy tabular method"
         case .dqn: "Deep Q-Network"
+        case .ppo: "Proximal Policy Optimization"
         case .sac: "Soft Actor-Critic"
+        case .td3: "Twin Delayed DDPG"
         case .frozenLake: "Navigate a grid without falling in holes"
         case .blackjack: "Beat the dealer without going over 21"
         case .taxi: "Pick up and drop off passengers"

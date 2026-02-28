@@ -17,7 +17,7 @@ struct MetricCard: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Text(value)
-                .font(.title2)
+                .font(.title3)
                 .fontWeight(.semibold)
                 .monospacedDigit()
         }

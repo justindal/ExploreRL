@@ -2,10 +2,9 @@ import SwiftUI
 
 struct SavedSessionRow: View {
     let session: SavedSession
-    var size: Int64?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Text(session.name)
                     .font(.body.weight(.semibold))
@@ -14,29 +13,15 @@ struct SavedSessionRow: View {
                 AlgorithmBadge(text: session.algorithmType.rawValue)
             }
 
-            HStack(spacing: 12) {
-                Text(session.environmentID)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-
-                Spacer()
-
-                if let size {
-                    Text(size.formatted(.byteCount(style: .file)))
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                }
-
-                Text(session.savedAt, style: .date)
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-            }
-
             Text(metricsText)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
                 .lineLimit(1)
+
+            Text(session.savedAt, style: .date)
+                .font(.caption)
+                .foregroundStyle(.tertiary)
         }
         .padding(.vertical, 2)
     }

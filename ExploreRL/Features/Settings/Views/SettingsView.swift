@@ -9,13 +9,39 @@ struct SettingsView: View {
     @State private var showImportPicker = false
     @State private var showFAQ = false
 
+    @AppStorage("showExploreTab") private var showExploreTab = true
+
+    private var appVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
+    }
+
     var body: some View {
         NavigationStack {
             Form {
                 Section {
-                    Button("System Check") {
-                        showSystemCheck = true
+                    VStack(alignment: .leading, spacing: 4) {
+                        Toggle("Enable Explore Tab", isOn: $showExploreTab)
                     }
+                } header: {
+                    Text("Preferences")
+                } footer: {
+                    Text("Customize your app experience.")
+                }
+
+                Section {
+                    Button {
+                        showSystemCheck = true
+                    } label: {
+                        HStack {
+                            Text("System Check")
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
                 } header: {
                     Text("Performance")
                 } footer: {
@@ -25,17 +51,34 @@ struct SettingsView: View {
                 librarySection
 
                 Section {
-                    Button("Frequently Asked Questions") {
+                    Button {
                         showFAQ = true
+                    } label: {
+                        HStack {
+                            Text("Frequently Asked Questions")
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .contentShape(Rectangle())
                     }
+                    .buttonStyle(.plain)
 
-                    Button("Contact the Developer") {
+                    Button {
                         let subject = "ExploreRL Feedback"
                         if let encoded = subject.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
                            let url = URL(string: "mailto:justin@justindaludado.com?subject=\(encoded)") {
                             openURL(url)
                         }
+                    } label: {
+                        HStack {
+                            Text("Contact the Developer")
+                            Spacer()
+                        }
+                        .contentShape(Rectangle())
                     }
+                    .buttonStyle(.plain)
                 } header: {
                     Text("Help")
                 } footer: {
@@ -43,10 +86,16 @@ struct SettingsView: View {
                 }
 
                 Section("About") {
-                    LabeledContent("Version", value: "1.0.0")
-                    LabeledContent("Gymnazo Version", value: "0.11.0")
+                    LabeledContent("Version", value: appVersion)
                     if let exploreRLInfoURL = viewModel.exploreRLInfoURL {
-                        Link("Learn More about ExploreRL", destination: exploreRLInfoURL)
+                        Link(destination: exploreRLInfoURL) {
+                            HStack {
+                                Text("Learn More about ExploreRL")
+                                Spacer()
+                                Image(systemName: "arrow.up.right")
+                            }
+                        }
+                        .foregroundStyle(.blue)
                     }
                 }
             }
@@ -61,7 +110,7 @@ struct SettingsView: View {
                 .presentationContentInteraction(.scrolls)
         }
         .sheet(isPresented: $showFAQ) {
-            FAQSheet()
+            FAQSheet(viewModel: viewModel)
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
@@ -142,30 +191,38 @@ struct SettingsView: View {
                 item: SessionExport(),
                 preview: SharePreview("ExploreRL Sessions")
             ) {
-                Label("Export All Sessions", systemImage: "square.and.arrow.up")
+                HStack {
+                    Text("Export All Sessions")
+                        .foregroundStyle(.blue)
+                    Spacer()
+                }
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
             .disabled(!viewModel.hasSessions)
 
-            Button("Import Sessions") {
+            Button {
                 showImportPicker = true
+            } label: {
+                HStack {
+                    Text("Import Sessions")
+                    Spacer()
+                }
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
 
-            #if os(macOS)
-            Button("Show in Finder") {
-                viewModel.openAppFiles()
-            }
-            #else
-            Label {
-                Text("Files → On My iPhone → ExploreRL")
-            } icon: {
-                Image(systemName: "folder")
-            }
-            .foregroundStyle(.secondary)
-            #endif
-
-            Button("Delete All Saved Agents", role: .destructive) {
+            Button(role: .destructive) {
                 showDeleteAllConfirmation = true
+            } label: {
+                HStack {
+                    Text("Delete All Saved Agents")
+                    Spacer()
+                }
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
+            .foregroundStyle(.red)
             .disabled(!viewModel.hasSessions)
         } header: {
             Text("Library")

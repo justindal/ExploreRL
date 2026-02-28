@@ -7,11 +7,13 @@ import SwiftUI
 
 struct EvaluateView: View {
     @Binding var sessionToLoad: SavedSession?
+    var onGoToLibrary: (() -> Void)?
     @State private var viewModel = EvaluateViewModel()
     @State private var selectedSessionID: UUID?
 
-    init(sessionToLoad: Binding<SavedSession?> = .constant(nil)) {
+    init(sessionToLoad: Binding<SavedSession?> = .constant(nil), onGoToLibrary: (() -> Void)? = nil) {
         _sessionToLoad = sessionToLoad
+        self.onGoToLibrary = onGoToLibrary
     }
 
     var body: some View {
@@ -39,6 +41,19 @@ struct EvaluateView: View {
         } detail: {
             if let session = selectedSession {
                 EvaluateDetailView(session: session, vm: viewModel)
+            } else if viewModel.sessions.isEmpty {
+                ContentUnavailableView {
+                    Label("No Saved Sessions", systemImage: "tray")
+                } description: {
+                    Text("Train an agent and save it to evaluate here.")
+                } actions: {
+                    if let onGoToLibrary {
+                        Button("Go to Library") {
+                            onGoToLibrary()
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                }
             } else {
                 ContentUnavailableView(
                     "Select a Session",

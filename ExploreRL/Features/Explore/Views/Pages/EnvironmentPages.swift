@@ -1,7 +1,5 @@
 import SwiftUI
 
-// MARK: - Toy Text
-
 struct FrozenLakePage: View {
     var body: some View {
         EnvironmentPage(
@@ -103,8 +101,6 @@ struct CliffWalkingPage: View {
     }
 }
 
-// MARK: - Classic Control
-
 struct CartPolePage: View {
     var body: some View {
         EnvironmentPage(
@@ -204,8 +200,6 @@ struct PendulumPage: View {
         )
     }
 }
-
-// MARK: - Box2D
 
 struct LunarLanderPage: View {
     var body: some View {

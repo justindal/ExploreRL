@@ -19,6 +19,7 @@ struct EvaluationState {
     var totalEpisodes: Int = 10
     var episodeRewards: [Double] = []
     var episodeLengths: [Int] = []
+    var currentStep: Int = 0
     var renderEnabled: Bool = true
     var renderFPS: Int = 60
     var renderVersion: Int = 0
@@ -57,14 +58,20 @@ struct EvaluationState {
     mutating func reset() {
         status = .idle
         currentEpisode = 0
+        currentStep = 0
         episodeRewards = []
         episodeLengths = []
         renderVersion = 0
+    }
+
+    mutating func recordStep() {
+        currentStep += 1
     }
 
     mutating func recordEpisode(reward: Double, length: Int) {
         episodeRewards.append(reward)
         episodeLengths.append(length)
         currentEpisode = episodeRewards.count
+        currentStep = 0
     }
 }

@@ -1,22 +1,13 @@
 {
-  "originHash" : "adfe8078a70a4eee6354af2d99a550c82c33dab157ebaf48c17d97088f1406b9",
+  "originHash" : "6da8bfd9c79b78bf99ffb655576cd294756c63b4538f124eabb5a6f4a1c377b9",
   "pins" : [
-    {
-      "identity" : "gymnazo",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/justindal/Gymnazo.git",
-      "state" : {
-        "branch" : "main",
-        "revision" : "9f669d7a7fec865f626bc284bfc2da0a291d2a82"
-      }
-    },
     {
       "identity" : "mlx-swift",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/ml-explore/mlx-swift.git",
+      "location" : "https://github.com/ml-explore/mlx-swift",
       "state" : {
-        "revision" : "4dccaeda1d83cf8697f235d2786c2d72ad4bb925",
-        "version" : "0.30.3"
+        "revision" : "6ba4827fb82c97d012eec9ab4b2de21f85c3b33d",
+        "version" : "0.30.6"
       }
     },
     {

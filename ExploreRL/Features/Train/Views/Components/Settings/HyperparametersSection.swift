@@ -58,6 +58,7 @@ struct HyperparametersSection: View {
             ensureExpandedGroups()
         }
         .onChange(of: config.algorithm) { _, _ in
+            stringValues = [:]
             syncStringValues()
             updateValidationErrors()
             ensureExpandedGroups()
@@ -230,7 +231,7 @@ struct HyperparametersSection: View {
                     }
                 )) {
                     ForEach(options, id: \.self) { option in
-                        Text(option).tag(option)
+                        Text(optionDisplayLabel(option, for: def.id)).tag(option)
                     }
                 }
             } else {
@@ -364,8 +365,12 @@ struct HyperparametersSection: View {
         switch config.algorithm {
         case .dqn:
             defaults = ["Training", "Epsilon/Exploration", "Learning Rate", "Networks"]
+        case .ppo:
+            defaults = ["Training", "PPO Objective", "Learning Rate", "Networks"]
         case .sac:
             defaults = ["Training", "Epsilon/Exploration", "Learning Rate", "Networks", "Entropy"]
+        case .td3:
+            defaults = ["Training", "Epsilon/Exploration", "Learning Rate", "Networks"]
         case .qLearning, .sarsa:
             defaults = ["Learning Rate", "Epsilon/Exploration"]
         }
@@ -384,6 +389,15 @@ struct HyperparametersSection: View {
                 "Optimizer",
                 "Replay Buffer"
             ]
+        case .ppo:
+            return [
+                "Learning Rate",
+                "Training",
+                "PPO Objective",
+                "Epsilon/Exploration",
+                "Networks",
+                "Optimizer"
+            ]
         case .sac:
             return [
                 "Learning Rate",
@@ -392,6 +406,16 @@ struct HyperparametersSection: View {
                 "Discount & Targets",
                 "Networks",
                 "Entropy",
+                "Optimizer",
+                "Replay Buffer"
+            ]
+        case .td3:
+            return [
+                "Learning Rate",
+                "Training",
+                "Epsilon/Exploration",
+                "Discount & Targets",
+                "Networks",
                 "Optimizer",
                 "Replay Buffer"
             ]
@@ -418,6 +442,8 @@ struct HyperparametersSection: View {
              "warmupInitialValue":
             return "Learning Rate"
         case "batchSize",
+             "nSteps",
+             "nEpochs",
              "bufferSize",
              "learningStarts",
              "trainFrequency",
@@ -427,8 +453,21 @@ struct HyperparametersSection: View {
             return "Training"
         case "gamma",
              "tau",
-             "targetUpdateInterval":
+             "targetUpdateInterval",
+             "policyDelay",
+             "targetPolicyNoise",
+             "targetNoiseClip":
             return "Discount & Targets"
+        case "gaeLambda",
+             "clipRange",
+             "clipRangeVfEnabled",
+             "clipRangeVf",
+             "normalizeAdvantage",
+             "entCoef",
+             "vfCoef",
+             "targetKLEnabled",
+             "targetKL":
+            return "PPO Objective"
         case "explorationFraction",
              "explorationInitialEps",
              "explorationFinalEps",
@@ -440,7 +479,12 @@ struct HyperparametersSection: View {
              "sdeSampleFreq",
              "logStdInit",
              "fullStd",
-             "clipMean":
+             "clipMean",
+             "actionNoiseType",
+             "actionNoiseStd",
+             "ouTheta",
+             "ouDt",
+             "ouInitialNoise":
             return "Epsilon/Exploration"
         case "netArch",
              "activation",
@@ -486,6 +530,13 @@ struct HyperparametersSection: View {
 
     private func isVisibleId(_ id: String) -> Bool {
         switch id {
+        case "gradientSteps":
+            switch config.algorithm {
+            case .dqn, .sac, .td3:
+                return currentGradientStepsMode == "fixed"
+            case .qLearning, .sarsa, .ppo:
+                return true
+            }
         case "learningRateFinal":
             return currentLearningRateSchedule == "linear"
         case "learningRateDecayRate":
@@ -502,6 +553,10 @@ struct HyperparametersSection: View {
             return config.algorithm == .sac && !config.sac.autoEntropyTuning
         case "targetEntropy":
             return config.algorithm == .sac && config.sac.useTargetEntropy
+        case "clipRangeVf":
+            return config.algorithm == .ppo && config.ppo.clipRangeVfEnabled
+        case "targetKL":
+            return config.algorithm == .ppo && config.ppo.targetKLEnabled
         case "optimizerEntropyBeta1",
              "optimizerEntropyBeta2",
              "optimizerEntropyEps":
@@ -513,21 +568,73 @@ struct HyperparametersSection: View {
              "logStdInit",
              "fullStd",
              "clipMean":
-            return config.algorithm == .sac && config.sac.useSDE
+            if config.algorithm == .sac {
+                return config.sac.useSDE
+            }
+            if config.algorithm == .ppo {
+                return config.ppo.useSDE
+            }
+            return false
+        case "actionNoiseStd":
+            return config.algorithm == .td3 && config.td3.actionNoiseType != "none"
+        case "ouTheta",
+             "ouDt",
+             "ouInitialNoise":
+            return config.algorithm == .td3 && config.td3.actionNoiseType == "ou"
         case "normalizeImages":
-            return (config.algorithm == .dqn || config.algorithm == .sac) && supportsImageNormalization
+            return (
+                config.algorithm == .dqn
+                    || config.algorithm == .ppo
+                    || config.algorithm == .sac
+                    || config.algorithm == .td3
+            ) && supportsImageNormalization
         case "criticNormalizeImages":
             return config.algorithm == .sac && supportsImageNormalization
-        case "nCritics",
-             "shareFeaturesExtractor",
-             "criticActivation",
+        case "criticActivation",
              "useSeparateNetworks",
              "autoEntropyTuning",
              "useTargetEntropy",
              "useSDE":
-            return config.algorithm == .sac
+            return config.algorithm == .sac || config.algorithm == .ppo
+        case "nCritics",
+             "shareFeaturesExtractor":
+            return config.algorithm == .sac || config.algorithm == .td3 || config.algorithm == .ppo
         default:
             return true
+        }
+    }
+
+    private var currentGradientStepsMode: String {
+        switch config.algorithm {
+        case .dqn, .sac, .td3:
+            return accessor.stringValue(for: "gradientStepsMode")
+        case .qLearning, .sarsa, .ppo:
+            return "fixed"
+        }
+    }
+
+    private func optionDisplayLabel(_ option: String, for id: String) -> String {
+        switch id {
+        case "gradientStepsMode":
+            switch option {
+            case "fixed":
+                return "Fixed Count"
+            case "asCollectedSteps":
+                return "Match Collected Steps"
+            default:
+                return option
+            }
+        case "trainFrequencyUnit":
+            switch option {
+            case "step":
+                return "Step"
+            case "episode":
+                return "Episode"
+            default:
+                return option
+            }
+        default:
+            return option
         }
     }
 
@@ -535,8 +642,12 @@ struct HyperparametersSection: View {
         switch config.algorithm {
         case .dqn:
             return config.dqn.learningRateSchedule
+        case .ppo:
+            return config.ppo.learningRateSchedule
         case .sac:
             return config.sac.learningRateSchedule
+        case .td3:
+            return config.td3.learningRateSchedule
         case .qLearning, .sarsa:
             return "constant"
         }
@@ -546,8 +657,12 @@ struct HyperparametersSection: View {
         switch config.algorithm {
         case .dqn:
             return config.dqn.warmupEnabled
+        case .ppo:
+            return config.ppo.warmupEnabled
         case .sac:
             return config.sac.warmupEnabled
+        case .td3:
+            return config.td3.warmupEnabled
         case .qLearning, .sarsa:
             return false
         }

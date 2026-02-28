@@ -5,30 +5,38 @@ final class TrainingAccumulator: Sendable {
 
     struct Pending: @unchecked Sendable {
         var timestep: Int = 0
-        var explorationRate: Double = 0
-        var episodes: [(Double, Int)] = []
-        var metrics: [[String: Double]] = []
+        var explorationRate: Double?
+        var episodes: [(timestep: Int, reward: Double, length: Int)] = []
+        var metrics: [(timestep: Int, values: [String: Double])] = []
         var renderSnapshot: (any Sendable)?
     }
 
     private let state = Mutex(Pending())
 
-    nonisolated func recordStep(timestep: Int, explorationRate: Double) {
+    nonisolated func recordStep(timestep: Int, explorationRate: Double?) {
         state.withLock {
             $0.timestep = timestep
-            $0.explorationRate = explorationRate
+            if let explorationRate, explorationRate.isFinite {
+                $0.explorationRate = explorationRate
+            } else {
+                $0.explorationRate = nil
+            }
         }
     }
 
     nonisolated func recordEpisode(reward: Double, length: Int) {
         state.withLock {
-            $0.episodes.append((reward, length))
+            let timestep = max(0, $0.timestep + 1)
+            $0.episodes.append((timestep: timestep, reward: reward, length: length))
         }
     }
 
     nonisolated func recordMetrics(_ metrics: [String: Double]) {
         state.withLock {
-            $0.metrics.append(metrics)
+            let finite = metrics.filter { $0.value.isFinite }
+            if !finite.isEmpty {
+                $0.metrics.append((timestep: max(0, $0.timestep), values: finite))
+            }
         }
     }
 

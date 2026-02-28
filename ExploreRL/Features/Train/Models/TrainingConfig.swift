@@ -16,7 +16,9 @@ struct TrainingConfig: Equatable, Codable {
 
     var tabular: TabularHyperparameters = TabularHyperparameters()
     var dqn: DQNHyperparameters = DQNHyperparameters()
+    var ppo: PPOHyperparameters = PPOHyperparameters()
     var sac: SACHyperparameters = SACHyperparameters()
+    var td3: TD3Hyperparameters = TD3Hyperparameters()
 
     var seedValue: UInt64? {
         let trimmed = seed.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -36,7 +38,9 @@ struct TrainingConfig: Equatable, Codable {
         case renderFPS
         case tabular
         case dqn
+        case ppo
         case sac
+        case td3
     }
 
     private enum LegacyCodingKeys: String, CodingKey {
@@ -71,6 +75,8 @@ struct TrainingConfig: Equatable, Codable {
             try c.decodeIfPresent(TabularHyperparameters.self, forKey: .tabular)
             ?? TabularHyperparameters()
         dqn = try c.decodeIfPresent(DQNHyperparameters.self, forKey: .dqn) ?? DQNHyperparameters()
+        ppo = try c.decodeIfPresent(PPOHyperparameters.self, forKey: .ppo) ?? PPOHyperparameters()
         sac = try c.decodeIfPresent(SACHyperparameters.self, forKey: .sac) ?? SACHyperparameters()
+        td3 = try c.decodeIfPresent(TD3Hyperparameters.self, forKey: .td3) ?? TD3Hyperparameters()
     }
 }

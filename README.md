@@ -19,16 +19,18 @@ ExploreRL is a SwiftUI app for iOS and macOS that lets you visualize and experim
 - Train: Configure environments and hyperparameters, then train with live charts/rendering
 - Evaluate: Run saved agents in evaluation episodes without further learning
 - Explore: In-app educational pages for algorithms, environments, and RL concepts
-- Settings: System checks, benchmark tools, FAQ, import/export helpers, and app metadata
+- Settings: System checks, benchmark tools, FAQ, import/export helpers, and app information
 
 ## Implemented Algorithms
 
 - Q-Learning (tabular)
 - SARSA (tabular)
 - DQN
+- PPO
 - SAC
+- TD3
 
-Algorithm choices are filtered at runtime based on environment action/observation space compatibility.
+Algorithm choices are filtered at runtime based on environment compatibility.
 
 ## Environment Coverage
 
@@ -50,22 +52,6 @@ Saved sessions include:
 
 Import/export is supported through archive files with `.xrlsession` extension.
 
-## Project Structure
-
-```text
-ExploreRL/
-├── ExploreRL/
-│   ├── Core/
-│   ├── Root/
-│   └── Features/
-│       ├── Explore/
-│       ├── Train/
-│       ├── Evaluate/
-│       ├── Library/
-│       └── Settings/
-├── ExploreRL.xcodeproj/
-└── README.md
-```
 
 ## Dependencies
 
@@ -99,15 +85,6 @@ ExploreRL/
 ```bash
 xcodebuild -scheme ExploreRL -destination "platform=macOS" build
 ```
-
-## Typical Workflow
-
-1. Open an environment in Train
-2. Adjust environment and algorithm settings
-3. Start training and watch metrics/rendering
-4. Save a session to Library
-5. Open the session in Evaluate for rollout checks
-6. Import/export sessions as needed
 
 ## License
 

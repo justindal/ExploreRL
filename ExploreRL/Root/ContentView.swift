@@ -11,6 +11,7 @@ struct ContentView: View {
     @State private var selectedTab = "Train"
     @State private var sessionToLoad: SavedSession?
     @State private var sessionToEvaluate: SavedSession?
+    @AppStorage("showExploreTab") private var showExploreTab = true
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -32,11 +33,15 @@ struct ContentView: View {
             }
 
             Tab("Evaluate", systemImage: "play.circle", value: "Evaluate") {
-                EvaluateView(sessionToLoad: $sessionToEvaluate)
+                EvaluateView(sessionToLoad: $sessionToEvaluate, onGoToLibrary: {
+                    selectedTab = "Library"
+                })
             }
 
-            Tab("Explore", systemImage: "graduationcap", value: "Explore") {
-                ExploreView()
+            if showExploreTab {
+                Tab("Explore", systemImage: "graduationcap", value: "Explore") {
+                    ExploreView()
+                }
             }
             
             Tab("Settings", systemImage: "gear", value: "Settings") {
@@ -46,6 +51,11 @@ struct ContentView: View {
         .task {
             envSpecs = await Gymnazo.registry().values.sorted {
                 $0.id < $1.id
+            }
+        }
+        .onChange(of: showExploreTab) { _, show in
+            if !show && selectedTab == "Explore" {
+                selectedTab = "Train"
             }
         }
     }

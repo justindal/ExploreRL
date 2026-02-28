@@ -39,6 +39,7 @@ struct TrainView: View {
             }
             .listStyle(trainListStyle)
             .navigationTitle("Environments")
+            .navigationSplitViewColumnWidth(min: 250, ideal: 300, max: 400)
         } detail: {
             if isLoadingSession {
                 ProgressView("Loading session...")

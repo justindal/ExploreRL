@@ -4,6 +4,20 @@ struct ExploreView: View {
     @State private var viewModel = ExploreViewModel()
     @State private var columnVisibility = NavigationSplitViewVisibility.doubleColumn
     @State private var preferredCompactColumn = NavigationSplitViewColumn.sidebar
+    @State private var searchText = ""
+
+    private var filteredSections: [(section: ExploreSection, items: [ExploreItem])] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return ExploreSection.allCases.compactMap { section in
+            let items = query.isEmpty
+                ? section.items
+                : section.items.filter {
+                    $0.title.lowercased().contains(query)
+                        || $0.subtitle.lowercased().contains(query)
+                }
+            return items.isEmpty ? nil : (section, items)
+        }
+    }
 
     var body: some View {
         @Bindable var viewModel = viewModel
@@ -13,6 +27,7 @@ struct ExploreView: View {
             preferredCompactColumn: $preferredCompactColumn
         ) {
             sidebar(selection: $viewModel.selection)
+                .navigationSplitViewColumnWidth(min: 250, ideal: 300, max: 400)
         } detail: {
             detail(selection: viewModel.selection)
         }
@@ -22,38 +37,21 @@ struct ExploreView: View {
     private func row(for item: ExploreItem) -> some View {
         ExploreItemRow(item: item)
             .tag(item)
-            .listRowInsets(
-                EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16)
-            )
-            .listRowSeparator(.hidden)
-            .listRowBackground(Color.clear)
+            .modify { view in
+                #if os(iOS)
+                view.listRowSeparator(.hidden)
+                #else
+                view
+                #endif
+            }
     }
 
     private func sidebar(selection: Binding<ExploreItem?>) -> some View {
         List(selection: selection) {
-            ForEach(ExploreSection.allCases) { section in
-                if section == .environments {
-                    Section {
-                        ForEach(section.items) { item in
-                            row(for: item)
-                        }
-                    } header: {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(section.title)
-                                .font(.title3.weight(.semibold))
-                                .foregroundStyle(.primary)
-                            Text("Toy Text, Classic Control, Box2D")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        .textCase(nil)
-                        .padding(.top, 6)
-                    }
-                } else {
-                    Section(section.title) {
-                        ForEach(section.items) { item in
-                            row(for: item)
-                        }
+            ForEach(filteredSections, id: \.section) { entry in
+                Section(entry.section.title) {
+                    ForEach(entry.items) { item in
+                        row(for: item)
                     }
                 }
             }
@@ -63,9 +61,9 @@ struct ExploreView: View {
                 view.scrollEdgeEffectStyle(.hard, for: .top)
             }
         }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
+        .listStyle(exploreListStyle)
         .navigationTitle("Explore")
+        .searchable(text: $searchText, placement: .sidebar, prompt: "Search topics")
     }
 
     @ViewBuilder
@@ -73,17 +71,20 @@ struct ExploreView: View {
         if let selection {
             ExploreItemDetailView(item: selection)
         } else {
-            VStack(spacing: 12) {
-                Text("Select a topic")
-                    .font(.title3.weight(.semibold))
-                Text(
-                    "Reinforcement learning concepts, algorithms, and environments."
-                )
-                .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding()
+            ContentUnavailableView(
+                "Select a Topic",
+                systemImage: "book.closed",
+                description: Text("Explore RL algorithms and environments.")
+            )
         }
+    }
+    
+    private var exploreListStyle: some ListStyle {
+        #if os(macOS)
+        return SidebarListStyle()
+        #else
+        return InsetGroupedListStyle()
+        #endif
     }
 }
 

@@ -9,7 +9,9 @@ enum AlgorithmType: String, CaseIterable, Identifiable, Codable {
     case qLearning = "Q-Learning"
     case sarsa = "SARSA"
     case dqn = "DQN"
+    case ppo = "PPO"
     case sac = "SAC"
+    case td3 = "TD3"
 
     var id: String { rawValue }
 
@@ -17,7 +19,7 @@ enum AlgorithmType: String, CaseIterable, Identifiable, Codable {
         switch self {
         case .qLearning, .sarsa:
             return true
-        case .dqn, .sac:
+        case .dqn, .ppo, .sac, .td3:
             return false
         }
     }
@@ -26,13 +28,18 @@ enum AlgorithmType: String, CaseIterable, Identifiable, Codable {
         switch self {
         case .qLearning, .sarsa, .dqn:
             return true
-        case .sac:
+        case .ppo, .sac, .td3:
             return false
         }
     }
 
     var requiresContinuousActions: Bool {
-        self == .sac
+        switch self {
+        case .sac, .td3:
+            return true
+        default:
+            return false
+        }
     }
 
     var requiresDiscreteObservations: Bool {

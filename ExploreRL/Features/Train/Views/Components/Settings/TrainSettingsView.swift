@@ -166,6 +166,10 @@ struct TrainSettingsView: View {
                     "This will reset \(selectedTab.rawValue.lowercased()) settings to their default values."
                 )
             }
+            .onChange(of: localTrainingConfig.algorithm) { oldValue, newValue in
+                guard oldValue != newValue else { return }
+                applyAlgorithmDefaultsIfNeeded(from: oldValue, to: newValue)
+            }
         }
     }
 
@@ -195,6 +199,49 @@ struct TrainSettingsView: View {
             localEnvSettings = defaults
         case .training:
             localTrainingConfig = EnvironmentDefaults.config(for: envID)
+        }
+    }
+
+    private func applyAlgorithmDefaultsIfNeeded(
+        from previousAlgorithm: AlgorithmType,
+        to algorithm: AlgorithmType
+    ) {
+        let baseDefaults = TrainingConfig()
+        let envDefaults = EnvironmentDefaults.config(for: envID)
+        let previousTimestepsDefault = EnvironmentDefaults.totalTimestepsDefault(
+            for: envID,
+            algorithm: previousAlgorithm
+        )
+        let nextTimestepsDefault = EnvironmentDefaults.totalTimestepsDefault(
+            for: envID,
+            algorithm: algorithm
+        )
+        if localTrainingConfig.totalTimesteps == previousTimestepsDefault
+            || localTrainingConfig.totalTimesteps == baseDefaults.totalTimesteps
+        {
+            localTrainingConfig.totalTimesteps = nextTimestepsDefault
+        }
+        switch algorithm {
+        case .qLearning, .sarsa:
+            if localTrainingConfig.tabular == baseDefaults.tabular {
+                localTrainingConfig.tabular = envDefaults.tabular
+            }
+        case .dqn:
+            if localTrainingConfig.dqn == baseDefaults.dqn {
+                localTrainingConfig.dqn = envDefaults.dqn
+            }
+        case .ppo:
+            if localTrainingConfig.ppo == baseDefaults.ppo {
+                localTrainingConfig.ppo = envDefaults.ppo
+            }
+        case .sac:
+            if localTrainingConfig.sac == baseDefaults.sac {
+                localTrainingConfig.sac = envDefaults.sac
+            }
+        case .td3:
+            if localTrainingConfig.td3 == baseDefaults.td3 {
+                localTrainingConfig.td3 = envDefaults.td3
+            }
         }
     }
 

@@ -22,14 +22,17 @@ struct LibraryDetailView: View {
                 metricsSection
                 hyperparamsSection
                 envSettingsSection
-                configSection
                 actionsSection
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding()
         }
         .navigationTitle(session.name)
-        .alert("Delete Session?", isPresented: $showDeleteAlert) {
+        .confirmationDialog(
+            "Delete Session?",
+            isPresented: $showDeleteAlert,
+            titleVisibility: .visible
+        ) {
             Button("Delete", role: .destructive) {
                 onDelete()
                 dismiss()
@@ -102,13 +105,52 @@ struct LibraryDetailView: View {
                     value: state.meanReward.map { String(format: "%.2f", $0) } ?? "-"
                 )
                 MetricCard(
+                    title: "Best Reward",
+                    value: state.rewardHistory.max().map { String(format: "%.2f", $0) } ?? "-"
+                )
+                MetricCard(
                     title: "Avg Length",
                     value: state.meanEpisodeLength.map { String(format: "%.1f", $0) } ?? "-"
                 )
-                if state.explorationRate != nil {
+                if let explorationRate = state.explorationRate, explorationRate.isFinite {
                     MetricCard(
                         title: "Exploration",
-                        value: state.explorationRate.map { String(format: "%.1f%%", $0 * 100) } ?? "-"
+                        value: String(format: "%.1f%%", explorationRate * 100)
+                    )
+                }
+                if let loss = state.lossHistory.last, loss.isFinite,
+                    state.criticLossHistory.last.map({
+                        let scale = max(1.0, max(abs(loss), abs($0)))
+                        return abs(loss - $0) > (1e-6 * scale)
+                    }) ?? true
+                {
+                    MetricCard(
+                        title: "Loss",
+                        value: String(format: "%.4f", loss)
+                    )
+                }
+                if let criticLoss = state.criticLossHistory.last, criticLoss.isFinite {
+                    MetricCard(
+                        title: "Critic Loss",
+                        value: String(format: "%.4f", criticLoss)
+                    )
+                }
+                if let actorLoss = state.actorLossHistory.last, actorLoss.isFinite {
+                    MetricCard(
+                        title: "Actor Loss",
+                        value: String(format: "%.4f", actorLoss)
+                    )
+                }
+                if let entropyCoef = state.entropyCoefHistory.last, entropyCoef.isFinite {
+                    MetricCard(
+                        title: "Entropy Coef",
+                        value: String(format: "%.4f", entropyCoef)
+                    )
+                }
+                if let qValue = state.qValueHistory.last, qValue.isFinite {
+                    MetricCard(
+                        title: "Avg Q-Value",
+                        value: String(format: "%.2f", qValue)
                     )
                 }
             }
@@ -120,26 +162,7 @@ struct LibraryDetailView: View {
         TrainingChartsSection(state: session.trainingState)
     }
 
-    @ViewBuilder
-    private var configSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Configuration")
-                .font(.headline)
 
-            let config = session.trainingConfig
-            LazyVGrid(
-                columns: [GridItem(.flexible()), GridItem(.flexible())],
-                alignment: .leading,
-                spacing: 8
-            ) {
-                LabeledContent("Seed", value: config.seed.isEmpty ? "None" : config.seed)
-                LabeledContent("Render", value: config.renderDuringTraining ? "On" : "Off")
-            }
-            .font(.subheadline)
-        }
-        .padding()
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
-    }
 
     @ViewBuilder
     private var hyperparamsSection: some View {
@@ -154,6 +177,8 @@ struct LibraryDetailView: View {
                 alignment: .leading,
                 spacing: 8
             ) {
+                LabeledContent("Seed", value: config.seed.isEmpty ? "None" : config.seed)
+
                 switch session.algorithmType {
                 case .qLearning, .sarsa:
                     let h = config.tabular
@@ -170,8 +195,23 @@ struct LibraryDetailView: View {
                     LabeledContent("Batch Size", value: "\(h.batchSize)")
                     LabeledContent("Tau", value: String(format: "%.4g", h.tau))
                     LabeledContent("Exploration", value: String(format: "%.2f", h.explorationFraction))
+                case .ppo:
+                    let h = config.ppo
+                    LabeledContent("Learning Rate", value: String(format: "%.2e", h.learningRate))
+                    LabeledContent("Gamma", value: String(format: "%.4g", h.gamma))
+                    LabeledContent("Rollout Steps", value: "\(h.nSteps)")
+                    LabeledContent("Batch Size", value: "\(h.batchSize)")
+                    LabeledContent("Epochs", value: "\(h.nEpochs)")
+                    LabeledContent("Clip Range", value: String(format: "%.4g", h.clipRange))
                 case .sac:
                     let h = config.sac
+                    LabeledContent("Learning Rate", value: String(format: "%.2e", h.learningRate))
+                    LabeledContent("Gamma", value: String(format: "%.4g", h.gamma))
+                    LabeledContent("Buffer Size", value: "\(h.bufferSize)")
+                    LabeledContent("Batch Size", value: "\(h.batchSize)")
+                    LabeledContent("Tau", value: String(format: "%.4g", h.tau))
+                case .td3:
+                    let h = config.td3
                     LabeledContent("Learning Rate", value: String(format: "%.2e", h.learningRate))
                     LabeledContent("Gamma", value: String(format: "%.4g", h.gamma))
                     LabeledContent("Buffer Size", value: "\(h.bufferSize)")
@@ -234,7 +274,7 @@ struct LibraryDetailView: View {
                 Button {
                     onLoad(session)
                 } label: {
-                    Text("Load in Training")
+                    Label("Load in Training", systemImage: "play.fill")
                         .frame(maxWidth: .infinity)
                 }
                 .modify { button in
@@ -255,7 +295,7 @@ struct LibraryDetailView: View {
                 Button {
                     onEvaluate(session)
                 } label: {
-                    Text("Evaluate")
+                    Label("Evaluate", systemImage: "checkmark.circle")
                         .frame(maxWidth: .infinity)
                 }
                 .modify { button in
@@ -274,6 +314,13 @@ struct LibraryDetailView: View {
                     }
                 }
             }
+            .modify { content in
+                if #available(iOS 26.0, macOS 26.0, *) {
+                    GlassEffectContainer(spacing: 14) { content }
+                } else {
+                    content
+                }
+            }
 
             Button {
                 onExport(session)
@@ -284,17 +331,16 @@ struct LibraryDetailView: View {
             .modify { button in
                 if #available(iOS 26.0, macOS 26.0, *) {
                     button
-                        .buttonStyle(.glass(.regular.tint(.indigo).interactive()))
+                        .buttonStyle(.glass(.clear))
                         .controlSize(.large)
-                        #if os(macOS)
-                        .tint(.indigo)
-                        #endif
                 } else {
                     button
                         .buttonStyle(.bordered)
                         .controlSize(.large)
                 }
             }
+
+            Divider()
 
             Button(role: .destructive) {
                 showDeleteAlert = true
@@ -314,6 +360,7 @@ struct LibraryDetailView: View {
                     button
                         .buttonStyle(.bordered)
                         .controlSize(.large)
+                        .tint(.red)
                 }
             }
         }

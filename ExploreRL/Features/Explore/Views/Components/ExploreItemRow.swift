@@ -10,7 +10,7 @@ struct ExploreItemRow: View {
         switch item {
         case .rlLoop, .returns, .exploration, .replay, .neuralNetworks, .activationFunctions, .optimizers:
             return .purple
-        case .qLearning, .sarsa, .dqn, .sac:
+        case .qLearning, .sarsa, .dqn, .ppo, .sac, .td3:
             return .blue
         default:
             return .secondary

@@ -155,16 +155,16 @@ enum HyperparameterConfig {
             description: "Update schedule based on steps or episodes"
         ),
         HyperparameterDefinition(
-            id: "gradientSteps",
-            label: "Gradient Steps",
-            type: .int(default: 1, range: -1...100),
-            description: "Number of gradient steps per update (-1 uses collected steps)"
+            id: "gradientStepsMode",
+            label: "Gradient Updates",
+            type: .string(default: "fixed", options: ["fixed", "asCollectedSteps"]),
+            description: "Use a fixed count or match collected environment steps"
         ),
         HyperparameterDefinition(
-            id: "gradientStepsMode",
-            label: "Gradient Steps Mode",
-            type: .string(default: "fixed", options: ["fixed", "asCollectedSteps"]),
-            description: "Fixed steps or match collected steps"
+            id: "gradientSteps",
+            label: "Fixed Gradient Steps",
+            type: .int(default: 1, range: 1...100),
+            description: "Gradient updates per train trigger when mode is Fixed"
         ),
         HyperparameterDefinition(
             id: "targetUpdateInterval",
@@ -250,6 +250,210 @@ enum HyperparameterConfig {
             type: .bool(default: true),
             description: "Treat time limits as terminal states"
         )
+    ]
+
+    static let ppo: [HyperparameterDefinition] = [
+        HyperparameterDefinition(
+            id: "learningRate",
+            label: "Learning Rate",
+            type: .float(default: 3e-4, range: 1e-6...1e-2, step: nil),
+            description: "Policy/value optimizer learning rate"
+        ),
+        HyperparameterDefinition(
+            id: "learningRateSchedule",
+            label: "LR Schedule",
+            type: .string(
+                default: "constant",
+                options: ["constant", "linear", "exponential", "step", "cosine"]
+            ),
+            description: "Learning rate schedule type"
+        ),
+        HyperparameterDefinition(
+            id: "learningRateFinal",
+            label: "LR Final",
+            type: .float(default: 0.0, range: 0.0...1e-2, step: nil),
+            description: "Final learning rate for linear schedule"
+        ),
+        HyperparameterDefinition(
+            id: "learningRateDecayRate",
+            label: "LR Decay Rate",
+            type: .float(default: 0.99, range: 0.8...1.0, step: nil),
+            description: "Decay rate for exponential schedule"
+        ),
+        HyperparameterDefinition(
+            id: "learningRateMinValue",
+            label: "LR Min",
+            type: .float(default: 0.0, range: 0.0...1e-2, step: nil),
+            description: "Minimum learning rate for cosine schedule"
+        ),
+        HyperparameterDefinition(
+            id: "learningRateMilestones",
+            label: "LR Milestones",
+            type: .string(default: "0.5,0.75", options: nil),
+            description: "Comma-separated progress milestones for step schedule"
+        ),
+        HyperparameterDefinition(
+            id: "learningRateGamma",
+            label: "LR Gamma",
+            type: .float(default: 0.1, range: 0.01...1.0, step: nil),
+            description: "Step schedule decay factor"
+        ),
+        HyperparameterDefinition(
+            id: "warmupEnabled",
+            label: "Warmup",
+            type: .bool(default: false),
+            description: "Enable learning rate warmup"
+        ),
+        HyperparameterDefinition(
+            id: "warmupFraction",
+            label: "Warmup Fraction",
+            type: .double(default: 0.05, range: 0.0...0.5, step: 0.01),
+            description: "Fraction of training for warmup"
+        ),
+        HyperparameterDefinition(
+            id: "warmupInitialValue",
+            label: "Warmup Initial",
+            type: .float(default: 0.0, range: 0.0...1e-2, step: nil),
+            description: "Initial learning rate during warmup"
+        ),
+        HyperparameterDefinition(
+            id: "nSteps",
+            label: "Rollout Steps",
+            type: .int(default: 2048, range: 8...8192),
+            description: "Environment steps collected before each update"
+        ),
+        HyperparameterDefinition(
+            id: "batchSize",
+            label: "Batch Size",
+            type: .int(default: 64, range: 8...4096),
+            description: "Minibatch size per optimization step"
+        ),
+        HyperparameterDefinition(
+            id: "nEpochs",
+            label: "Epochs",
+            type: .int(default: 10, range: 1...50),
+            description: "Optimization epochs per rollout"
+        ),
+        HyperparameterDefinition(
+            id: "gamma",
+            label: "Discount Factor (γ)",
+            type: .double(default: 0.99, range: 0.0...1.0, step: 0.01),
+            description: "How much to value future rewards"
+        ),
+        HyperparameterDefinition(
+            id: "gaeLambda",
+            label: "GAE Lambda (λ)",
+            type: .double(default: 0.95, range: 0.0...1.0, step: 0.01),
+            description: "Bias/variance tradeoff for generalized advantage estimation"
+        ),
+        HyperparameterDefinition(
+            id: "clipRange",
+            label: "Policy Clip Range",
+            type: .double(default: 0.2, range: 0.0...1.0, step: 0.01),
+            description: "Clipping range for policy ratio updates"
+        ),
+        HyperparameterDefinition(
+            id: "clipRangeVfEnabled",
+            label: "Clip Value Function",
+            type: .bool(default: false),
+            description: "Enable value target clipping"
+        ),
+        HyperparameterDefinition(
+            id: "clipRangeVf",
+            label: "Value Clip Range",
+            type: .double(default: 0.2, range: 0.0...1.0, step: 0.01),
+            description: "Value clipping range when enabled"
+        ),
+        HyperparameterDefinition(
+            id: "normalizeAdvantage",
+            label: "Normalize Advantage",
+            type: .bool(default: true),
+            description: "Normalize advantages per minibatch"
+        ),
+        HyperparameterDefinition(
+            id: "entCoef",
+            label: "Entropy Coef",
+            type: .double(default: 0.0, range: 0.0...1.0, step: 0.001),
+            description: "Entropy bonus coefficient"
+        ),
+        HyperparameterDefinition(
+            id: "vfCoef",
+            label: "Value Loss Coef",
+            type: .double(default: 0.5, range: 0.0...5.0, step: 0.05),
+            description: "Value loss weight in total objective"
+        ),
+        HyperparameterDefinition(
+            id: "maxGradNorm",
+            label: "Max Grad Norm",
+            type: .double(default: 0.5, range: 0.0...20.0, step: 0.1),
+            description: "Gradient clipping threshold (0 disables)"
+        ),
+        HyperparameterDefinition(
+            id: "targetKLEnabled",
+            label: "Target KL Early Stop",
+            type: .bool(default: false),
+            description: "Stop updates early when KL exceeds threshold"
+        ),
+        HyperparameterDefinition(
+            id: "targetKL",
+            label: "Target KL",
+            type: .double(default: 0.03, range: 0.0...1.0, step: 0.001),
+            description: "Approximate KL divergence threshold"
+        ),
+        HyperparameterDefinition(
+            id: "useSDE",
+            label: "Use SDE",
+            type: .bool(default: false),
+            description: "State-dependent exploration for continuous actions"
+        ),
+        HyperparameterDefinition(
+            id: "sdeSampleFreq",
+            label: "SDE Sample Freq",
+            type: .int(default: -1, range: -1...2048),
+            description: "SDE noise resampling frequency (-1 means rollout boundary)"
+        ),
+        HyperparameterDefinition(
+            id: "netArch",
+            label: "Network Layers",
+            type: .string(default: "64,64", options: nil),
+            description: "Comma-separated shared hidden layer sizes"
+        ),
+        HyperparameterDefinition(
+            id: "activation",
+            label: "Activation",
+            type: .string(default: "tanh", options: ["tanh", "relu"]),
+            description: "Hidden layer activation"
+        ),
+        HyperparameterDefinition(
+            id: "normalizeImages",
+            label: "Normalize Images",
+            type: .bool(default: true),
+            description: "Normalize image observations"
+        ),
+        HyperparameterDefinition(
+            id: "shareFeaturesExtractor",
+            label: "Share Features Extractor",
+            type: .bool(default: true),
+            description: "Share extractor between policy and value heads"
+        ),
+        HyperparameterDefinition(
+            id: "orthoInit",
+            label: "Orthogonal Init",
+            type: .bool(default: true),
+            description: "Apply orthogonal initialization to policy networks"
+        ),
+        HyperparameterDefinition(
+            id: "logStdInit",
+            label: "Log Std Init",
+            type: .float(default: 0.0, range: -10.0...2.0, step: nil),
+            description: "Initial log standard deviation for continuous policies"
+        ),
+        HyperparameterDefinition(
+            id: "fullStd",
+            label: "Full Std",
+            type: .bool(default: true),
+            description: "Use full covariance for SDE noise matrices"
+        ),
     ]
 
     static let sac: [HyperparameterDefinition] = [
@@ -353,16 +557,16 @@ enum HyperparameterConfig {
             description: "Update schedule based on steps or episodes"
         ),
         HyperparameterDefinition(
-            id: "gradientSteps",
-            label: "Gradient Steps",
-            type: .int(default: 1, range: -1...100),
-            description: "Number of gradient steps per update (-1 uses collected steps)"
+            id: "gradientStepsMode",
+            label: "Gradient Updates",
+            type: .string(default: "fixed", options: ["fixed", "asCollectedSteps"]),
+            description: "Use a fixed count or match collected environment steps"
         ),
         HyperparameterDefinition(
-            id: "gradientStepsMode",
-            label: "Gradient Steps Mode",
-            type: .string(default: "fixed", options: ["fixed", "asCollectedSteps"]),
-            description: "Fixed steps or match collected steps"
+            id: "gradientSteps",
+            label: "Fixed Gradient Steps",
+            type: .int(default: 1, range: 1...100),
+            description: "Gradient updates per train trigger when mode is Fixed"
         ),
         HyperparameterDefinition(
             id: "tau",
@@ -564,14 +768,264 @@ enum HyperparameterConfig {
         )
     ]
 
+    static let td3: [HyperparameterDefinition] = [
+        HyperparameterDefinition(
+            id: "learningRate",
+            label: "Learning Rate",
+            type: .float(default: 1e-3, range: 1e-6...1e-2, step: nil),
+            description: "Neural network learning rate"
+        ),
+        HyperparameterDefinition(
+            id: "learningRateSchedule",
+            label: "LR Schedule",
+            type: .string(
+                default: "constant",
+                options: ["constant", "linear", "exponential", "step", "cosine"]
+            ),
+            description: "Learning rate schedule type"
+        ),
+        HyperparameterDefinition(
+            id: "learningRateFinal",
+            label: "LR Final",
+            type: .float(default: 0.0, range: 0.0...1e-2, step: nil),
+            description: "Final learning rate for linear schedule"
+        ),
+        HyperparameterDefinition(
+            id: "learningRateDecayRate",
+            label: "LR Decay Rate",
+            type: .float(default: 0.99, range: 0.8...1.0, step: nil),
+            description: "Decay rate for exponential schedule"
+        ),
+        HyperparameterDefinition(
+            id: "learningRateMinValue",
+            label: "LR Min",
+            type: .float(default: 0.0, range: 0.0...1e-2, step: nil),
+            description: "Minimum learning rate for cosine schedule"
+        ),
+        HyperparameterDefinition(
+            id: "learningRateMilestones",
+            label: "LR Milestones",
+            type: .string(default: "0.5,0.75", options: nil),
+            description: "Comma-separated progress milestones for step schedule"
+        ),
+        HyperparameterDefinition(
+            id: "learningRateGamma",
+            label: "LR Gamma",
+            type: .float(default: 0.1, range: 0.01...1.0, step: nil),
+            description: "Step schedule decay factor"
+        ),
+        HyperparameterDefinition(
+            id: "warmupEnabled",
+            label: "Warmup",
+            type: .bool(default: false),
+            description: "Enable learning rate warmup"
+        ),
+        HyperparameterDefinition(
+            id: "warmupFraction",
+            label: "Warmup Fraction",
+            type: .double(default: 0.05, range: 0.0...0.5, step: 0.01),
+            description: "Fraction of training for warmup"
+        ),
+        HyperparameterDefinition(
+            id: "warmupInitialValue",
+            label: "Warmup Initial",
+            type: .float(default: 0.0, range: 0.0...1e-2, step: nil),
+            description: "Initial learning rate during warmup"
+        ),
+        HyperparameterDefinition(
+            id: "gamma",
+            label: "Discount Factor (γ)",
+            type: .double(default: 0.99, range: 0.0...1.0, step: 0.01),
+            description: "How much to value future rewards"
+        ),
+        HyperparameterDefinition(
+            id: "batchSize",
+            label: "Batch Size",
+            type: .int(default: 100, range: 16...1024),
+            description: "Samples per training update"
+        ),
+        HyperparameterDefinition(
+            id: "bufferSize",
+            label: "Buffer Size",
+            type: .int(default: 1_000_000, range: 10_000...1_000_000),
+            description: "Replay buffer capacity"
+        ),
+        HyperparameterDefinition(
+            id: "learningStarts",
+            label: "Learning Starts",
+            type: .int(default: 100, range: 0...50_000),
+            description: "Steps before training begins"
+        ),
+        HyperparameterDefinition(
+            id: "trainFrequency",
+            label: "Train Frequency",
+            type: .int(default: 1, range: 1...1000),
+            description: "Steps or episodes between training updates"
+        ),
+        HyperparameterDefinition(
+            id: "trainFrequencyUnit",
+            label: "Train Frequency Unit",
+            type: .string(default: "step", options: ["step", "episode"]),
+            description: "Update schedule based on steps or episodes"
+        ),
+        HyperparameterDefinition(
+            id: "gradientStepsMode",
+            label: "Gradient Updates",
+            type: .string(default: "fixed", options: ["fixed", "asCollectedSteps"]),
+            description: "Use a fixed count or match collected environment steps"
+        ),
+        HyperparameterDefinition(
+            id: "gradientSteps",
+            label: "Fixed Gradient Steps",
+            type: .int(default: 1, range: 1...100),
+            description: "Gradient updates per train trigger when mode is Fixed"
+        ),
+        HyperparameterDefinition(
+            id: "tau",
+            label: "Soft Update (τ)",
+            type: .double(default: 0.005, range: 0.001...0.1, step: 0.001),
+            description: "Target network soft update coefficient"
+        ),
+        HyperparameterDefinition(
+            id: "policyDelay",
+            label: "Policy Delay",
+            type: .int(default: 2, range: 1...20),
+            description: "Critic updates per actor update"
+        ),
+        HyperparameterDefinition(
+            id: "targetPolicyNoise",
+            label: "Target Policy Noise",
+            type: .float(default: 0.2, range: 0.0...1.0, step: nil),
+            description: "Noise added to target action"
+        ),
+        HyperparameterDefinition(
+            id: "targetNoiseClip",
+            label: "Target Noise Clip",
+            type: .float(default: 0.5, range: 0.0...2.0, step: nil),
+            description: "Clipping range for target policy noise"
+        ),
+        HyperparameterDefinition(
+            id: "actionNoiseType",
+            label: "Action Noise",
+            type: .string(default: "normal", options: ["none", "normal", "ou"]),
+            description: "Exploration noise process"
+        ),
+        HyperparameterDefinition(
+            id: "actionNoiseStd",
+            label: "Action Noise Std",
+            type: .float(default: 0.1, range: 0.0...2.0, step: nil),
+            description: "Standard deviation for action noise"
+        ),
+        HyperparameterDefinition(
+            id: "ouTheta",
+            label: "OU Theta",
+            type: .float(default: 0.15, range: 0.0...1.0, step: nil),
+            description: "Mean reversion for OU noise"
+        ),
+        HyperparameterDefinition(
+            id: "ouDt",
+            label: "OU Dt",
+            type: .float(default: 0.01, range: 0.0001...0.1, step: nil),
+            description: "Time step for OU noise"
+        ),
+        HyperparameterDefinition(
+            id: "ouInitialNoise",
+            label: "OU Initial Noise",
+            type: .float(default: 0.0, range: -1.0...1.0, step: nil),
+            description: "Initial OU noise value"
+        ),
+        HyperparameterDefinition(
+            id: "netArch",
+            label: "Network Layers",
+            type: .string(default: "400,300", options: nil),
+            description: "Comma-separated hidden layer sizes"
+        ),
+        HyperparameterDefinition(
+            id: "nCritics",
+            label: "Number of Critics",
+            type: .int(default: 2, range: 1...4),
+            description: "Number of critic networks"
+        ),
+        HyperparameterDefinition(
+            id: "shareFeaturesExtractor",
+            label: "Share Features Extractor",
+            type: .bool(default: false),
+            description: "Share extractor between actor and critic"
+        ),
+        HyperparameterDefinition(
+            id: "activation",
+            label: "Activation",
+            type: .string(default: "relu", options: ["relu"]),
+            description: "Hidden layer activation"
+        ),
+        HyperparameterDefinition(
+            id: "normalizeImages",
+            label: "Normalize Images",
+            type: .bool(default: true),
+            description: "Normalize image observations"
+        ),
+        HyperparameterDefinition(
+            id: "optimizeMemoryUsage",
+            label: "Optimize Memory Usage",
+            type: .bool(default: false),
+            description: "Reduce replay buffer memory usage"
+        ),
+        HyperparameterDefinition(
+            id: "handleTimeoutTermination",
+            label: "Handle Timeout Termination",
+            type: .bool(default: true),
+            description: "Treat time limits as terminal states"
+        ),
+        HyperparameterDefinition(
+            id: "optimizerActorBeta1",
+            label: "Actor Adam Beta1",
+            type: .float(default: 0.9, range: 0.0...0.999, step: nil),
+            description: "Actor optimizer beta1"
+        ),
+        HyperparameterDefinition(
+            id: "optimizerActorBeta2",
+            label: "Actor Adam Beta2",
+            type: .float(default: 0.999, range: 0.0...0.999, step: nil),
+            description: "Actor optimizer beta2"
+        ),
+        HyperparameterDefinition(
+            id: "optimizerActorEps",
+            label: "Actor Adam Eps",
+            type: .float(default: 1e-8, range: 1e-12...1e-4, step: nil),
+            description: "Actor optimizer epsilon"
+        ),
+        HyperparameterDefinition(
+            id: "optimizerCriticBeta1",
+            label: "Critic Adam Beta1",
+            type: .float(default: 0.9, range: 0.0...0.999, step: nil),
+            description: "Critic optimizer beta1"
+        ),
+        HyperparameterDefinition(
+            id: "optimizerCriticBeta2",
+            label: "Critic Adam Beta2",
+            type: .float(default: 0.999, range: 0.0...0.999, step: nil),
+            description: "Critic optimizer beta2"
+        ),
+        HyperparameterDefinition(
+            id: "optimizerCriticEps",
+            label: "Critic Adam Eps",
+            type: .float(default: 1e-8, range: 1e-12...1e-4, step: nil),
+            description: "Critic optimizer epsilon"
+        )
+    ]
+
     static func definitions(for algorithm: AlgorithmType) -> [HyperparameterDefinition] {
         switch algorithm {
         case .qLearning, .sarsa:
             return tabular
         case .dqn:
             return dqn
+        case .ppo:
+            return ppo
         case .sac:
             return sac
+        case .td3:
+            return td3
         }
     }
 }

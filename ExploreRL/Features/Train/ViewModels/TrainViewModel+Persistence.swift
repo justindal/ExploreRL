@@ -17,7 +17,9 @@ extension TrainViewModel {
             switch config.algorithm {
             case .qLearning, .sarsa: return tabularAgents[id] != nil
             case .dqn: return dqnAlgorithms[id] != nil
+            case .ppo: return ppoAlgorithms[id] != nil
             case .sac: return sacAlgorithms[id] != nil
+            case .td3: return td3Algorithms[id] != nil
             }
         }()
 
@@ -48,9 +50,17 @@ extension TrainViewModel {
             if let dqn = dqnAlgorithms[id] {
                 try await dqn.save(to: checkpointDir)
             }
+        case .ppo:
+            if let ppo = ppoAlgorithms[id] {
+                try await ppo.save(to: checkpointDir)
+            }
         case .sac:
             if let sac = sacAlgorithms[id] {
                 try await sac.save(to: checkpointDir)
+            }
+        case .td3:
+            if let td3 = td3Algorithms[id] {
+                try await td3.save(to: checkpointDir)
             }
         }
     }
@@ -63,7 +73,9 @@ extension TrainViewModel {
         trainingTasks[id] = nil
         tabularAgents[id] = nil
         dqnAlgorithms[id] = nil
+        ppoAlgorithms[id] = nil
         sacAlgorithms[id] = nil
+        td3Algorithms[id] = nil
         renderSnapshots[id] = nil
 
         envSettings[id] = session.envSettings
@@ -82,8 +94,12 @@ extension TrainViewModel {
             tabularAgents[id] = try TabularAgent.load(from: checkpointDir, env: env)
         case .dqn:
             dqnAlgorithms[id] = try DQN.load(from: checkpointDir, env: env)
+        case .ppo:
+            ppoAlgorithms[id] = try PPO.load(from: checkpointDir, env: env)
         case .sac:
             sacAlgorithms[id] = try SAC.load(from: checkpointDir, env: env)
+        case .td3:
+            td3Algorithms[id] = try TD3.load(from: checkpointDir, env: env)
         }
 
         var restoredState = session.trainingState

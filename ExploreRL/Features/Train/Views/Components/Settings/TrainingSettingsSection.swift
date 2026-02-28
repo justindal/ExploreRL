@@ -58,8 +58,12 @@ struct TrainingSettingsSection: View {
             Text("On-policy tabular algorithm. Uses actual next action for updates.")
         case .dqn:
             Text("Deep Q-Network with experience replay and target network.")
+        case .ppo:
+            Text("Proximal Policy Optimization with clipped policy updates.")
         case .sac:
             Text("Soft Actor-Critic for continuous control with entropy regularization.")
+        case .td3:
+            Text("Twin Delayed DDPG for continuous control with clipped double Q-learning.")
         }
     }
 

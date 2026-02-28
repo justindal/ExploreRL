@@ -11,7 +11,9 @@ final class EvaluateViewModel {
 
     private var tabularAgent: TabularAgent?
     private var dqnAlgorithm: DQN?
+    private var ppoAlgorithm: PPO?
     private var sacAlgorithm: SAC?
+    private var td3Algorithm: TD3?
     private var loadedSession: SavedSession?
     private var evalTask: Task<Void, Never>?
 
@@ -34,11 +36,19 @@ final class EvaluateViewModel {
             let settings = session.envSettings
             let options = envOptions(for: envID, settings: settings)
             let maxSteps = frozenLakeMaxSteps(for: envID, settings: settings)
-            var loadedEnv = try await Gymnazo.make(
+            var baseEnv = try await Gymnazo.make(
                 envID, maxEpisodeSteps: maxSteps, options: options
             )
-            loadedEnv.renderMode = .human
-            _ = try loadedEnv.reset()
+            baseEnv.renderMode = .human
+
+            let resetOptions = envResetOptions(for: envID, settings: settings)
+            let resetSeed = envResetSeed(settings: settings)
+            var loadedEnv = ConfiguredEnv(
+                base: baseEnv,
+                resetSeed: resetSeed,
+                resetOptions: resetOptions
+            )
+            _ = try loadedEnv.reset(seed: resetSeed, options: nil)
 
             let checkpointDir = storage.checkpointDirectory(for: session.id)
 
@@ -47,8 +57,12 @@ final class EvaluateViewModel {
                 tabularAgent = try TabularAgent.load(from: checkpointDir, env: loadedEnv)
             case .dqn:
                 dqnAlgorithm = try DQN.load(from: checkpointDir, env: loadedEnv, includeBuffer: false)
+            case .ppo:
+                ppoAlgorithm = try PPO.load(from: checkpointDir, env: loadedEnv)
             case .sac:
                 sacAlgorithm = try SAC.load(from: checkpointDir, env: loadedEnv, includeBuffer: false)
+            case .td3:
+                td3Algorithm = try TD3.load(from: checkpointDir, env: loadedEnv, includeBuffer: false)
             }
 
             env = loadedEnv
@@ -94,8 +108,11 @@ final class EvaluateViewModel {
         let renderFPS = state.renderFPS
 
         var callbacks = EvaluateCallbacks(
-            onStep: { @Sendable in
-                !Task.isCancelled
+            onStep: { @Sendable [weak self] in
+                await MainActor.run { [weak self] in
+                    self?.state.recordStep()
+                }
+                return !Task.isCancelled
             },
             onEpisodeEnd: { @Sendable [weak self] reward, length in
                 await MainActor.run { [weak self] in
@@ -128,8 +145,18 @@ final class EvaluateViewModel {
                     episodes: totalEpisodes,
                     callbacks: callbacks
                 )
+            case .ppo:
+                try await ppoAlgorithm?.evaluate(
+                    episodes: totalEpisodes,
+                    callbacks: callbacks
+                )
             case .sac:
                 try await sacAlgorithm?.evaluate(
+                    episodes: totalEpisodes,
+                    callbacks: callbacks
+                )
+            case .td3:
+                try await td3Algorithm?.evaluate(
                     episodes: totalEpisodes,
                     callbacks: callbacks
                 )
@@ -150,7 +177,9 @@ final class EvaluateViewModel {
         evalTask = nil
         tabularAgent = nil
         dqnAlgorithm = nil
+        ppoAlgorithm = nil
         sacAlgorithm = nil
+        td3Algorithm = nil
         loadedSession = nil
         renderSnapshot = nil
     }
@@ -212,5 +241,42 @@ final class EvaluateViewModel {
         let size = settings["size"]?.intValue ?? defaultSize
         guard size != 4, size != 8 else { return nil }
         return size * 25
+    }
+
+    private func envResetOptions(
+        for envID: String,
+        settings: [String: SettingValue]
+    ) -> EnvOptions {
+        let baseName = envID.split(separator: "-").first.map(String.init) ?? envID
+        var options = EnvOptions()
+
+        if baseName == "Pendulum" {
+            if let xInit = settings["x_init"]?.floatValue {
+                options["x_init"] = xInit
+            }
+            if let yInit = settings["y_init"]?.floatValue {
+                options["y_init"] = yInit
+            }
+        } else if baseName == "Acrobot" {
+            if let low = settings["low"]?.floatValue {
+                options["low"] = low
+            }
+            if let high = settings["high"]?.floatValue {
+                options["high"] = high
+            }
+        } else if baseName == "CarRacing" || baseName == "CarRacingDiscrete" {
+            if let randomize = settings["randomize"]?.boolValue {
+                options["randomize"] = randomize
+            }
+        }
+
+        return options
+    }
+
+    private func envResetSeed(settings: [String: SettingValue]) -> UInt64? {
+        let seedValue = settings["seed"]?.stringValue?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if seedValue.isEmpty { return nil }
+        return UInt64(seedValue)
     }
 }

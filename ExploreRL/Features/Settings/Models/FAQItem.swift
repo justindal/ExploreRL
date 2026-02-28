@@ -4,6 +4,7 @@ struct FAQItem: Identifiable {
     let id = UUID()
     let question: String
     let answer: String
+    var hasAppFilesAction: Bool = false
 }
 
 extension FAQItem {
@@ -14,7 +15,11 @@ extension FAQItem {
         ),
         FAQItem(
             question: "What algorithms are supported?",
-            answer: "Tabular methods (Q-Learning, SARSA), Deep Q-Network (DQN), and Soft Actor-Critic (SAC). Tabular methods work well for discrete, small environments. DQN handles larger discrete action spaces, and SAC supports continuous control tasks."
+            answer: "Tabular methods (Q-Learning, SARSA), Deep Q-Network (DQN), Soft Actor-Critic (SAC), Proximal Policy Optimization (PPO), and Twin Delayed DDPG (TD3). PPO provides stable on-policy learning, while SAC and TD3 do better in complex continuous control tasks."
+        ),
+        FAQItem(
+            question: "What is the Explore tab?",
+            answer: "The Explore tab provides interactive, high-level overviews of reinforcement learning concepts and algorithms. You can toggle this tab on or off in Settings."
         ),
         FAQItem(
             question: "How do I train an agent?",
@@ -34,11 +39,16 @@ extension FAQItem {
         ),
         FAQItem(
             question: "Why is training slow?",
-            answer: "Training speed depends on the algorithm, environment complexity, and device hardware. Deep learning algorithms (DQN, SAC) use MLX for GPU acceleration. Try reducing buffer size or batch size if training is too slow, or run a System Check in Settings to benchmark your device."
+            answer: "Training speed depends on the algorithm, environment complexity, and device hardware. Deep learning algorithms (DQN, SAC, PPO, TD3) use MLX for GPU acceleration. Try reducing buffer size or batch size if training is too slow, or run a System Check in Settings to benchmark your device."
         ),
         FAQItem(
             question: "What is MLX?",
             answer: "MLX is Apple's machine learning framework optimized for Apple Silicon. ExploreRL uses MLX through the Gymnazo library to run neural network computations efficiently on your device."
         ),
+        FAQItem(
+            question: "Where are my files stored?",
+            answer: "Local sessions and training checkpoints are saved natively on your device. You can easily export individual sessions as zip archives using the Share button.",
+            hasAppFilesAction: true
+        )
     ]
 }

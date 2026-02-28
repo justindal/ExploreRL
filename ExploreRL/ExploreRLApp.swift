@@ -9,6 +9,10 @@ import SwiftUI
 import MLX
 import Gymnazo
 
+#if os(macOS)
+import AppKit
+#endif
+
 @main
 struct ExploreRLApp: App {
 
@@ -16,5 +20,8 @@ struct ExploreRLApp: App {
         WindowGroup {
             ContentView()
         }
+        #if os(macOS)
+        .defaultSize(width: 1000, height: 800)
+        #endif
     }
 }

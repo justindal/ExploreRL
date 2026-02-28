@@ -166,6 +166,6 @@ private struct FixedSizeEnvWrapper<Content: View>: View {
                 .frame(width: proxy.size.width, height: proxy.size.height)
         }
         .aspectRatio(baseSize.width / baseSize.height, contentMode: .fit)
-        .frame(maxWidth: baseSize.width, maxHeight: baseSize.height)
+        .frame(maxWidth: baseSize.width, maxHeight: min(baseSize.height, 480))
     }
 }

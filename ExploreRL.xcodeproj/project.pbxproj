@@ -7,8 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		B97CD36D2F3A1B910064AC05 /* Box2D in Frameworks */ = {isa = PBXBuildFile; productRef = B97CD36C2F3A1B910064AC05 /* Box2D */; };
-		B97CD36F2F3A1B910064AC05 /* Gymnazo in Frameworks */ = {isa = PBXBuildFile; productRef = B97CD36E2F3A1B910064AC05 /* Gymnazo */; };
+		B96A6CE92F52D790001B5AFC /* Box2D in Frameworks */ = {isa = PBXBuildFile; productRef = B96A6CE82F52D790001B5AFC /* Box2D */; };
+		B96A6CEB2F52D790001B5AFC /* Gymnazo in Frameworks */ = {isa = PBXBuildFile; productRef = B96A6CEA2F52D790001B5AFC /* Gymnazo */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -29,8 +29,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				B97CD36F2F3A1B910064AC05 /* Gymnazo in Frameworks */,
-				B97CD36D2F3A1B910064AC05 /* Box2D in Frameworks */,
+				B96A6CEB2F52D790001B5AFC /* Gymnazo in Frameworks */,
+				B96A6CE92F52D790001B5AFC /* Box2D in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -82,8 +82,8 @@
 			);
 			name = ExploreRL;
 			packageProductDependencies = (
-				B97CD36C2F3A1B910064AC05 /* Box2D */,
-				B97CD36E2F3A1B910064AC05 /* Gymnazo */,
+				B96A6CE82F52D790001B5AFC /* Box2D */,
+				B96A6CEA2F52D790001B5AFC /* Gymnazo */,
 			);
 			productName = ExploreRL;
 			productReference = B90233BB2F3106DD00378E2A /* ExploreRL.app */;
@@ -114,7 +114,7 @@
 			mainGroup = B954BC912ECA6A9B0081CE3F;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				B97CD36B2F3A1B910064AC05 /* XCRemoteSwiftPackageReference "Gymnazo" */,
+				B96A6CE72F52D790001B5AFC /* XCRemoteSwiftPackageReference "Gymnazo" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = B954BC9B2ECA6A9B0081CE3F /* Products */;
@@ -186,7 +186,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
-				MARKETING_VERSION = 1.0.1;
+				MARKETING_VERSION = 1.1.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = com.justindaludado.ExploreRL;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -245,7 +245,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
-				MARKETING_VERSION = 1.0.1;
+				MARKETING_VERSION = 1.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.justindaludado.ExploreRL;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -412,7 +412,7 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		B97CD36B2F3A1B910064AC05 /* XCRemoteSwiftPackageReference "Gymnazo" */ = {
+		B96A6CE72F52D790001B5AFC /* XCRemoteSwiftPackageReference "Gymnazo" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/justindal/Gymnazo.git";
 			requirement = {
@@ -423,14 +423,14 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		B97CD36C2F3A1B910064AC05 /* Box2D */ = {
+		B96A6CE82F52D790001B5AFC /* Box2D */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = B97CD36B2F3A1B910064AC05 /* XCRemoteSwiftPackageReference "Gymnazo" */;
+			package = B96A6CE72F52D790001B5AFC /* XCRemoteSwiftPackageReference "Gymnazo" */;
 			productName = Box2D;
 		};
-		B97CD36E2F3A1B910064AC05 /* Gymnazo */ = {
+		B96A6CEA2F52D790001B5AFC /* Gymnazo */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = B97CD36B2F3A1B910064AC05 /* XCRemoteSwiftPackageReference "Gymnazo" */;
+			package = B96A6CE72F52D790001B5AFC /* XCRemoteSwiftPackageReference "Gymnazo" */;
 			productName = Gymnazo;
 		};
 /* End XCSwiftPackageProductDependency section */

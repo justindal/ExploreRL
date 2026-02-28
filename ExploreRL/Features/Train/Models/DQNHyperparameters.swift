@@ -29,7 +29,7 @@ struct DQNHyperparameters: Equatable, Codable {
     var trainFrequency: Int = 4
     var trainFrequencyUnit: String = "step"
     var gradientSteps: Int = 1
-    var gradientStepsMode: String = "fixed"
+    var gradientStepsMode: GradientStepsMode = .fixed
     var maxGradNorm: Double = 10.0
     var optimizeMemoryUsage: Bool = false
     var handleTimeoutTermination: Bool = true
@@ -66,7 +66,8 @@ struct DQNHyperparameters: Equatable, Codable {
         trainFrequency = try c.decodeIfPresent(Int.self, forKey: .trainFrequency) ?? 4
         trainFrequencyUnit = try c.decodeIfPresent(String.self, forKey: .trainFrequencyUnit) ?? "step"
         gradientSteps = try c.decodeIfPresent(Int.self, forKey: .gradientSteps) ?? 1
-        gradientStepsMode = try c.decodeIfPresent(String.self, forKey: .gradientStepsMode) ?? "fixed"
+        gradientStepsMode =
+            try c.decodeIfPresent(GradientStepsMode.self, forKey: .gradientStepsMode) ?? .fixed
         maxGradNorm = try c.decodeIfPresent(Double.self, forKey: .maxGradNorm) ?? 10.0
         optimizeMemoryUsage = try c.decodeIfPresent(Bool.self, forKey: .optimizeMemoryUsage) ?? false
         handleTimeoutTermination = try c.decodeIfPresent(Bool.self, forKey: .handleTimeoutTermination) ?? true

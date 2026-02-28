@@ -10,6 +10,7 @@ struct EvaluateDetailView: View {
     let session: SavedSession
     @Bindable var vm: EvaluateViewModel
     @Environment(\.horizontalSizeClass) private var sizeClass
+    @State private var showAgentInfo = false
 
     var body: some View {
         ScrollView {
@@ -49,14 +50,7 @@ struct EvaluateDetailView: View {
 
     @ViewBuilder
     private var sessionHeader: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Agent Info")
-                    .font(.headline)
-                Spacer()
-                AlgorithmBadge(text: session.algorithmType.rawValue)
-            }
-
+        DisclosureGroup(isExpanded: $showAgentInfo) {
             LazyVGrid(
                 columns: [GridItem(.flexible()), GridItem(.flexible())],
                 alignment: .leading,
@@ -70,6 +64,14 @@ struct EvaluateDetailView: View {
                 }
             }
             .font(.subheadline)
+            .padding(.top, 8)
+        } label: {
+            HStack {
+                Text("Agent Info")
+                    .font(.headline)
+                Spacer()
+                AlgorithmBadge(text: session.algorithmType.rawValue)
+            }
         }
         .padding()
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
@@ -93,16 +95,26 @@ struct EvaluateDetailView: View {
             if vm.state.status == .running {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack {
-                        Text("Episode \(vm.state.currentEpisode) / \(vm.state.totalEpisodes)")
-                            .font(.caption)
+                        Text("Episode \(vm.state.currentEpisode + 1) / \(vm.state.totalEpisodes)")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
                             .monospacedDigit()
                         Spacer()
                         Text(String(format: "%.0f%%", vm.state.progress * 100))
-                            .font(.caption)
+                            .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .monospacedDigit()
                     }
                     ProgressView(value: vm.state.progress)
+                    
+                    HStack {
+                        Text("Step: \(vm.state.currentStep)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                        Spacer()
+                    }
+                    .padding(.top, 2)
                 }
             }
 
@@ -120,13 +132,16 @@ struct EvaluateDetailView: View {
 
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Episodes:")
-                    .font(.subheadline)
-                TextField("", value: $vm.state.totalEpisodes, format: .number)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(width: 60)
-                    .disabled(isRunning || isLoading)
+                Stepper(
+                    "Episodes: \(vm.state.totalEpisodes)",
+                    value: $vm.state.totalEpisodes,
+                    in: 1...100
+                )
+                .font(.subheadline)
+                .disabled(isRunning || isLoading)
+
                 Spacer()
+
                 Toggle("Render", isOn: $vm.state.renderEnabled)
                     .font(.subheadline)
                     .fixedSize()

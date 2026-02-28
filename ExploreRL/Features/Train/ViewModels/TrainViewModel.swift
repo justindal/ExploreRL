@@ -22,7 +22,9 @@ final class TrainViewModel {
     var trainingTimings: [String: TrainingTiming] = [:]
     var tabularAgents: [String: TabularAgent] = [:]
     var dqnAlgorithms: [String: DQN] = [:]
+    var ppoAlgorithms: [String: PPO] = [:]
     var sacAlgorithms: [String: SAC] = [:]
+    var td3Algorithms: [String: TD3] = [:]
 
     func state(for id: String) -> EnvLoadState {
         envStates[id] ?? .idle
@@ -70,6 +72,10 @@ final class TrainViewModel {
             let available = availableAlgorithms(for: env)
             if !available.contains(config.algorithm), let first = available.first {
                 config.algorithm = first
+                config.totalTimesteps = EnvironmentDefaults.totalTimestepsDefault(
+                    for: id,
+                    algorithm: first
+                )
                 trainingConfigs[id] = config
             }
         }
@@ -114,18 +120,25 @@ final class TrainViewModel {
         let algorithmChanged = config.algorithm != oldConfig.algorithm
         let tabularChanged = config.tabular != oldConfig.tabular
         let dqnChanged = config.dqn != oldConfig.dqn
+        let ppoChanged = config.ppo != oldConfig.ppo
         let sacChanged = config.sac != oldConfig.sac
 
         if algorithmChanged {
             tabularAgents[id] = nil
             dqnAlgorithms[id] = nil
+            ppoAlgorithms[id] = nil
             sacAlgorithms[id] = nil
+            td3Algorithms[id] = nil
         } else if tabularChanged {
             tabularAgents[id] = nil
         } else if dqnChanged {
             dqnAlgorithms[id] = nil
+        } else if ppoChanged {
+            ppoAlgorithms[id] = nil
         } else if sacChanged {
             sacAlgorithms[id] = nil
+        } else if config.td3 != oldConfig.td3 {
+            td3Algorithms[id] = nil
         }
     }
 
@@ -154,12 +167,16 @@ final class TrainViewModel {
             state.currentTimestep = pending.timestep
             state.explorationRate = pending.explorationRate
 
-            for (reward, length) in pending.episodes {
-                state.recordEpisode(reward: reward, length: length)
+            for episode in pending.episodes {
+                state.recordEpisode(
+                    reward: episode.reward,
+                    length: episode.length,
+                    timestep: episode.timestep
+                )
             }
 
-            for metrics in pending.metrics {
-                state.recordTrainMetrics(metrics)
+            for metric in pending.metrics {
+                state.recordTrainMetrics(metric.values, timestep: metric.timestep)
             }
 
             if pending.renderSnapshot != nil {
@@ -201,7 +218,9 @@ final class TrainViewModel {
         trainingTimings.removeAll()
         tabularAgents.removeAll()
         dqnAlgorithms.removeAll()
+        ppoAlgorithms.removeAll()
         sacAlgorithms.removeAll()
+        td3Algorithms.removeAll()
         trainingStates.removeAll()
         envStates.removeAll()
         resettingEnvs.removeAll()

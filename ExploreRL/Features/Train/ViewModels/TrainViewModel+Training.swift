@@ -63,7 +63,9 @@ extension TrainViewModel {
     func pauseTraining(for id: String) {
         Task { await tabularAgents[id]?.stop() }
         Task { await dqnAlgorithms[id]?.stop() }
+        Task { await ppoAlgorithms[id]?.stop() }
         Task { await sacAlgorithms[id]?.stop() }
+        Task { await td3Algorithms[id]?.stop() }
         trainingTimings[id]?.pause(at: .now)
         flushAccumulator(for: id)
         stopFlushLoop(for: id)
@@ -104,12 +106,16 @@ extension TrainViewModel {
         let trainingTask = trainingTasks[id]
         let tabularAgent = tabularAgents[id]
         let dqn = dqnAlgorithms[id]
+        let ppo = ppoAlgorithms[id]
         let sac = sacAlgorithms[id]
+        let td3 = td3Algorithms[id]
 
         trainingTask?.cancel()
         await tabularAgent?.stop()
         await dqn?.stop()
+        await ppo?.stop()
         await sac?.stop()
+        await td3?.stop()
         if let trainingTask {
             await trainingTask.value
         }
@@ -121,7 +127,9 @@ extension TrainViewModel {
         trainingTimings[id] = nil
         tabularAgents[id] = nil
         dqnAlgorithms[id] = nil
+        ppoAlgorithms[id] = nil
         sacAlgorithms[id] = nil
+        td3Algorithms[id] = nil
         renderSnapshots[id] = nil
         updateTrainingState(for: id) { $0.reset() }
         await reloadEnv(id: id)
@@ -175,8 +183,28 @@ extension TrainViewModel {
                     isResuming: isResuming,
                     accumulator: accumulator
                 )
+            case .ppo:
+                try await runPPOTraining(
+                    id: id,
+                    config: config,
+                    totalTimesteps: totalTimesteps,
+                    renderEnabled: renderEnabled,
+                    renderFPS: renderFPS,
+                    isResuming: isResuming,
+                    accumulator: accumulator
+                )
             case .sac:
                 try await runSACTraining(
+                    id: id,
+                    config: config,
+                    totalTimesteps: totalTimesteps,
+                    renderEnabled: renderEnabled,
+                    renderFPS: renderFPS,
+                    isResuming: isResuming,
+                    accumulator: accumulator
+                )
+            case .td3:
+                try await runTD3Training(
                     id: id,
                     config: config,
                     totalTimesteps: totalTimesteps,
@@ -241,6 +269,7 @@ extension TrainViewModel {
             accumulator: accumulator,
             renderEnabled: renderEnabled,
             renderFPS: renderFPS,
+            trackExplorationRate: true,
             onFlush: { [weak self] in self?.flushAccumulator(for: id) }
         )
 
@@ -284,6 +313,7 @@ extension TrainViewModel {
             accumulator: accumulator,
             renderEnabled: renderEnabled,
             renderFPS: renderFPS,
+            trackExplorationRate: true,
             onFlush: { [weak self] in self?.flushAccumulator(for: id) }
         )
 
@@ -418,6 +448,7 @@ extension TrainViewModel {
             accumulator: accumulator,
             renderEnabled: renderEnabled,
             renderFPS: renderFPS,
+            trackExplorationRate: false,
             onFlush: { [weak self] in self?.flushAccumulator(for: id) }
         )
 
@@ -659,11 +690,11 @@ extension TrainViewModel {
         return output
     }
 
-    private func clamp<T: Comparable>(_ value: T, min minValue: T, max maxValue: T) -> T {
+    func clamp<T: Comparable>(_ value: T, min minValue: T, max maxValue: T) -> T {
         min(max(value, minValue), maxValue)
     }
 
-    private func trainFrequencyUnit(from raw: String) -> TrainFrequencyUnit {
+    func trainFrequencyUnit(from raw: String) -> TrainFrequencyUnit {
         switch raw.lowercased() {
         case "episode":
             return .episode
@@ -672,26 +703,28 @@ extension TrainViewModel {
         }
     }
 
-    private func gradientSteps(mode: String, count: Int) -> GradientSteps {
+    func gradientSteps(mode: GradientStepsMode, count: Int) -> GradientSteps {
         if count < 0 {
             return .asCollectedSteps
         }
-        if mode.lowercased() == "ascollectedsteps" {
+        if mode == .asCollectedSteps {
             return .asCollectedSteps
         }
         return .fixed(max(1, count))
     }
 
-    private func activationConfig(from raw: String) -> ActivationConfig {
+    func activationConfig(from raw: String) -> ActivationConfig {
         switch raw.lowercased() {
         case "relu":
             return .relu
+        case "tanh":
+            return .tanh
         default:
             return .relu
         }
     }
 
-    private func learningRateSchedule(
+    func learningRateSchedule(
         schedule: String,
         initial: Double,
         final: Double,
@@ -737,7 +770,7 @@ extension TrainViewModel {
         return base
     }
 
-    private func parseMilestones(_ raw: String) -> [Double] {
+    func parseMilestones(_ raw: String) -> [Double] {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty { return [0.5, 0.75] }
         let parts = trimmed.split { char in
@@ -749,11 +782,12 @@ extension TrainViewModel {
     }
 }
 
-private func makeCallbacks(
+func makeCallbacks(
     for id: String,
     accumulator: TrainingAccumulator,
     renderEnabled: Bool,
     renderFPS: Int,
+    trackExplorationRate: Bool = true,
     onFlush: @Sendable @MainActor @escaping () -> Void
 ) -> LearnCallbacks {
     let snapshotHandler: LearnCallbacks.OnSnapshotCallback? =
@@ -770,9 +804,10 @@ private func makeCallbacks(
 
     return LearnCallbacks(
         onStep: { @Sendable currentStep, _, explorationRate in
+            let rateToRecord: Double? = trackExplorationRate ? explorationRate : nil
             accumulator.recordStep(
                 timestep: currentStep,
-                explorationRate: explorationRate
+                explorationRate: rateToRecord
             )
             return !Task.isCancelled
         },

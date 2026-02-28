@@ -22,7 +22,7 @@ struct SACHyperparameters: Equatable, Codable {
     var tau: Double = 0.005
     var targetUpdateInterval: Int = 1
     var gradientSteps: Int = 1
-    var gradientStepsMode: String = "fixed"
+    var gradientStepsMode: GradientStepsMode = .fixed
     var trainFrequency: Int = 1
     var trainFrequencyUnit: String = "step"
     var learningStarts: Int = 100
@@ -78,7 +78,8 @@ struct SACHyperparameters: Equatable, Codable {
         tau = try c.decodeIfPresent(Double.self, forKey: .tau) ?? 0.005
         targetUpdateInterval = try c.decodeIfPresent(Int.self, forKey: .targetUpdateInterval) ?? 1
         gradientSteps = try c.decodeIfPresent(Int.self, forKey: .gradientSteps) ?? 1
-        gradientStepsMode = try c.decodeIfPresent(String.self, forKey: .gradientStepsMode) ?? "fixed"
+        gradientStepsMode =
+            try c.decodeIfPresent(GradientStepsMode.self, forKey: .gradientStepsMode) ?? .fixed
         trainFrequency = try c.decodeIfPresent(Int.self, forKey: .trainFrequency) ?? 1
         trainFrequencyUnit = try c.decodeIfPresent(String.self, forKey: .trainFrequencyUnit) ?? "step"
         learningStarts = try c.decodeIfPresent(Int.self, forKey: .learningStarts) ?? 100
