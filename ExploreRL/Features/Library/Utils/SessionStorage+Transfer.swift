@@ -2,30 +2,18 @@ import Foundation
 import AppleArchive
 import System
 import UniformTypeIdentifiers
-import CoreTransferable
-
-struct SessionExport: Transferable {
-    nonisolated static var transferRepresentation: some TransferRepresentation {
-        FileRepresentation(exportedContentType: .data) { _ in
-            let url = try await MainActor.run {
-                try SessionStorage.shared.exportAllSessions()
-            }
-            return SentTransferredFile(url)
-        }
-    }
-}
 
 extension SessionStorage {
 
     static let archiveContentType: UTType = .data
 
-    var exportsDirectory: URL {
+    nonisolated var exportsDirectory: URL {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("ExploreRL", isDirectory: true)
             .appendingPathComponent("Exports", isDirectory: true)
     }
 
-    func exportSession(_ session: SavedSession) throws -> URL {
+    nonisolated func exportSession(_ session: SavedSession) throws -> URL {
         let source = sessionDirectory(for: session.id)
         guard FileManager.default.fileExists(atPath: source.path) else {
             throw CocoaError(.fileNoSuchFile)
@@ -33,10 +21,31 @@ extension SessionStorage {
         return try writeArchive(from: source, name: sanitize(session.name))
     }
 
-    func exportAllSessions() throws -> URL {
+    nonisolated func exportAllSessions() throws -> URL {
         let fm = FileManager.default
         try fm.createDirectory(at: sessionsDirectory, withIntermediateDirectories: true)
-        return try writeArchive(from: sessionsDirectory, name: "ExploreRL-Sessions")
+
+        let archiveName = "ExploreRL-Sessions"
+        let archiveURL = exportsDirectory
+            .appendingPathComponent(archiveName)
+            .appendingPathExtension("xrlsession")
+
+        if fm.fileExists(atPath: archiveURL.path),
+           let archiveMod = modificationDate(of: archiveURL),
+           let latestSource = latestModificationDate(under: sessionsDirectory),
+           archiveMod >= latestSource {
+            return archiveURL
+        }
+
+        return try writeArchive(from: sessionsDirectory, name: archiveName)
+    }
+
+    nonisolated func invalidateExportCache() {
+        try? FileManager.default.removeItem(
+            at: exportsDirectory
+                .appendingPathComponent("ExploreRL-Sessions")
+                .appendingPathExtension("xrlsession")
+        )
     }
 
     func importSessions(from url: URL) throws -> Int {
@@ -53,7 +62,7 @@ extension SessionStorage {
 
 private extension SessionStorage {
 
-    func writeArchive(from source: URL, name: String) throws -> URL {
+    nonisolated func writeArchive(from source: URL, name: String) throws -> URL {
         let fm = FileManager.default
         try fm.createDirectory(at: exportsDirectory, withIntermediateDirectories: true)
 
@@ -190,11 +199,33 @@ private extension SessionStorage {
         return results
     }
 
-    func sanitize(_ name: String) -> String {
+    nonisolated func sanitize(_ name: String) -> String {
         let invalid = CharacterSet(charactersIn: "/\\:?%*|\"<>")
             .union(.newlines).union(.controlCharacters)
         return name.components(separatedBy: invalid)
             .joined(separator: "-")
             .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    nonisolated func modificationDate(of url: URL) -> Date? {
+        try? FileManager.default.attributesOfItem(atPath: url.path)[.modificationDate] as? Date
+    }
+
+    nonisolated func latestModificationDate(under directory: URL) -> Date? {
+        guard let enumerator = FileManager.default.enumerator(
+            at: directory,
+            includingPropertiesForKeys: [.contentModificationDateKey]
+        ) else { return nil }
+
+        var latest: Date?
+        for case let url as URL in enumerator {
+            guard let date = try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate else {
+                continue
+            }
+            if latest == nil || date > latest! {
+                latest = date
+            }
+        }
+        return latest
     }
 }

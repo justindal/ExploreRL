@@ -9,17 +9,17 @@ final class SessionStorage: Sendable {
 
     static let shared = SessionStorage()
 
-    var sessionsDirectory: URL {
+    nonisolated var sessionsDirectory: URL {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("ExploreRL", isDirectory: true)
             .appendingPathComponent("Sessions", isDirectory: true)
     }
 
-    func sessionDirectory(for id: UUID) -> URL {
+    nonisolated func sessionDirectory(for id: UUID) -> URL {
         sessionsDirectory.appendingPathComponent(id.uuidString, isDirectory: true)
     }
 
-    func checkpointDirectory(for id: UUID) -> URL {
+    nonisolated func checkpointDirectory(for id: UUID) -> URL {
         sessionDirectory(for: id).appendingPathComponent("checkpoint", isDirectory: true)
     }
 
