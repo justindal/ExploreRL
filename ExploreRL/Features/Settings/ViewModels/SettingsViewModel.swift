@@ -36,6 +36,9 @@ final class SettingsViewModel {
     var deletedSessionsCount: Int?
     var transferError: String?
     var lastImportedCount: Int?
+    var exportError: String?
+    private(set) var isExporting = false
+    private(set) var exportURL: URL?
     private(set) var sessionCount = 0
     
     private(set) var deviceInfo = DeviceInfo()
@@ -57,6 +60,7 @@ final class SettingsViewModel {
         do {
             let count = storage.listSessions().count
             try storage.deleteAll()
+            storage.invalidateExportCache()
             deleteAllError = nil
             deletedSessionsCount = count
             sessionCount = 0
@@ -74,6 +78,7 @@ final class SettingsViewModel {
                 defer { if didAccess { url.stopAccessingSecurityScopedResource() } }
                 imported += try storage.importSessions(from: url)
             }
+            storage.invalidateExportCache()
             transferError = nil
             lastImportedCount = imported
             refreshSessionCount()
@@ -89,6 +94,26 @@ final class SettingsViewModel {
         try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         NSWorkspace.shared.open(url)
         #endif
+    }
+
+    func exportAllSessions() async {
+        guard !isExporting else { return }
+        isExporting = true
+        exportURL = nil
+        exportError = nil
+        do {
+            let url = try await Task.detached {
+                try await SessionStorage.shared.exportAllSessions()
+            }.value
+            exportURL = url
+        } catch {
+            exportError = error.localizedDescription
+        }
+        isExporting = false
+    }
+
+    func clearExportURL() {
+        exportURL = nil
     }
 
     func loadDeviceInfo() {

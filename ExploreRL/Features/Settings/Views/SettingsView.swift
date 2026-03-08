@@ -1,3 +1,6 @@
+#if os(iOS)
+import UIKit
+#endif
 import SwiftUI
 
 struct SettingsView: View {
@@ -8,6 +11,8 @@ struct SettingsView: View {
     @State private var showDeleteAllConfirmation = false
     @State private var showImportPicker = false
     @State private var showFAQ = false
+    @State private var showAcknowledgements = false
+    @State private var showExportShare = false
 
     @AppStorage("showExploreTab") private var showExploreTab = true
     @AppStorage(AppPreferenceKeys.allowMultiEnvTraining) private var allowMultiEnvTraining = false
@@ -82,7 +87,10 @@ struct SettingsView: View {
                         HStack {
                             Text("Contact the Developer")
                             Spacer()
+                            Image(systemName: "arrow.up.right")
+                                .font(.caption)
                         }
+                        .foregroundStyle(.blue)
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
@@ -94,6 +102,19 @@ struct SettingsView: View {
 
                 Section("About") {
                     LabeledContent("Version", value: appVersion)
+                    Button {
+                        showAcknowledgements = true
+                    } label: {
+                        HStack {
+                            Text("Acknowledgements")
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
                     if let exploreRLInfoURL = viewModel.exploreRLInfoURL {
                         Link(destination: exploreRLInfoURL) {
                             HStack {
@@ -118,6 +139,11 @@ struct SettingsView: View {
         }
         .sheet(isPresented: $showFAQ) {
             FAQSheet(viewModel: viewModel)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showAcknowledgements) {
+            AcknowledgementsSheet()
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
@@ -189,24 +215,60 @@ struct SettingsView: View {
                 viewModel.transferError = error.localizedDescription
             }
         }
+        .onChange(of: viewModel.exportURL) { _, url in
+            guard url != nil else { return }
+            #if os(macOS)
+            SessionSharePresenter.present(url: url!)
+            viewModel.clearExportURL()
+            #else
+            showExportShare = true
+            #endif
+        }
+        #if os(iOS)
+        .sheet(isPresented: $showExportShare, onDismiss: {
+            viewModel.clearExportURL()
+        }) {
+            if let url = viewModel.exportURL {
+                ActivitySheet(url: url)
+            }
+        }
+        #endif
+        .alert(
+            "Export Failed",
+            isPresented: Binding(
+                get: { viewModel.exportError != nil },
+                set: { if !$0 { viewModel.exportError = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(viewModel.exportError ?? "")
+        }
     }
 
     @ViewBuilder
     private var librarySection: some View {
         Section {
-            ShareLink(
-                item: SessionExport(),
-                preview: SharePreview("ExploreRL Sessions")
-            ) {
+            Button {
+                Task { await viewModel.exportAllSessions() }
+            } label: {
                 HStack {
-                    Text("Export All Sessions")
-                        .foregroundStyle(.blue)
+                    if viewModel.isExporting {
+                        ProgressView()
+                            .controlSize(.small)
+                        Text("Exporting...")
+                    } else {
+                        Text("Export All Sessions")
+                    }
                     Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .disabled(!viewModel.hasSessions)
+            .disabled(!viewModel.hasSessions || viewModel.isExporting)
 
             Button {
                 showImportPicker = true
@@ -214,6 +276,9 @@ struct SettingsView: View {
                 HStack {
                     Text("Import Sessions")
                     Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
                 .contentShape(Rectangle())
             }
@@ -237,4 +302,5 @@ struct SettingsView: View {
             Text("Manage your saved sessions and checkpoints.")
         }
     }
+
 }
