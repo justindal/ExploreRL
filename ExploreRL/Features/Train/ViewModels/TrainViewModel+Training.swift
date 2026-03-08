@@ -9,7 +9,7 @@ import Gymnazo
 extension TrainViewModel {
 
     func startTraining(for id: String) {
-        guard trainingState(for: id).status != .training else { return }
+        guard trainingPolicy(for: id).isAllowed else { return }
         if trainingState(for: id).status == .paused {
             resumeTraining(for: id)
             return
@@ -74,6 +74,7 @@ extension TrainViewModel {
 
     func resumeTraining(for id: String) {
         guard trainingState(for: id).status == .paused else { return }
+        guard trainingPolicy(for: id).isAllowed else { return }
         updateTrainingState(for: id) { $0.status = .training }
 
         if trainingTimings[id] == nil {

@@ -41,6 +41,12 @@ struct TrainingControlsView: View {
                 .font(.caption)
                 .foregroundStyle(.red)
         }
+
+        if let reason = policy.reason {
+            Text(reason)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
     }
 
     @ViewBuilder
@@ -158,6 +164,7 @@ struct TrainingControlsView: View {
             Label("Start", systemImage: "play.fill")
                 .frame(maxWidth: .infinity)
         }
+        .disabled(!policy.isAllowed)
         .modify { button in
             if #available(iOS 26.0, macOS 26.0, *) {
                 button
@@ -180,6 +187,7 @@ struct TrainingControlsView: View {
             Label("Resume", systemImage: "play.fill")
                 .frame(maxWidth: .infinity)
         }
+        .disabled(!policy.isAllowed)
         .modify { button in
             if #available(iOS 26.0, macOS 26.0, *) {
                 button
@@ -256,6 +264,10 @@ struct TrainingControlsView: View {
                     .tint(isTraining ? .red : .primary)
             }
         }
+    }
+
+    private var policy: TrainingPolicy {
+        vm.trainingPolicy(for: id)
     }
 
     private var hasTrainingProgress: Bool {

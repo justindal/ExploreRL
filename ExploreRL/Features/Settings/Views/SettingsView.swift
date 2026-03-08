@@ -10,6 +10,7 @@ struct SettingsView: View {
     @State private var showFAQ = false
 
     @AppStorage("showExploreTab") private var showExploreTab = true
+    @AppStorage(AppPreferenceKeys.allowMultiEnvTraining) private var allowMultiEnvTraining = false
 
     private var appVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
@@ -19,13 +20,19 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 Section {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Toggle("Enable Explore Tab", isOn: $showExploreTab)
-                    }
+                    Toggle("Enable Explore Tab", isOn: $showExploreTab)
+                    Toggle(
+                        "Allow Multi-Environment Training",
+                        isOn: $allowMultiEnvTraining
+                    )
                 } header: {
                     Text("Preferences")
                 } footer: {
-                    Text("Customize your app experience.")
+                    Text(
+                        allowMultiEnvTraining
+                            ? "Different environments can train concurrently."
+                            : "Only one environment can train at a time."
+                    )
                 }
 
                 Section {

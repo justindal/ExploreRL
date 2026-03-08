@@ -235,4 +235,48 @@ final class TrainViewModel {
             return nil
         }
     }
+
+    var activeTrainingIDs: Set<String> {
+        Set(
+            trainingStates.compactMap { id, state in
+                state.status == .training ? id : nil
+            }
+        )
+    }
+
+    private var allowMultiEnvTraining: Bool {
+        UserDefaults.standard.bool(
+            forKey: AppPreferenceKeys.allowMultiEnvTraining
+        )
+    }
+
+    func trainingPolicy(for id: String) -> TrainingPolicy {
+        let status = trainingState(for: id).status
+        if status == .training {
+            return .denied("Already training")
+        }
+        let activeIDs = activeTrainingIDs
+        if activeIDs.contains(id) {
+            return .denied("Already training")
+        }
+        if !allowMultiEnvTraining, let active = activeIDs.first {
+            return .denied("\(active) is currently training")
+        }
+        return .allowed
+    }
+}
+
+enum TrainingPolicy: Equatable {
+    case allowed
+    case denied(String)
+
+    var isAllowed: Bool {
+        if case .allowed = self { return true }
+        return false
+    }
+
+    var reason: String? {
+        if case .denied(let reason) = self { return reason }
+        return nil
+    }
 }
