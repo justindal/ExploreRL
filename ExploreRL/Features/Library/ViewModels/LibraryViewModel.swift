@@ -25,6 +25,7 @@ final class LibraryViewModel {
 
     var sessions: [SavedSession] = []
     var deleteError: String?
+    var renameError: String?
     var transferError: String?
     var exportError: String?
     var lastImportedCount: Int?
@@ -45,6 +46,7 @@ final class LibraryViewModel {
                 defer { if didAccess { url.stopAccessingSecurityScopedResource() } }
                 imported += try storage.importSessions(from: url)
             }
+            storage.invalidateExportCache()
             transferError = nil
             lastImportedCount = imported
             loadSessions()
@@ -57,6 +59,7 @@ final class LibraryViewModel {
     func delete(session: SavedSession) {
         do {
             try storage.delete(sessionID: session.id)
+            storage.invalidateExportCache()
             sessions.removeAll { $0.id == session.id }
         } catch {
             deleteError = error.localizedDescription
@@ -87,6 +90,38 @@ final class LibraryViewModel {
         let toDelete = sessions.filter { ids.contains($0.id) }
         for session in toDelete {
             delete(session: session)
+        }
+    }
+
+    func rename(sessionID: UUID, to name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            renameError = "Session name cannot be empty."
+            return
+        }
+        guard let index = sessions.firstIndex(where: { $0.id == sessionID }) else {
+            return
+        }
+
+        let session = sessions[index]
+        let updated = SavedSession(
+            id: session.id,
+            name: trimmed,
+            environmentID: session.environmentID,
+            algorithmType: session.algorithmType,
+            trainingConfig: session.trainingConfig,
+            trainingState: session.trainingState,
+            envSettings: session.envSettings,
+            savedAt: session.savedAt
+        )
+
+        do {
+            try storage.save(session: updated)
+            storage.invalidateExportCache()
+            sessions[index] = updated
+            renameError = nil
+        } catch {
+            renameError = error.localizedDescription
         }
     }
 

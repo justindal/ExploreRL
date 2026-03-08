@@ -14,6 +14,8 @@ struct LibraryView: View {
     @State private var searchText = ""
     @State private var shareURL: URL?
     @State private var sessionToDelete: SavedSession?
+    @State private var sessionToRename: SavedSession?
+    @State private var renameText = ""
     @State private var showFiltersPopover = false
     @State private var draftSortOrder: SortOrder = .dateDesc
     @State private var draftAlgorithmFilters: Set<AlgorithmFilter> = []
@@ -33,6 +35,13 @@ struct LibraryView: View {
         Binding(
             get: { viewModel.transferError != nil },
             set: { if !$0 { viewModel.transferError = nil } }
+        )
+    }
+
+    private var hasRenameError: Binding<Bool> {
+        Binding(
+            get: { viewModel.renameError != nil },
+            set: { if !$0 { viewModel.renameError = nil } }
         )
     }
 
@@ -76,6 +85,11 @@ struct LibraryView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(viewModel.deleteError ?? "")
+        }
+        .alert("Rename Failed", isPresented: hasRenameError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(viewModel.renameError ?? "")
         }
         .alert("Transfer Failed", isPresented: hasTransferError) {
             Button("OK", role: .cancel) {}
@@ -152,6 +166,30 @@ struct LibraryView: View {
                 )
             }
         }
+        .alert(
+            "Rename Session",
+            isPresented: Binding(
+                get: { sessionToRename != nil },
+                set: {
+                    if !$0 {
+                        sessionToRename = nil
+                        renameText = ""
+                    }
+                }
+            ),
+            presenting: sessionToRename
+        ) { session in
+            TextField("Session name", text: $renameText)
+            Button("Save") {
+                commitRename()
+            }
+            Button("Cancel", role: .cancel) {
+                sessionToRename = nil
+                renameText = ""
+            }
+        } message: { session in
+            Text("Enter a new name for '\(session.name)'.")
+        }
     }
 
     @ViewBuilder
@@ -200,6 +238,14 @@ struct LibraryView: View {
                                         Label(
                                             "Evaluate",
                                             systemImage: "checkmark.circle"
+                                        )
+                                    }
+                                    Button {
+                                        beginRenaming(session)
+                                    } label: {
+                                        Label(
+                                            "Rename",
+                                            systemImage: "pencil"
                                         )
                                     }
                                     Button {
@@ -272,6 +318,7 @@ struct LibraryView: View {
                     onLoad: onLoad,
                     onEvaluate: onEvaluate,
                     onExport: exportAndShare,
+                    onRename: beginRenaming,
                     onDelete: { viewModel.delete(session: session) }
                 )
             } else {
@@ -295,6 +342,7 @@ struct LibraryView: View {
                 onLoad: onLoad,
                 onEvaluate: onEvaluate,
                 onExport: exportAndShare,
+                onRename: beginRenaming,
                 onDelete: { viewModel.delete(session: session) }
             )
         } else if viewModel.sessions.isEmpty {
@@ -336,5 +384,17 @@ struct LibraryView: View {
             #endif
             viewModel.exportError = error.localizedDescription
         }
+    }
+
+    private func beginRenaming(_ session: SavedSession) {
+        sessionToRename = session
+        renameText = session.name
+    }
+
+    private func commitRename() {
+        guard let session = sessionToRename else { return }
+        viewModel.rename(sessionID: session.id, to: renameText)
+        sessionToRename = nil
+        renameText = ""
     }
 }

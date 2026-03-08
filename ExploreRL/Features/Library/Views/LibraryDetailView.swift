@@ -10,6 +10,7 @@ struct LibraryDetailView: View {
     let onLoad: (SavedSession) -> Void
     let onEvaluate: (SavedSession) -> Void
     let onExport: (SavedSession) -> Void
+    let onRename: (SavedSession) -> Void
     let onDelete: () -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -326,6 +327,24 @@ struct LibraryDetailView: View {
                 onExport(session)
             } label: {
                 Label("Export Session", systemImage: "square.and.arrow.up")
+                    .frame(maxWidth: .infinity)
+            }
+            .modify { button in
+                if #available(iOS 26.0, macOS 26.0, *) {
+                    button
+                        .buttonStyle(.glass(.clear))
+                        .controlSize(.large)
+                } else {
+                    button
+                        .buttonStyle(.bordered)
+                        .controlSize(.large)
+                }
+            }
+
+            Button {
+                onRename(session)
+            } label: {
+                Label("Rename Session", systemImage: "pencil")
                     .frame(maxWidth: .infinity)
             }
             .modify { button in
