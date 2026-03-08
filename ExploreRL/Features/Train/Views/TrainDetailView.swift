@@ -38,7 +38,7 @@ struct TrainDetailView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 20) {
                         topSection(env: env)
-                        if trainingState.status != .idle {
+                        if trainingState.hasHistory {
                             TrainingChartsSection(state: trainingState)
                         }
                     }
@@ -188,8 +188,9 @@ struct TrainDetailView: View {
 
     @ViewBuilder
     private func topSection(env: any Env) -> some View {
+        let showsMetrics = trainingState.status != .idle || trainingState.hasHistory
         if sizeClass == .regular {
-            if trainingState.status != .idle {
+            if showsMetrics {
                 HStack(alignment: .top, spacing: 20) {
                     envSection(env: env)
                         .fixedSize(horizontal: false, vertical: true)
@@ -235,7 +236,7 @@ struct TrainDetailView: View {
                 trainingState: trainingState,
                 showResetAlert: $showResetAlert
             )
-            if trainingState.status != .idle {
+            if showsMetrics {
                 TrainingMetricsView(
                     trainingState: trainingState,
                     algorithm: trainingConfig.algorithm

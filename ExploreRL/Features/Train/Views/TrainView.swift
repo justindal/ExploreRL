@@ -30,7 +30,8 @@ struct TrainView: View {
                             TrainListRow(
                                 name: spec.displayName ?? spec.name,
                                 description: spec.description ?? "",
-                                algorithms: []
+                                algorithms: [],
+                                isTraining: viewModel.trainingState(for: spec.id).status == .training
                             )
                             .tag(spec.id)
                         }

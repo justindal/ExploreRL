@@ -38,6 +38,7 @@ extension TrainViewModel {
 
         let storage = SessionStorage.shared
         try storage.save(session: session)
+        storage.invalidateExportCache()
 
         let checkpointDir = storage.checkpointDirectory(for: session.id)
 

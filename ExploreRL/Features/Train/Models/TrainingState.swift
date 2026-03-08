@@ -306,6 +306,19 @@ struct TrainingState: Equatable, Codable {
         return false
     }
 
+    var hasHistory: Bool {
+        !rewardHistory.isEmpty
+            || !episodeLengthHistory.isEmpty
+            || !explorationRateHistory.isEmpty
+            || !lossHistory.isEmpty
+            || !actorLossHistory.isEmpty
+            || !criticLossHistory.isEmpty
+            || !entropyCoefHistory.isEmpty
+            || !tdErrorHistory.isEmpty
+            || !qValueHistory.isEmpty
+            || !learningRateHistory.isEmpty
+    }
+
     func progress(totalTimesteps: Int) -> Double {
         guard totalTimesteps > 0 else { return 0 }
         return Double(currentTimestep) / Double(totalTimesteps)

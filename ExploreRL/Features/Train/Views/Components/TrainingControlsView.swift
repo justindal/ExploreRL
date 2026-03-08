@@ -42,7 +42,7 @@ struct TrainingControlsView: View {
                 .foregroundStyle(.red)
         }
 
-        if let reason = policy.reason {
+        if trainingState.status != .training, let reason = policy.reason {
             Text(reason)
                 .font(.caption)
                 .foregroundStyle(.secondary)

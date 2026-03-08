@@ -23,6 +23,7 @@ enum ChartMetric: String, CaseIterable, Identifiable {
 struct TrainingChartsSection: View {
     let state: TrainingState
     @State private var selected: ChartMetric = .reward
+    @State private var lockYScale = false
 
     private var availableMetrics: [ChartMetric] {
         ChartMetric.allCases.filter { metric in
@@ -52,6 +53,7 @@ struct TrainingChartsSection: View {
                 }
 
                 metricPicker
+                chartOptions
 
                 chartContent
                     .frame(height: 200)
@@ -62,6 +64,9 @@ struct TrainingChartsSection: View {
                 if !metrics.contains(selected), let first = metrics.first {
                     selected = first
                 }
+            }
+            .onChange(of: selected) { _, _ in
+                lockYScale = false
             }
             .onAppear {
                 if !availableMetrics.contains(selected), let first = availableMetrics.first {
@@ -100,14 +105,16 @@ struct TrainingChartsSection: View {
                 data: points(state.rewardStepHistory, state.rewardHistory),
                 color: .blue,
                 label: "Reward",
-                scaleMode: chartScaleMode
+                scaleMode: chartScaleMode,
+                lockYScale: lockYScale
             )
         case .length:
             TrainingChart(
                 data: points(state.episodeLengthStepHistory, state.episodeLengthHistory),
                 color: .green,
                 label: "Steps",
-                scaleMode: chartScaleMode
+                scaleMode: chartScaleMode,
+                lockYScale: lockYScale
             )
         case .exploration:
             TrainingChart(
@@ -115,28 +122,32 @@ struct TrainingChartsSection: View {
                 color: .orange,
                 label: "Epsilon",
                 showAverage: false,
-                scaleMode: chartScaleMode
+                scaleMode: chartScaleMode,
+                lockYScale: lockYScale
             )
         case .loss:
             TrainingChart(
                 data: points(state.lossStepHistory, state.lossHistory),
                 color: .red,
                 label: "Loss",
-                scaleMode: chartScaleMode
+                scaleMode: chartScaleMode,
+                lockYScale: lockYScale
             )
         case .actorLoss:
             TrainingChart(
                 data: points(state.actorLossStepHistory, state.actorLossHistory),
                 color: .indigo,
                 label: "Actor Loss",
-                scaleMode: chartScaleMode
+                scaleMode: chartScaleMode,
+                lockYScale: lockYScale
             )
         case .criticLoss:
             TrainingChart(
                 data: points(state.criticLossStepHistory, state.criticLossHistory),
                 color: .pink,
                 label: "Critic Loss",
-                scaleMode: chartScaleMode
+                scaleMode: chartScaleMode,
+                lockYScale: lockYScale
             )
         case .entropyCoef:
             TrainingChart(
@@ -144,21 +155,24 @@ struct TrainingChartsSection: View {
                 color: .teal,
                 label: "Entropy Coef",
                 showAverage: false,
-                scaleMode: chartScaleMode
+                scaleMode: chartScaleMode,
+                lockYScale: lockYScale
             )
         case .tdError:
             TrainingChart(
                 data: points(state.tdErrorStepHistory, state.tdErrorHistory),
                 color: .pink,
                 label: "TD Error",
-                scaleMode: chartScaleMode
+                scaleMode: chartScaleMode,
+                lockYScale: lockYScale
             )
         case .qValue:
             TrainingChart(
                 data: points(state.qValueStepHistory, state.qValueHistory),
                 color: .cyan,
                 label: "Q-Value",
-                scaleMode: chartScaleMode
+                scaleMode: chartScaleMode,
+                lockYScale: lockYScale
             )
         case .learningRate:
             TrainingChart(
@@ -166,8 +180,22 @@ struct TrainingChartsSection: View {
                 color: .purple,
                 label: "LR",
                 showAverage: false,
-                scaleMode: chartScaleMode
+                scaleMode: chartScaleMode,
+                lockYScale: lockYScale
             )
+        }
+    }
+
+    @ViewBuilder
+    private var chartOptions: some View {
+        HStack {
+            Spacer()
+            Toggle(isOn: $lockYScale) {
+                Text("Lock Y-axis")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .toggleStyle(.switch)
         }
     }
 
@@ -218,6 +246,8 @@ struct TrainingChartsSection: View {
 
     private var chartScaleMode: TrainingChartScaleMode {
         switch selected {
+        case .exploration:
+            .fixed(0...1)
         case .loss, .actorLoss, .criticLoss, .tdError, .qValue:
             .percentile(lower: 0.02, upper: 0.98)
         default:
@@ -228,10 +258,22 @@ struct TrainingChartsSection: View {
     private func points(_ steps: [Int], _ values: [Double]) -> [TrainingChartPoint] {
         let count = min(steps.count, values.count)
         guard count > 0 else { return [] }
-        return (0..<count).map { index in
-            TrainingChartPoint(step: steps[index], value: values[index])
+        var result: [TrainingChartPoint] = []
+        result.reserveCapacity(count)
+        var lastStep = Int.min
+        var isSorted = true
+        for index in 0..<count {
+            let point = TrainingChartPoint(step: steps[index], value: values[index])
+            if point.step < lastStep {
+                isSorted = false
+            }
+            lastStep = point.step
+            result.append(point)
         }
-        .sorted { lhs, rhs in
+        if isSorted {
+            return result
+        }
+        return result.sorted { lhs, rhs in
             if lhs.step == rhs.step {
                 return lhs.value < rhs.value
             }

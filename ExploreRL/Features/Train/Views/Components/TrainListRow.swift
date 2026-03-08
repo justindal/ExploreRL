@@ -12,6 +12,7 @@ struct TrainListRow: View {
     let name: String
     let description: String
     let algorithms: [String]
+    var isTraining: Bool = false
 
     var body: some View {
         HStack {
@@ -38,6 +39,15 @@ struct TrainListRow: View {
             }
 
             Spacer()
+
+            #if os(macOS)
+            if isTraining {
+                Image(systemName: "circle.fill")
+                    .font(.system(size: 6))
+                    .foregroundStyle(.orange)
+                    .symbolEffect(.pulse, isActive: true)
+            }
+            #endif
 
             Image(systemName: "chevron.right")
                 .font(.caption.weight(.semibold))
