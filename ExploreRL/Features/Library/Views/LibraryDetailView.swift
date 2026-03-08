@@ -29,19 +29,6 @@ struct LibraryDetailView: View {
             .padding()
         }
         .navigationTitle(session.name)
-        .confirmationDialog(
-            "Delete Session?",
-            isPresented: $showDeleteAlert,
-            titleVisibility: .visible
-        ) {
-            Button("Delete", role: .destructive) {
-                onDelete()
-                dismiss()
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This will permanently delete this saved session and its trained model.")
-        }
     }
 
     @ViewBuilder
@@ -366,6 +353,19 @@ struct LibraryDetailView: View {
             } label: {
                 Label("Delete Session", systemImage: "trash")
                     .frame(maxWidth: .infinity)
+            }
+            .confirmationDialog(
+                "Delete Session?",
+                isPresented: $showDeleteAlert,
+                titleVisibility: .visible
+            ) {
+                Button("Delete", role: .destructive) {
+                    onDelete()
+                    dismiss()
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This will permanently delete this saved session and its trained model.")
             }
             .modify { button in
                 if #available(iOS 26.0, macOS 26.0, *) {

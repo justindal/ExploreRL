@@ -5,7 +5,8 @@ import UniformTypeIdentifiers
 
 extension SessionStorage {
 
-    static let archiveContentType: UTType = .data
+    static let archiveContentType: UTType =
+        UTType(filenameExtension: "xrlsession") ?? .data
 
     nonisolated var exportsDirectory: URL {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]

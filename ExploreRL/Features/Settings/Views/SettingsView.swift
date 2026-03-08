@@ -147,18 +147,6 @@ struct SettingsView: View {
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
-        .confirmationDialog(
-            "Delete All Saved Agents?",
-            isPresented: $showDeleteAllConfirmation,
-            titleVisibility: .visible
-        ) {
-            Button("Delete All", role: .destructive) {
-                viewModel.deleteAllSavedAgents()
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This cannot be undone.")
-        }
         .alert(
             "Delete Failed",
             isPresented: Binding(
@@ -296,6 +284,18 @@ struct SettingsView: View {
             .buttonStyle(.plain)
             .foregroundStyle(.red)
             .disabled(!viewModel.hasSessions)
+            .confirmationDialog(
+                "Delete All Saved Agents?",
+                isPresented: $showDeleteAllConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Delete All", role: .destructive) {
+                    viewModel.deleteAllSavedAgents()
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This cannot be undone.")
+            }
         } header: {
             Text("Library")
         } footer: {

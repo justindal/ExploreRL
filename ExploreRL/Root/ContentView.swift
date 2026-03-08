@@ -11,12 +11,14 @@ struct ContentView: View {
     @State private var selectedTab = "Train"
     @State private var sessionToLoad: SavedSession?
     @State private var sessionToEvaluate: SavedSession?
+    @State private var pendingImportURLs: [URL] = []
     @AppStorage("showExploreTab") private var showExploreTab = true
 
     var body: some View {
         TabView(selection: $selectedTab) {
             Tab("Library", systemImage: "books.vertical", value: "Library") {
                 LibraryView(
+                    externalImportURLs: $pendingImportURLs,
                     onLoad: { session in
                         sessionToLoad = session
                         selectedTab = "Train"
@@ -47,6 +49,11 @@ struct ContentView: View {
             Tab("Settings", systemImage: "gear", value: "Settings") {
                 SettingsView()
             }
+        }
+        .onOpenURL { url in
+            guard url.pathExtension.lowercased() == "xrlsession" else { return }
+            pendingImportURLs.append(url)
+            selectedTab = "Library"
         }
         .task {
             envSpecs = await Gymnazo.registry().values.sorted {
