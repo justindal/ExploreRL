@@ -25,6 +25,21 @@ struct LibraryView: View {
         viewModel.groupedSessions(matching: searchText)
     }
 
+    private var noResultsDescription: String {
+        let hasSearch = !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let hasFilters = !viewModel.algorithmFilters.isEmpty
+        switch (hasSearch, hasFilters) {
+        case (true, true):
+            return "No sessions match '\(searchText)' with the current filters. Try adjusting your search or filters."
+        case (true, false):
+            return "No sessions match '\(searchText)'. Try a different search term."
+        case (false, true):
+            return "No sessions match the selected filters. Try adjusting your filters."
+        case (false, false):
+            return "No sessions found."
+        }
+    }
+
     private var hasDeleteError: Binding<Bool> {
         Binding(
             get: { viewModel.deleteError != nil },
@@ -224,7 +239,11 @@ struct LibraryView: View {
                     )
                 )
             } else if groupedSessions.isEmpty {
-                ContentUnavailableView.search(text: searchText)
+                ContentUnavailableView(
+                    "No Results",
+                    systemImage: "magnifyingglass",
+                    description: Text(noResultsDescription)
+                )
             } else {
                 List(selection: $selectedSessionID) {
                     ForEach(groupedSessions, id: \.envID) { group in
