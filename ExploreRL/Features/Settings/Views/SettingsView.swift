@@ -9,6 +9,7 @@ struct SettingsView: View {
     @State private var viewModel = SettingsViewModel()
     @State private var showSystemCheck = false
     @State private var showDeleteAllConfirmation = false
+    @State private var showResetConfirmation = false
     @State private var showImportPicker = false
     @State private var showFAQ = false
     @State private var showAcknowledgements = false
@@ -98,6 +99,29 @@ struct SettingsView: View {
                     Text("Help")
                 } footer: {
                     Text("Have a question or found a bug? We'd love to hear from you.")
+                }
+
+                Section {
+                    Button(role: .destructive) {
+                        showResetConfirmation = true
+                    } label: {
+                        Text("Reset All Settings")
+                    }
+                    .confirmationDialog(
+                        "Reset All Settings?",
+                        isPresented: $showResetConfirmation,
+                        titleVisibility: .visible
+                    ) {
+                        Button("Reset", role: .destructive) {
+                            showExploreTab = true
+                            allowMultiEnvTraining = false
+                        }
+                        Button("Cancel", role: .cancel) {}
+                    } message: {
+                        Text("This will restore all preferences to their defaults.")
+                    }
+                } footer: {
+                    Text("Restore all preferences to their default values.")
                 }
 
                 Section("About") {
