@@ -1,8 +1,3 @@
-//
-//  LoadSessionSheet.swift
-//  ExploreRL
-//
-
 import SwiftUI
 
 struct LoadSessionSheet: View {
@@ -10,26 +5,16 @@ struct LoadSessionSheet: View {
     let onLoad: (SavedSession) -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @State private var sessions: [SavedSession]
-    @State private var showAll = false
-
-    init(environmentID: String, onLoad: @escaping (SavedSession) -> Void) {
-        self.environmentID = environmentID
-        self.onLoad = onLoad
-        _sessions = State(initialValue: SessionStorage.shared.listSessions())
-    }
+    @State private var viewModel = LibraryViewModel()
 
     private var filteredSessions: [SavedSession] {
-        if showAll {
-            return sessions
-        }
-        return sessions.filter { $0.environmentID == environmentID }
+        viewModel.sessions.filter { $0.environmentID == environmentID }
     }
 
     var body: some View {
         NavigationStack {
             Group {
-                if sessions.isEmpty {
+                if viewModel.sessions.isEmpty {
                     ContentUnavailableView(
                         "No Saved Sessions",
                         systemImage: "tray",
@@ -40,32 +25,36 @@ struct LoadSessionSheet: View {
                         "No Sessions for \(environmentID)",
                         systemImage: "tray",
                         description: Text(
-                            "Toggle \"Show All\" to see sessions from other environments.")
+                            "Save a training session for this environment first."
+                        )
                     )
                 } else {
-                    List(filteredSessions) { session in
-                        Button {
-                            onLoad(session)
-                            dismiss()
-                        } label: {
-                            SavedSessionRow(session: session)
+                    List {
+                        ForEach(filteredSessions) { session in
+                            Button {
+                                onLoad(session)
+                                dismiss()
+                            } label: {
+                                SavedSessionRow(session: session)
+                            }
+                            .tint(.primary)
+                            #if os(macOS)
+                            .listRowSeparator(.hidden)
+                            #endif
                         }
-                        .tint(.primary)
                     }
                 }
             }
             .navigationTitle("Load Session")
+            #if os(macOS)
+            .frame(minWidth: 400, idealWidth: 500, minHeight: 400)
+            #endif
+            .onAppear {
+                viewModel.loadSessions()
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
-                }
-                if !sessions.isEmpty {
-                    ToolbarItem(placement: .automatic) {
-                        Toggle("Show All", isOn: $showAll)
-                            .toggleStyle(.switch)
-                            .controlSize(.mini)
-                            .padding()
-                    }
                 }
             }
         }
