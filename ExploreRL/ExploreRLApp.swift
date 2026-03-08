@@ -23,5 +23,11 @@ struct ExploreRLApp: App {
         #if os(macOS)
         .defaultSize(width: 1000, height: 800)
         #endif
+
+        #if os(macOS)
+        Settings {
+            SettingsView()
+        }
+        #endif
     }
 }

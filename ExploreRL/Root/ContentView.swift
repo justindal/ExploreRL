@@ -46,9 +46,11 @@ struct ContentView: View {
                 }
             }
             
+            #if !os(macOS)
             Tab("Settings", systemImage: "gear", value: "Settings") {
                 SettingsView()
             }
+            #endif
         }
         .onOpenURL { url in
             guard url.pathExtension.lowercased() == "xrlsession" else { return }
