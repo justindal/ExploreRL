@@ -1,31 +1,13 @@
 import Foundation
 import Metal
-import MLX
+
+#if canImport(Darwin)
+import Darwin
+#endif
 
 #if os(macOS)
 import AppKit
 #endif
-
-struct DeviceInfo {
-    var gpuName: String = "N/A"
-    var cpuCores: Int = 0
-    var recommendedMaxWorkingSetSize: String = "N/A"
-    var currentAllocatedSize: String = "N/A"
-    var thermalState: String = "N/A"
-    var lowPowerMode: Bool = false
-}
-
-struct BenchmarkResult: Identifiable {
-    let id = UUID()
-    let name: String
-    let cpuTimeMs: Double
-    let gpuTimeMs: Double
-    
-    var speedup: Double {
-        guard gpuTimeMs > 0 else { return 0 }
-        return cpuTimeMs / gpuTimeMs
-    }
-}
 
 @MainActor
 @Observable
@@ -43,9 +25,7 @@ final class SettingsViewModel {
     
     private(set) var deviceInfo = DeviceInfo()
     private(set) var isLoadingDevice = false
-    
-    private(set) var benchmarkResults: [BenchmarkResult] = []
-    private(set) var isRunningBenchmarks = false
+    private(set) var readinessChecks: [ReadinessCheck] = []
     let exploreRLInfoURL = URL(string: "https://www.justindaludado.com/explorerl")
 
     private let storage = SessionStorage.shared
@@ -120,99 +100,118 @@ final class SettingsViewModel {
         guard !isLoadingDevice else { return }
         isLoadingDevice = true
         defer { isLoadingDevice = false }
-        
+
+        var info = DeviceInfo()
+
         if let metalDevice = MTLCreateSystemDefaultDevice() {
-            deviceInfo.gpuName = metalDevice.name
-            deviceInfo.recommendedMaxWorkingSetSize = Int64(metalDevice.recommendedMaxWorkingSetSize)
-                .formatted(.byteCount(style: .file))
-            deviceInfo.currentAllocatedSize = Int64(metalDevice.currentAllocatedSize)
-                .formatted(.byteCount(style: .file))
+            info.gpuName = metalDevice.name
+            info.recommendedMaxWorkingSetBytes = UInt64(metalDevice.recommendedMaxWorkingSetSize)
+            info.currentAllocatedBytes = UInt64(metalDevice.currentAllocatedSize)
         }
-        
-        deviceInfo.cpuCores = ProcessInfo.processInfo.activeProcessorCount
-        deviceInfo.lowPowerMode = ProcessInfo.processInfo.isLowPowerModeEnabled
-        
+
+        info.cpuCores = ProcessInfo.processInfo.activeProcessorCount
+        info.physicalMemoryBytes = ProcessInfo.processInfo.physicalMemory
+        info.lowPowerMode = ProcessInfo.processInfo.isLowPowerModeEnabled
+        info.osVersion = ProcessInfo.processInfo.operatingSystemVersionString
+        info.deviceModel = machineIdentifier()
+
         switch ProcessInfo.processInfo.thermalState {
-        case .nominal: deviceInfo.thermalState = "Nominal"
-        case .fair: deviceInfo.thermalState = "Fair"
-        case .serious: deviceInfo.thermalState = "Serious"
-        case .critical: deviceInfo.thermalState = "Critical"
-        @unknown default: deviceInfo.thermalState = "Unknown"
+        case .nominal:
+            info.thermalState = "Nominal"
+        case .fair:
+            info.thermalState = "Fair"
+        case .serious:
+            info.thermalState = "Serious"
+        case .critical:
+            info.thermalState = "Critical"
+        @unknown default:
+            info.thermalState = "Unknown"
         }
+
+        deviceInfo = info
+        refreshReadinessChecks()
     }
 
-    func runBenchmarks() async {
-        guard !isRunningBenchmarks else { return }
-        isRunningBenchmarks = true
-        benchmarkResults = []
-        
-        let iterations = 10
-        let benchmarks: [(String, (StreamOrDevice) -> Void)] = [
-            ("Matrix Multiply", benchmarkMatmul),
-            ("Batch Forward", benchmarkBatchForward),
-            ("Softmax", benchmarkSoftmax),
-            ("ReLU", benchmarkReLU),
-            ("Argmax", benchmarkArgmax)
-        ]
-        
-        for (name, benchmark) in benchmarks {
-            var cpuTimes: [Double] = []
-            var gpuTimes: [Double] = []
-            
-            for _ in 0..<iterations {
-                cpuTimes.append(measureTime { benchmark(.cpu) })
-                gpuTimes.append(measureTime { benchmark(.gpu) })
-            }
-            
-            let avgCpu = cpuTimes.reduce(0, +) / Double(iterations)
-            let avgGpu = gpuTimes.reduce(0, +) / Double(iterations)
-            
-            benchmarkResults.append(BenchmarkResult(
-                name: name,
-                cpuTimeMs: avgCpu * 1000,
-                gpuTimeMs: avgGpu * 1000
-            ))
+    private func refreshReadinessChecks() {
+        var checks: [ReadinessCheck] = []
+
+        checks.append(
+            ReadinessCheck(
+                title: "Low Power Mode",
+                value: deviceInfo.lowPowerMode ? "On" : "Off",
+                detail: deviceInfo.lowPowerMode
+                    ? "Disable Low Power Mode for stable GPU measurements."
+                    : "Power settings are suitable for benchmark consistency.",
+                level: deviceInfo.lowPowerMode ? .attention : .good
+            )
+        )
+
+        let thermalLevel: ReadinessLevel
+        switch deviceInfo.thermalState {
+        case "Nominal":
+            thermalLevel = .good
+        case "Fair":
+            thermalLevel = .attention
+        case "Serious", "Critical":
+            thermalLevel = .warning
+        default:
+            thermalLevel = .attention
         }
-        
-        isRunningBenchmarks = false
+
+        checks.append(
+            ReadinessCheck(
+                title: "Thermal State",
+                value: deviceInfo.thermalState,
+                detail: "Lower thermal load keeps CPU and GPU results more repeatable.",
+                level: thermalLevel
+            )
+        )
+
+        if let utilization = deviceInfo.gpuWorkingSetUtilization {
+            let level: ReadinessLevel
+            switch utilization {
+            case ..<0.5:
+                level = .good
+            case ..<0.8:
+                level = .attention
+            default:
+                level = .warning
+            }
+
+            checks.append(
+                ReadinessCheck(
+                    title: "GPU Working Set",
+                    value: deviceInfo.gpuWorkingSetUtilizationText,
+                    detail: "Lower GPU memory pressure usually yields steadier timings.",
+                    level: level
+                )
+            )
+        }
+
+        readinessChecks = checks
     }
-    
-    private func measureTime(_ operation: () -> Void) -> Double {
-        let start = CFAbsoluteTimeGetCurrent()
-        operation()
-        return CFAbsoluteTimeGetCurrent() - start
+
+    private func machineIdentifier() -> String {
+        #if os(macOS)
+        return sysctlString("hw.model")
+            ?? sysctlString("machdep.cpu.brand_string")
+            ?? "Unknown"
+        #else
+        return sysctlString("hw.machine") ?? "Unknown"
+        #endif
     }
-    
-    private func benchmarkMatmul(device: StreamOrDevice) {
-        let a = MLX.uniform(0.1 ..< 1, [1024], stream: device)
-        let b = MLX.uniform(0.1 ..< 1, [1024], stream: device)
-        let c = MLX.matmul(a, b, stream: device)
-        eval(c)
-    }
-    
-    private func benchmarkBatchForward(device: StreamOrDevice) {
-        let x = MLX.uniform(0.1 ..< 1, [256, 128], stream: device)
-        let w = MLX.uniform(0.1 ..< 1, [128, 256], stream: device)
-        let b = MLX.uniform(0.1 ..< 1, [256], stream: device)
-        let y = MLX.matmul(x, w, stream: device) + b
-        eval(y)
-    }
-    
-    private func benchmarkSoftmax(device: StreamOrDevice) {
-        let logits = MLX.uniform(0.1 ..< 1, [256, 64], stream: device)
-        let probs = softmax(logits, axis: -1, stream: device)
-        eval(probs)
-    }
-    
-    private func benchmarkReLU(device: StreamOrDevice) {
-        let x = MLX.uniform(-1 ..< 1, [256, 512], stream: device)
-        let y = maximum(x, MLXArray(0), stream: device)
-        eval(y)
-    }
-    
-    private func benchmarkArgmax(device: StreamOrDevice) {
-        let qValues = MLX.uniform(0.1 ..< 1, [256, 64], stream: device)
-        let actions = argMax(qValues, axis: -1, stream: device)
-        eval(actions)
+
+    private func sysctlString(_ key: String) -> String? {
+        var size: size_t = 0
+        guard sysctlbyname(key, nil, &size, nil, 0) == 0, size > 0 else {
+            return nil
+        }
+        var value = [CChar](repeating: 0, count: Int(size))
+        guard sysctlbyname(key, &value, &size, nil, 0) == 0 else {
+            return nil
+        }
+        let bytes = value.map { UInt8(bitPattern: $0) }
+        let endIndex = bytes.firstIndex(of: 0) ?? bytes.endIndex
+        return String(decoding: bytes[..<endIndex], as: UTF8.self)
     }
 }
