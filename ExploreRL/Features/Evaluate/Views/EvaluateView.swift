@@ -39,26 +39,28 @@ struct EvaluateView: View {
                 sessionToLoad = nil
             }
         } detail: {
-            if let session = selectedSession {
-                EvaluateDetailView(session: session, vm: viewModel)
-            } else if viewModel.sessions.isEmpty {
-                ContentUnavailableView {
-                    Label("No Saved Sessions", systemImage: "tray")
-                } description: {
-                    Text("Train an agent and save it to evaluate here.")
-                } actions: {
-                    if let onGoToLibrary {
-                        Button("Go to Library") {
-                            onGoToLibrary()
+            Group {
+                if let session = selectedSession {
+                    EvaluateDetailView(session: session, vm: viewModel)
+                } else if viewModel.sessions.isEmpty {
+                    ContentUnavailableView {
+                        Label("No Saved Sessions", systemImage: "tray")
+                    } description: {
+                        Text("Train an agent and save it to evaluate here.")
+                    } actions: {
+                        if let onGoToLibrary {
+                            Button("Go to Library") {
+                                onGoToLibrary()
+                            }
+                            .buttonStyle(.borderedProminent)
                         }
-                        .buttonStyle(.borderedProminent)
                     }
+                } else {
+                    ContentUnavailableView(
+                        "Select a Session",
+                        systemImage: "play.circle"
+                    )
                 }
-            } else {
-                ContentUnavailableView(
-                    "Select a Session",
-                    systemImage: "play.circle"
-                )
             }
         }
     }

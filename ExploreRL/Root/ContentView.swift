@@ -12,7 +12,10 @@ struct ContentView: View {
     @State private var sessionToLoad: SavedSession?
     @State private var sessionToEvaluate: SavedSession?
     @State private var pendingImportURLs: [URL] = []
-    @AppStorage("showExploreTab") private var showExploreTab = true
+    @State private var showOnboarding = false
+
+    @AppStorage(AppPreferenceKeys.showExploreTab) private var showExploreTab = true
+    @AppStorage(AppPreferenceKeys.hasSeenOnboarding) private var hasSeenOnboarding = false
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -62,11 +65,33 @@ struct ContentView: View {
                 $0.id < $1.id
             }
         }
+        .onAppear {
+            if !hasSeenOnboarding {
+                showOnboarding = true
+            }
+        }
         .onChange(of: showExploreTab) { _, show in
             if !show && selectedTab == "Explore" {
                 selectedTab = "Train"
             }
         }
+        #if os(iOS)
+        .fullScreenCover(isPresented: $showOnboarding) {
+            OnboardingView(pages: OnboardingItem.pages) {
+                hasSeenOnboarding = true
+                showOnboarding = false
+            }
+            .interactiveDismissDisabled()
+        }
+        #else
+        .sheet(isPresented: $showOnboarding) {
+            OnboardingView(pages: OnboardingItem.pages) {
+                hasSeenOnboarding = true
+                showOnboarding = false
+            }
+            .frame(minWidth: 900, minHeight: 700)
+        }
+        #endif
     }
 }
 

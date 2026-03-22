@@ -14,9 +14,11 @@ struct SettingsView: View {
     @State private var showFAQ = false
     @State private var showAcknowledgements = false
     @State private var showExportShare = false
+    @State private var showOnboarding = false
 
-    @AppStorage("showExploreTab") private var showExploreTab = true
+    @AppStorage(AppPreferenceKeys.showExploreTab) private var showExploreTab = true
     @AppStorage(AppPreferenceKeys.allowMultiEnvTraining) private var allowMultiEnvTraining = false
+    @AppStorage(AppPreferenceKeys.hasSeenOnboarding) private var hasSeenOnboarding = false
 
     private var appVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
@@ -31,6 +33,19 @@ struct SettingsView: View {
                         "Allow Multi-Environment Training",
                         isOn: $allowMultiEnvTraining
                     )
+                    Button {
+                        showOnboarding = true
+                    } label: {
+                        HStack {
+                            Text("View Onboarding Again")
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
                 } header: {
                     Text("Preferences")
                 } footer: {
@@ -115,6 +130,7 @@ struct SettingsView: View {
                         Button("Reset", role: .destructive) {
                             showExploreTab = true
                             allowMultiEnvTraining = false
+                            hasSeenOnboarding = false
                         }
                         Button("Cancel", role: .cancel) {}
                     } message: {
@@ -171,6 +187,22 @@ struct SettingsView: View {
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
+        #if os(iOS)
+        .fullScreenCover(isPresented: $showOnboarding) {
+            OnboardingView(pages: OnboardingItem.pages) {
+                hasSeenOnboarding = true
+                showOnboarding = false
+            }
+        }
+        #else
+        .sheet(isPresented: $showOnboarding) {
+            OnboardingView(pages: OnboardingItem.pages) {
+                hasSeenOnboarding = true
+                showOnboarding = false
+            }
+            .frame(minWidth: 900, minHeight: 700)
+        }
+        #endif
         .alert(
             "Delete Failed",
             isPresented: Binding(
