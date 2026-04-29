@@ -42,7 +42,9 @@ extension TrainViewModel {
             }
         }
 
-        if trainingTimings[id] == nil || trainingState(for: id).currentTimestep == 0 {
+        if trainingTimings[id] == nil
+            || trainingState(for: id).currentTimestep == 0
+        {
             trainingTimings[id] = TrainingTiming(startedAt: .now)
         }
 
@@ -263,7 +265,7 @@ extension TrainViewModel {
             )
             tabularAgents[id] = agent
         }
-        agent.setEnv(env)
+        await agent.setEnv(EnvBox(env))
 
         let callbacks = makeCallbacks(
             for: id,
@@ -280,9 +282,6 @@ extension TrainViewModel {
             resetProgress: false
         )
 
-        if let finalEnv = agent.takeEnv() {
-            envStates[id] = .loaded(finalEnv)
-        }
     }
 
     func runDQNTraining(
@@ -298,7 +297,7 @@ extension TrainViewModel {
             throw TrainError.environmentNotLoaded
         }
 
-        let dqn = try dqnAlgorithm(for: id, env: env, config: config)
+        let dqn = try await dqnAlgorithm(for: id, env: env, config: config)
 
         if !isResuming {
             let dqnSettings = sanitizedDQNHyperparameters(config.dqn)
@@ -324,13 +323,10 @@ extension TrainViewModel {
             resetProgress: !isResuming
         )
 
-        if let finalEnv = dqn.takeEnv() {
-            envStates[id] = .loaded(finalEnv)
-        }
     }
 
     func dqnAlgorithm(for id: String, env: any Env, config: TrainingConfig)
-        throws -> DQN
+        async throws -> DQN
     {
         let resetOptions = envResetOptions(for: id)
         let resetSeed = envResetSeed(for: id)
@@ -341,7 +337,7 @@ extension TrainViewModel {
         )
 
         if let existing = dqnAlgorithms[id] {
-            existing.setEnv(configuredEnv)
+            await existing.setEnv(EnvBox(configuredEnv))
             return existing
         }
 
@@ -408,16 +404,19 @@ extension TrainViewModel {
             warmupInitial: Double(dqnSettings.warmupInitialValue)
         )
 
-        let dqn = DQN(
-            observationSpace: configuredEnv.observationSpace,
-            actionSpace: actionSpace,
-            learningRate: learningRate,
-            policyConfig: policyConfig,
-            config: dqnConfig,
-            optimizerConfig: optimizerConfig,
-            seed: config.seedValue
-        )
-        dqn.setEnv(configuredEnv)
+        let makeDQN: () throws -> DQN = {
+            try DQN(
+                observationSpace: configuredEnv.observationSpace,
+                actionSpace: actionSpace,
+                learningRate: learningRate,
+                policyConfig: policyConfig,
+                config: dqnConfig,
+                optimizerConfig: optimizerConfig,
+                seed: config.seedValue
+            )
+        }
+        let dqn = try makeDQN()
+        await dqn.setEnv(EnvBox(configuredEnv))
 
         dqnAlgorithms[id] = dqn
         return dqn
@@ -436,7 +435,7 @@ extension TrainViewModel {
             throw TrainError.environmentNotLoaded
         }
 
-        let sac = sacAlgorithm(for: id, env: env, config: config)
+        let sac = try await sacAlgorithm(for: id, env: env, config: config)
 
         if !isResuming {
             updateTrainingState(for: id) { s in
@@ -459,13 +458,10 @@ extension TrainViewModel {
             resetProgress: !isResuming
         )
 
-        if let finalEnv = sac.takeEnv() {
-            envStates[id] = .loaded(finalEnv)
-        }
     }
 
     func sacAlgorithm(for id: String, env: any Env, config: TrainingConfig)
-        -> SAC
+        async throws -> SAC
     {
         let resetOptions = envResetOptions(for: id)
         let resetSeed = envResetSeed(for: id)
@@ -476,7 +472,7 @@ extension TrainViewModel {
         )
 
         if let existing = sacAlgorithms[id] {
-            existing.setEnv(configuredEnv)
+            await existing.setEnv(EnvBox(configuredEnv))
             return existing
         }
         let sacSettings = sanitizedSACHyperparameters(config.sac)
@@ -591,18 +587,21 @@ extension TrainViewModel {
             warmupInitial: Double(sacSettings.warmupInitialValue)
         )
 
-        let sac = SAC(
-            observationSpace: configuredEnv.observationSpace,
-            actionSpace: configuredEnv.actionSpace,
-            learningRate: learningRate,
-            networksConfig: networksConfig,
-            config: offPolicyConfig,
-            optimizerConfig: optimizerConfig,
-            entCoef: entCoef,
-            targetEntropy: targetEntropy,
-            seed: config.seedValue
-        )
-        sac.setEnv(configuredEnv)
+        let makeSAC: () throws -> SAC = {
+            try SAC(
+                observationSpace: configuredEnv.observationSpace,
+                actionSpace: configuredEnv.actionSpace,
+                learningRate: learningRate,
+                networksConfig: networksConfig,
+                config: offPolicyConfig,
+                optimizerConfig: optimizerConfig,
+                entCoef: entCoef,
+                targetEntropy: targetEntropy,
+                seed: config.seedValue
+            )
+        }
+        let sac = try makeSAC()
+        await sac.setEnv(EnvBox(configuredEnv))
 
         sacAlgorithms[id] = sac
         return sac
@@ -673,17 +672,42 @@ extension TrainViewModel {
         if output.criticNetArch.isEmpty {
             output.criticNetArch = output.netArch
         }
-        output.sdeSampleFreq = output.sdeSampleFreq < 0 ? -1 : output.sdeSampleFreq
+        output.sdeSampleFreq =
+            output.sdeSampleFreq < 0 ? -1 : output.sdeSampleFreq
         output.clipMean = max(output.clipMean, 0.0)
         output.nCritics = max(1, output.nCritics)
-        output.optimizerActorBeta1 = clamp(output.optimizerActorBeta1, min: 0.0, max: 0.999_999)
-        output.optimizerActorBeta2 = clamp(output.optimizerActorBeta2, min: 0.0, max: 0.999_999)
+        output.optimizerActorBeta1 = clamp(
+            output.optimizerActorBeta1,
+            min: 0.0,
+            max: 0.999_999
+        )
+        output.optimizerActorBeta2 = clamp(
+            output.optimizerActorBeta2,
+            min: 0.0,
+            max: 0.999_999
+        )
         output.optimizerActorEps = max(output.optimizerActorEps, 1e-12)
-        output.optimizerCriticBeta1 = clamp(output.optimizerCriticBeta1, min: 0.0, max: 0.999_999)
-        output.optimizerCriticBeta2 = clamp(output.optimizerCriticBeta2, min: 0.0, max: 0.999_999)
+        output.optimizerCriticBeta1 = clamp(
+            output.optimizerCriticBeta1,
+            min: 0.0,
+            max: 0.999_999
+        )
+        output.optimizerCriticBeta2 = clamp(
+            output.optimizerCriticBeta2,
+            min: 0.0,
+            max: 0.999_999
+        )
         output.optimizerCriticEps = max(output.optimizerCriticEps, 1e-12)
-        output.optimizerEntropyBeta1 = clamp(output.optimizerEntropyBeta1, min: 0.0, max: 0.999_999)
-        output.optimizerEntropyBeta2 = clamp(output.optimizerEntropyBeta2, min: 0.0, max: 0.999_999)
+        output.optimizerEntropyBeta1 = clamp(
+            output.optimizerEntropyBeta1,
+            min: 0.0,
+            max: 0.999_999
+        )
+        output.optimizerEntropyBeta2 = clamp(
+            output.optimizerEntropyBeta2,
+            min: 0.0,
+            max: 0.999_999
+        )
         output.optimizerEntropyEps = max(output.optimizerEntropyEps, 1e-12)
         if output.optimizeMemoryUsage && output.handleTimeoutTermination {
             output.optimizeMemoryUsage = false
@@ -691,7 +715,8 @@ extension TrainViewModel {
         return output
     }
 
-    func clamp<T: Comparable>(_ value: T, min minValue: T, max maxValue: T) -> T {
+    func clamp<T: Comparable>(_ value: T, min minValue: T, max maxValue: T) -> T
+    {
         min(max(value, minValue), maxValue)
     }
 
@@ -805,7 +830,8 @@ func makeCallbacks(
 
     return LearnCallbacks(
         onStep: { @Sendable currentStep, _, explorationRate in
-            let rateToRecord: Double? = trackExplorationRate ? explorationRate : nil
+            let rateToRecord: Double? =
+                trackExplorationRate ? explorationRate : nil
             accumulator.recordStep(
                 timestep: currentStep,
                 explorationRate: rateToRecord

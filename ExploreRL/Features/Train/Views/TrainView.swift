@@ -79,10 +79,10 @@ struct TrainView: View {
     }
 
     private var trainListStyle: some ListStyle {
-#if os(macOS)
-        return SidebarListStyle()
-#else
-        return InsetGroupedListStyle()
-#endif
+        #if os(macOS)
+        SidebarListStyle()
+        #else
+        InsetGroupedListStyle()
+        #endif
     }
 }

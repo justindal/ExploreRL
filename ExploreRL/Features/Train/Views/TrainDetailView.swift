@@ -1,10 +1,3 @@
-//
-//  TrainDetailView.swift
-//  ExploreRL
-//
-//  Created by Justin Daludado on 2026-02-03.
-//
-
 import Gymnazo
 import SwiftUI
 
@@ -12,12 +5,14 @@ struct TrainDetailView: View {
 
     @State private var showInfo: Bool = false
     @State private var showSettings: Bool = false
+    @State private var showSettingsInspector: Bool = false
     @State private var showSaveSheet: Bool = false
     @State private var showLoadSheet: Bool = false
     @State private var persistenceError: String?
     @State private var isLoadingSession: Bool = false
     @State private var showResetAlert: Bool = false
     @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
     let id: String
     @Bindable var vm: TrainViewModel
 
@@ -29,7 +24,99 @@ struct TrainDetailView: View {
         vm.trainingStates[id] ?? TrainingState()
     }
 
+    private var usesSettingsInspector: Bool {
+        #if os(macOS)
+            true
+        #else
+            sizeClass == .regular && verticalSizeClass == .regular
+        #endif
+    }
+
     var body: some View {
+        mainContent
+            .navigationTitle(id)
+            .toolbar { toolbarContent }
+            .inspector(isPresented: $showSettingsInspector) {
+                TrainSettingsView(
+                    envID: id,
+                    vm: vm,
+                    showsDismissButton: false
+                )
+            }
+            .inspectorColumnWidth(min: 320, ideal: 420, max: 520)
+            .sheet(isPresented: $showSettings) {
+                TrainSettingsView(
+                    envID: id,
+                    vm: vm,
+                    showsDismissButton: true
+                )
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+                .presentationContentInteraction(.scrolls)
+            }
+            .sheet(isPresented: $showInfo) {
+                EnvironmentInfo(env: vm.env(for: id))
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
+                    .presentationContentInteraction(.scrolls)
+            }
+            .sheet(isPresented: $showSaveSheet) {
+                SaveSessionSheet(
+                    environmentID: id,
+                    algorithmType: trainingConfig.algorithm
+                ) { name in
+                    try await vm.saveSession(for: id, name: name)
+                }
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
+            }
+            .sheet(isPresented: $showLoadSheet) {
+                LoadSessionSheet(environmentID: id) { session in
+                    isLoadingSession = true
+                    Task {
+                        do {
+                            try await vm.loadSession(session)
+                        } catch {
+                            persistenceError = error.localizedDescription
+                        }
+                        isLoadingSession = false
+                    }
+                }
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+            }
+            .overlay {
+                if isLoadingSession {
+                    loadingOverlay
+                }
+            }
+            .alert(
+                "Error",
+                isPresented: .init(
+                    get: { persistenceError != nil },
+                    set: { if !$0 { persistenceError = nil } }
+                )
+            ) {
+                Button("OK") { persistenceError = nil }
+            } message: {
+                Text(persistenceError ?? "")
+            }
+            .alert("Reset training?", isPresented: $showResetAlert) {
+                Button("Reset", role: .destructive) {
+                    performReset()
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text(
+                    "This will clear training progress and reload the environment."
+                )
+            }
+            .task(id: id) {
+                await vm.loadEnv(id: id)
+            }
+    }
+
+    private var mainContent: some View {
         Group {
             switch vm.envStates[id] ?? .idle {
             case .idle, .loading:
@@ -59,136 +146,73 @@ struct TrainDetailView: View {
                 )
             }
         }
-        .navigationTitle(id)
-        .toolbar {
+    }
 
-            ToolbarItem(placement: .automatic) {
-                Menu {
-                    Button {
-                        showSaveSheet = true
-                    } label: {
-                        Label(
-                            "Save Session",
-                            systemImage: "square.and.arrow.down"
-                        )
-                    }
-                    .disabled(
-                        trainingState.status == .training
-                            || trainingState.currentTimestep == 0
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .automatic) {
+            Menu {
+                Button {
+                    showSaveSheet = true
+                } label: {
+                    Label(
+                        "Save Session",
+                        systemImage: "square.and.arrow.down"
                     )
+                }
+                .disabled(
+                    trainingState.status == .training
+                        || trainingState.currentTimestep == 0
+                )
 
-                    Button {
-                        showLoadSheet = true
-                    } label: {
-                        Label(
-                            "Load Session",
-                            systemImage: "square.and.arrow.up"
-                        )
-                    }
-                    .disabled(trainingState.status == .training)
+                Button {
+                    showLoadSheet = true
                 } label: {
-                    Image(systemName: "archivebox")
+                    Label(
+                        "Load Session",
+                        systemImage: "square.and.arrow.up"
+                    )
                 }
                 .disabled(trainingState.status == .training)
+            } label: {
+                Image(systemName: "archivebox")
             }
+            .disabled(trainingState.status == .training)
+        }
 
-            if #available(iOS 26.0, *), #available(macOS 26.0, *) {
-                ToolbarSpacer()
-            }
+        if #available(iOS 26.0, *), #available(macOS 26.0, *) {
+            ToolbarSpacer()
+        }
 
-            ToolbarItem(placement: .automatic) {
-                Button {
-                    showInfo.toggle()
-                } label: {
-                    Image(systemName: "info.circle")
+        ToolbarItem(placement: .automatic) {
+            Button {
+                showInfo.toggle()
+            } label: {
+                Image(systemName: "info.circle")
+            }
+        }
+        ToolbarItem(placement: .automatic) {
+            Button {
+                if usesSettingsInspector {
+                    showSettingsInspector.toggle()
+                } else {
+                    showSettings = true
                 }
+            } label: {
+                Image(
+                    systemName: usesSettingsInspector
+                        ? "sidebar.right"
+                        : "gearshape"
+                )
             }
-            ToolbarItem(placement: .automatic) {
-                Button {
-                    showSettings.toggle()
-                } label: {
-                    Image(systemName: "gear")
-                }
-                .disabled(trainingState.status == .training)
-            }
-        }
-        .sheet(
-            isPresented: $showSettings,
-            content: {
-                TrainSettingsView(envID: id, vm: vm)
-                    .presentationDetents([.large])
-                    .presentationDragIndicator(.visible)
-                    .presentationContentInteraction(.scrolls)
-            }
-        )
-        .sheet(
-            isPresented: $showInfo,
-            content: {
-                EnvironmentInfo(env: vm.env(for: id))
-                    .presentationDetents([.large])
-                    .presentationDragIndicator(.visible)
-                    .presentationContentInteraction(.scrolls)
-            }
-        )
-        .sheet(isPresented: $showSaveSheet) {
-            SaveSessionSheet(
-                environmentID: id,
-                algorithmType: trainingConfig.algorithm
-            ) { name in
-                try await vm.saveSession(for: id, name: name)
-            }
-            .presentationDetents([.medium])
-            .presentationDragIndicator(.visible)
-        }
-        .sheet(isPresented: $showLoadSheet) {
-            LoadSessionSheet(environmentID: id) { session in
-                isLoadingSession = true
-                Task {
-                    do {
-                        try await vm.loadSession(session)
-                    } catch {
-                        persistenceError = error.localizedDescription
-                    }
-                    isLoadingSession = false
-                }
-            }
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
-        }
-        .overlay {
-            if isLoadingSession {
-                loadingOverlay
-            }
-        }
-        .alert(
-            "Error",
-            isPresented: .init(
-                get: { persistenceError != nil },
-                set: { if !$0 { persistenceError = nil } }
-            )
-        ) {
-            Button("OK") { persistenceError = nil }
-        } message: {
-            Text(persistenceError ?? "")
-        }
-        .alert("Reset training?", isPresented: $showResetAlert) {
-            Button("Reset", role: .destructive) {
-                performReset()
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text(
-                "This will clear training progress and reload the environment."
-            )
-        }
-        .task(id: id) {
-            await vm.loadEnv(id: id)
+            .disabled(trainingState.status == .training)
         }
     }
 
     @ViewBuilder
     private func topSection(env: any Env) -> some View {
-        let showsMetrics = trainingState.status != .idle || trainingState.hasHistory
+        let showsMetrics =
+            trainingState.status != .idle || trainingState.hasHistory
         if sizeClass == .regular {
             if showsMetrics {
                 HStack(alignment: .top, spacing: 20) {
@@ -200,7 +224,7 @@ struct TrainDetailView: View {
                         trainingState: trainingState,
                         algorithm: trainingConfig.algorithm
                     )
-                        .frame(maxWidth: .infinity, alignment: .top)
+                    .frame(maxWidth: .infinity, alignment: .top)
                 }
 
                 TrainingControlsView(
@@ -258,8 +282,6 @@ struct TrainDetailView: View {
     private func performReset() {
         Task { await vm.resetTraining(for: id) }
     }
-
-
 
     private var loadingOverlay: some View {
         ZStack {

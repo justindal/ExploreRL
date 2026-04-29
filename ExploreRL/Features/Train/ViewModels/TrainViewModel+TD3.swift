@@ -15,7 +15,7 @@ extension TrainViewModel {
             throw TrainError.environmentNotLoaded
         }
 
-        let td3 = td3Algorithm(for: id, env: env, config: config)
+        let td3 = try await td3Algorithm(for: id, env: env, config: config)
 
         if !isResuming {
             updateTrainingState(for: id) { s in
@@ -38,12 +38,9 @@ extension TrainViewModel {
             resetProgress: !isResuming
         )
 
-        if let finalEnv = td3.takeEnv() {
-            envStates[id] = .loaded(finalEnv)
-        }
     }
 
-    func td3Algorithm(for id: String, env: any Env, config: TrainingConfig) -> TD3 {
+    func td3Algorithm(for id: String, env: any Env, config: TrainingConfig) async throws -> TD3 {
         let resetOptions = envResetOptions(for: id)
         let resetSeed = envResetSeed(for: id)
         let configuredEnv = ConfiguredEnv(
@@ -53,7 +50,7 @@ extension TrainViewModel {
         )
 
         if let existing = td3Algorithms[id] {
-            existing.setEnv(configuredEnv)
+            await existing.setEnv(EnvBox(configuredEnv))
             return existing
         }
 
@@ -123,16 +120,19 @@ extension TrainViewModel {
             warmupInitial: Double(td3Settings.warmupInitialValue)
         )
 
-        let td3 = TD3(
-            observationSpace: configuredEnv.observationSpace,
-            actionSpace: configuredEnv.actionSpace,
-            learningRate: learningRate,
-            policyConfig: policyConfig,
-            algorithmConfig: algorithmConfig,
-            config: offPolicyConfig,
-            seed: config.seedValue
-        )
-        td3.setEnv(configuredEnv)
+        let makeTD3: () throws -> TD3 = {
+            try TD3(
+                observationSpace: configuredEnv.observationSpace,
+                actionSpace: configuredEnv.actionSpace,
+                learningRate: learningRate,
+                policyConfig: policyConfig,
+                algorithmConfig: algorithmConfig,
+                config: offPolicyConfig,
+                seed: config.seedValue
+            )
+        }
+        let td3 = try makeTD3()
+        await td3.setEnv(EnvBox(configuredEnv))
 
         td3Algorithms[id] = td3
         return td3

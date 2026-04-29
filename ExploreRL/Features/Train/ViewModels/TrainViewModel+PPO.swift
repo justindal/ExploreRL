@@ -15,7 +15,7 @@ extension TrainViewModel {
             throw TrainError.environmentNotLoaded
         }
 
-        let ppo = try ppoAlgorithm(for: id, env: env, config: config)
+        let ppo = try await ppoAlgorithm(for: id, env: env, config: config)
 
         if !isResuming {
             updateTrainingState(for: id) { s in
@@ -38,12 +38,9 @@ extension TrainViewModel {
             resetProgress: !isResuming
         )
 
-        if let finalEnv = ppo.takeEnv() {
-            envStates[id] = .loaded(finalEnv)
-        }
     }
 
-    func ppoAlgorithm(for id: String, env: any Env, config: TrainingConfig) throws -> PPO {
+    func ppoAlgorithm(for id: String, env: any Env, config: TrainingConfig) async throws -> PPO {
         let resetOptions = envResetOptions(for: id)
         let resetSeed = envResetSeed(for: id)
         let configuredEnv = ConfiguredEnv(
@@ -53,7 +50,7 @@ extension TrainViewModel {
         )
 
         if let existing = ppoAlgorithms[id] {
-            existing.setEnv(configuredEnv)
+            await existing.setEnv(EnvBox(configuredEnv))
             return existing
         }
 
@@ -112,7 +109,7 @@ extension TrainViewModel {
             config: ppoConfig,
             seed: config.seedValue
         )
-        ppo.setEnv(configuredEnv)
+        await ppo.setEnv(EnvBox(configuredEnv))
 
         ppoAlgorithms[id] = ppo
         return ppo
