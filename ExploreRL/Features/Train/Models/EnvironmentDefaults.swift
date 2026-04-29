@@ -32,7 +32,10 @@ enum EnvironmentDefaults {
         }
     }
 
-    static func totalTimestepsDefault(for envID: String, algorithm: AlgorithmType) -> Int {
+    static func totalTimestepsDefault(
+        for envID: String,
+        algorithm: AlgorithmType
+    ) -> Int {
         switch envID {
         case "CartPole":
             switch algorithm {
@@ -332,6 +335,22 @@ extension EnvironmentDefaults {
         c.sac.learningStarts = 1_000
         c.sac.useSDE = true
         c.sac.useSDEAtWarmup = true
+        c.sac.optimizeMemoryUsage = true
+        c.sac.handleTimeoutTermination = false
+        c.td3.learningRate = 1e-3
+        c.td3.bufferSize = 300_000
+        c.td3.batchSize = 256
+        c.td3.gamma = 0.99
+        c.td3.tau = 0.005
+        c.td3.learningStarts = 1_000
+        c.td3.trainFrequency = 1
+        c.td3.gradientSteps = 1
+        c.td3.actionNoiseType = "normal"
+        c.td3.actionNoiseStd = 0.1
+        c.td3.netArch = [256, 256]
+        c.td3.normalizeImages = true
+        c.td3.optimizeMemoryUsage = true
+        c.td3.handleTimeoutTermination = false
         c.ppo.learningRate = 1e-4
         c.ppo.learningRateSchedule = "linear"
         c.ppo.learningRateFinal = 0.0
