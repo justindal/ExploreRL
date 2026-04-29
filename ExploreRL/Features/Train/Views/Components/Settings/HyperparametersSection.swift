@@ -20,7 +20,9 @@ struct HyperparametersSection: View {
         HyperparameterAccessor(config: config)
     }
 
-    private var groupedDefinitions: [(title: String, items: [HyperparameterDefinition])] {
+    private var groupedDefinitions:
+        [(title: String, items: [HyperparameterDefinition])]
+    {
         let visible = definitions.filter { isVisible($0) }
         var groups: [String: [HyperparameterDefinition]] = [:]
         for def in visible {
@@ -38,7 +40,7 @@ struct HyperparametersSection: View {
 
     var body: some View {
         ForEach(groupedDefinitions, id: \.title) { group in
-            Section {
+            SettingsSection {
                 DisclosureGroup(
                     isExpanded: bindingForGroup(group.title),
                     content: {
@@ -72,7 +74,8 @@ struct HyperparametersSection: View {
     }
 
     @ViewBuilder
-    private func hyperparameterRow(_ def: HyperparameterDefinition) -> some View {
+    private func hyperparameterRow(_ def: HyperparameterDefinition) -> some View
+    {
         switch def.type {
         case .double(_, let range, let step):
             doubleHyperparameter(def, range: range, step: step)
@@ -108,7 +111,11 @@ struct HyperparametersSection: View {
                 let binding = Binding(
                     get: { value },
                     set: { newVal in
-                        HyperparameterAccessor.setDouble(id: def.id, value: newVal, on: &config)
+                        HyperparameterAccessor.setDouble(
+                            id: def.id,
+                            value: newVal,
+                            on: &config
+                        )
                     }
                 )
 
@@ -143,7 +150,11 @@ struct HyperparametersSection: View {
                     value: Binding(
                         get: { value },
                         set: { newVal in
-                            HyperparameterAccessor.setFloat(id: def.id, value: newVal, on: &config)
+                            HyperparameterAccessor.setFloat(
+                                id: def.id,
+                                value: newVal,
+                                on: &config
+                            )
                         }
                     ),
                     format: .number.precision(.significantDigits(1...4))
@@ -177,7 +188,11 @@ struct HyperparametersSection: View {
                     value: Binding(
                         get: { value },
                         set: { newVal in
-                            HyperparameterAccessor.setInt(id: def.id, value: newVal, on: &config)
+                            HyperparameterAccessor.setInt(
+                                id: def.id,
+                                value: newVal,
+                                on: &config
+                            )
                         }
                     ),
                     format: .number
@@ -196,14 +211,23 @@ struct HyperparametersSection: View {
     }
 
     @ViewBuilder
-    private func boolHyperparameter(_ def: HyperparameterDefinition) -> some View {
+    private func boolHyperparameter(_ def: HyperparameterDefinition)
+        -> some View
+    {
         VStack(alignment: .leading, spacing: 4) {
-            Toggle(def.label, isOn: Binding(
-                get: { accessor.boolValue(for: def.id) },
-                set: { newVal in
-                    HyperparameterAccessor.setBool(id: def.id, value: newVal, on: &config)
-                }
-            ))
+            Toggle(
+                def.label,
+                isOn: Binding(
+                    get: { accessor.boolValue(for: def.id) },
+                    set: { newVal in
+                        HyperparameterAccessor.setBool(
+                            id: def.id,
+                            value: newVal,
+                            on: &config
+                        )
+                    }
+                )
+            )
 
             if let desc = def.description {
                 Text(desc)
@@ -223,15 +247,24 @@ struct HyperparametersSection: View {
 
         VStack(alignment: .leading, spacing: 4) {
             if let options {
-                Picker(def.label, selection: Binding(
-                    get: { value },
-                    set: { newVal in
-                        stringValues[def.id] = newVal
-                        HyperparameterAccessor.setString(id: def.id, value: newVal, on: &config)
-                    }
-                )) {
+                Picker(
+                    def.label,
+                    selection: Binding(
+                        get: { value },
+                        set: { newVal in
+                            stringValues[def.id] = newVal
+                            HyperparameterAccessor.setString(
+                                id: def.id,
+                                value: newVal,
+                                on: &config
+                            )
+                        }
+                    )
+                ) {
                     ForEach(options, id: \.self) { option in
-                        Text(optionDisplayLabel(option, for: def.id)).tag(option)
+                        Text(optionDisplayLabel(option, for: def.id)).tag(
+                            option
+                        )
                     }
                 }
             } else {
@@ -244,7 +277,8 @@ struct HyperparametersSection: View {
                             get: { value },
                             set: { newVal in
                                 stringValues[def.id] = newVal
-                                if isValidStringValue(id: def.id, value: newVal) {
+                                if isValidStringValue(id: def.id, value: newVal)
+                                {
                                     HyperparameterAccessor.setString(
                                         id: def.id,
                                         value: newVal,
@@ -281,11 +315,14 @@ struct HyperparametersSection: View {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         switch id {
         case "netArch":
-            return validateIntList(trimmed) ? nil : "Use comma-separated positive integers."
+            return validateIntList(trimmed)
+                ? nil : "Use comma-separated positive integers."
         case "criticNetArch":
-            return validateIntList(trimmed) ? nil : "Use comma-separated positive integers."
+            return validateIntList(trimmed)
+                ? nil : "Use comma-separated positive integers."
         case "learningRateMilestones":
-            return validateMilestones(trimmed) ? nil : "Use values between 0 and 1, e.g. 0.5,0.75."
+            return validateMilestones(trimmed)
+                ? nil : "Use values between 0 and 1, e.g. 0.5,0.75."
         default:
             return nil
         }
@@ -298,7 +335,8 @@ struct HyperparametersSection: View {
     private func validateIntList(_ value: String) -> Bool {
         if value.isEmpty { return false }
         let parts = value.split { char in
-            char == "," || char == " " || char == "\n" || char == "\t" || char == ";"
+            char == "," || char == " " || char == "\n" || char == "\t"
+                || char == ";"
         }
         if parts.isEmpty { return false }
         return parts.allSatisfy { part in
@@ -312,7 +350,8 @@ struct HyperparametersSection: View {
     private func validateMilestones(_ value: String) -> Bool {
         if value.isEmpty { return false }
         let parts = value.split { char in
-            char == "," || char == " " || char == "\n" || char == "\t" || char == ";"
+            char == "," || char == " " || char == "\n" || char == "\t"
+                || char == ";"
         }
         if parts.isEmpty { return false }
         return parts.allSatisfy { part in
@@ -327,7 +366,8 @@ struct HyperparametersSection: View {
         var next: [String: String] = [:]
         for def in definitions {
             if case .string = def.type {
-                next[def.id] = stringValues[def.id] ?? accessor.stringValue(for: def.id)
+                next[def.id] =
+                    stringValues[def.id] ?? accessor.stringValue(for: def.id)
             }
         }
         stringValues = next
@@ -338,7 +378,8 @@ struct HyperparametersSection: View {
         for def in definitions {
             guard case .string = def.type else { continue }
             if !isVisible(def) { continue }
-            let value = stringValues[def.id] ?? accessor.stringValue(for: def.id)
+            let value =
+                stringValues[def.id] ?? accessor.stringValue(for: def.id)
             if !isValidStringValue(id: def.id, value: value) {
                 errors.insert(def.id)
             }
@@ -364,13 +405,22 @@ struct HyperparametersSection: View {
         let defaults: [String]
         switch config.algorithm {
         case .dqn:
-            defaults = ["Training", "Epsilon/Exploration", "Learning Rate", "Networks"]
+            defaults = [
+                "Training", "Epsilon/Exploration", "Learning Rate", "Networks",
+            ]
         case .ppo:
-            defaults = ["Training", "PPO Objective", "Learning Rate", "Networks"]
+            defaults = [
+                "Training", "PPO Objective", "Learning Rate", "Networks",
+            ]
         case .sac:
-            defaults = ["Training", "Epsilon/Exploration", "Learning Rate", "Networks", "Entropy"]
+            defaults = [
+                "Training", "Epsilon/Exploration", "Learning Rate", "Networks",
+                "Entropy",
+            ]
         case .td3:
-            defaults = ["Training", "Epsilon/Exploration", "Learning Rate", "Networks"]
+            defaults = [
+                "Training", "Epsilon/Exploration", "Learning Rate", "Networks",
+            ]
         case .qLearning, .sarsa:
             defaults = ["Learning Rate", "Epsilon/Exploration"]
         }
@@ -387,7 +437,7 @@ struct HyperparametersSection: View {
                 "Discount & Targets",
                 "Networks",
                 "Optimizer",
-                "Replay Buffer"
+                "Replay Buffer",
             ]
         case .ppo:
             return [
@@ -396,7 +446,7 @@ struct HyperparametersSection: View {
                 "PPO Objective",
                 "Epsilon/Exploration",
                 "Networks",
-                "Optimizer"
+                "Optimizer",
             ]
         case .sac:
             return [
@@ -407,7 +457,7 @@ struct HyperparametersSection: View {
                 "Networks",
                 "Entropy",
                 "Optimizer",
-                "Replay Buffer"
+                "Replay Buffer",
             ]
         case .td3:
             return [
@@ -417,13 +467,13 @@ struct HyperparametersSection: View {
                 "Discount & Targets",
                 "Networks",
                 "Optimizer",
-                "Replay Buffer"
+                "Replay Buffer",
             ]
         case .qLearning, .sarsa:
             return [
                 "Learning Rate",
                 "Epsilon/Exploration",
-                "Discount & Targets"
+                "Discount & Targets",
             ]
         }
     }
@@ -431,93 +481,93 @@ struct HyperparametersSection: View {
     private func groupTitle(for id: String) -> String {
         switch id {
         case "learningRate",
-             "learningRateSchedule",
-             "learningRateFinal",
-             "learningRateDecayRate",
-             "learningRateMinValue",
-             "learningRateMilestones",
-             "learningRateGamma",
-             "warmupEnabled",
-             "warmupFraction",
-             "warmupInitialValue":
+            "learningRateSchedule",
+            "learningRateFinal",
+            "learningRateDecayRate",
+            "learningRateMinValue",
+            "learningRateMilestones",
+            "learningRateGamma",
+            "warmupEnabled",
+            "warmupFraction",
+            "warmupInitialValue":
             return "Learning Rate"
         case "batchSize",
-             "nSteps",
-             "nEpochs",
-             "bufferSize",
-             "learningStarts",
-             "trainFrequency",
-             "trainFrequencyUnit",
-             "gradientSteps",
-             "gradientStepsMode":
+            "nSteps",
+            "nEpochs",
+            "bufferSize",
+            "learningStarts",
+            "trainFrequency",
+            "trainFrequencyUnit",
+            "gradientSteps",
+            "gradientStepsMode":
             return "Training"
         case "gamma",
-             "tau",
-             "targetUpdateInterval",
-             "policyDelay",
-             "targetPolicyNoise",
-             "targetNoiseClip":
+            "tau",
+            "targetUpdateInterval",
+            "policyDelay",
+            "targetPolicyNoise",
+            "targetNoiseClip":
             return "Discount & Targets"
         case "gaeLambda",
-             "clipRange",
-             "clipRangeVfEnabled",
-             "clipRangeVf",
-             "normalizeAdvantage",
-             "entCoef",
-             "vfCoef",
-             "targetKLEnabled",
-             "targetKL":
+            "clipRange",
+            "clipRangeVfEnabled",
+            "clipRangeVf",
+            "normalizeAdvantage",
+            "entCoef",
+            "vfCoef",
+            "targetKLEnabled",
+            "targetKL":
             return "PPO Objective"
         case "explorationFraction",
-             "explorationInitialEps",
-             "explorationFinalEps",
-             "epsilon",
-             "epsilonDecay",
-             "minEpsilon",
-             "useSDE",
-             "useSDEAtWarmup",
-             "sdeSampleFreq",
-             "logStdInit",
-             "fullStd",
-             "clipMean",
-             "actionNoiseType",
-             "actionNoiseStd",
-             "ouTheta",
-             "ouDt",
-             "ouInitialNoise":
+            "explorationInitialEps",
+            "explorationFinalEps",
+            "epsilon",
+            "epsilonDecay",
+            "minEpsilon",
+            "useSDE",
+            "useSDEAtWarmup",
+            "sdeSampleFreq",
+            "logStdInit",
+            "fullStd",
+            "clipMean",
+            "actionNoiseType",
+            "actionNoiseStd",
+            "ouTheta",
+            "ouDt",
+            "ouInitialNoise":
             return "Epsilon/Exploration"
         case "netArch",
-             "activation",
-             "normalizeImages",
-             "useSeparateNetworks",
-             "criticNetArch",
-             "nCritics",
-             "shareFeaturesExtractor",
-             "criticActivation",
-             "criticNormalizeImages":
+            "activation",
+            "normalizeImages",
+            "useSeparateNetworks",
+            "criticNetArch",
+            "nCritics",
+            "shareFeaturesExtractor",
+            "criticActivation",
+            "criticNormalizeImages":
             return "Networks"
         case "autoEntropyTuning",
-             "autoEntropyInit",
-             "fixedEntCoef",
-             "useTargetEntropy",
-             "targetEntropy":
+            "autoEntropyInit",
+            "fixedEntCoef",
+            "useTargetEntropy",
+            "targetEntropy":
             return "Entropy"
         case "maxGradNorm",
-             "optimizerBeta1",
-             "optimizerBeta2",
-             "optimizerEps",
-             "optimizerActorBeta1",
-             "optimizerActorBeta2",
-             "optimizerActorEps",
-             "optimizerCriticBeta1",
-             "optimizerCriticBeta2",
-             "optimizerCriticEps",
-             "optimizerEntropyBeta1",
-             "optimizerEntropyBeta2",
-             "optimizerEntropyEps":
+            "optimizerBeta1",
+            "optimizerBeta2",
+            "optimizerEps",
+            "optimizerActorBeta1",
+            "optimizerActorBeta2",
+            "optimizerActorEps",
+            "optimizerCriticBeta1",
+            "optimizerCriticBeta2",
+            "optimizerCriticEps",
+            "optimizerEntropyBeta1",
+            "optimizerEntropyBeta2",
+            "optimizerEntropyEps":
             return "Optimizer"
         case "optimizeMemoryUsage",
-             "handleTimeoutTermination":
+            "handleTimeoutTermination":
             return "Replay Buffer"
         default:
             return "Epsilon/Exploration"
@@ -558,16 +608,16 @@ struct HyperparametersSection: View {
         case "targetKL":
             return config.algorithm == .ppo && config.ppo.targetKLEnabled
         case "optimizerEntropyBeta1",
-             "optimizerEntropyBeta2",
-             "optimizerEntropyEps":
+            "optimizerEntropyBeta2",
+            "optimizerEntropyEps":
             return config.algorithm == .sac && config.sac.autoEntropyTuning
         case "criticNetArch":
             return config.algorithm == .sac && config.sac.useSeparateNetworks
         case "useSDEAtWarmup",
-             "sdeSampleFreq",
-             "logStdInit",
-             "fullStd",
-             "clipMean":
+            "sdeSampleFreq",
+            "logStdInit",
+            "fullStd",
+            "clipMean":
             if config.algorithm == .sac {
                 return config.sac.useSDE
             }
@@ -576,29 +626,31 @@ struct HyperparametersSection: View {
             }
             return false
         case "actionNoiseStd":
-            return config.algorithm == .td3 && config.td3.actionNoiseType != "none"
+            return config.algorithm == .td3
+                && config.td3.actionNoiseType != "none"
         case "ouTheta",
-             "ouDt",
-             "ouInitialNoise":
-            return config.algorithm == .td3 && config.td3.actionNoiseType == "ou"
+            "ouDt",
+            "ouInitialNoise":
+            return config.algorithm == .td3
+                && config.td3.actionNoiseType == "ou"
         case "normalizeImages":
-            return (
-                config.algorithm == .dqn
-                    || config.algorithm == .ppo
-                    || config.algorithm == .sac
-                    || config.algorithm == .td3
-            ) && supportsImageNormalization
+            return
+                (config.algorithm == .dqn
+                || config.algorithm == .ppo
+                || config.algorithm == .sac
+                || config.algorithm == .td3) && supportsImageNormalization
         case "criticNormalizeImages":
             return config.algorithm == .sac && supportsImageNormalization
         case "criticActivation",
-             "useSeparateNetworks",
-             "autoEntropyTuning",
-             "useTargetEntropy",
-             "useSDE":
+            "useSeparateNetworks",
+            "autoEntropyTuning",
+            "useTargetEntropy",
+            "useSDE":
             return config.algorithm == .sac || config.algorithm == .ppo
         case "nCritics",
-             "shareFeaturesExtractor":
-            return config.algorithm == .sac || config.algorithm == .td3 || config.algorithm == .ppo
+            "shareFeaturesExtractor":
+            return config.algorithm == .sac || config.algorithm == .td3
+                || config.algorithm == .ppo
         default:
             return true
         }
@@ -613,7 +665,8 @@ struct HyperparametersSection: View {
         }
     }
 
-    private func optionDisplayLabel(_ option: String, for id: String) -> String {
+    private func optionDisplayLabel(_ option: String, for id: String) -> String
+    {
         switch id {
         case "gradientStepsMode":
             switch option {

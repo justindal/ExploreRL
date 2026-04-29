@@ -19,7 +19,9 @@ struct EnvironmentSettingsSection: View {
         }
     }
 
-    private var groupedDefinitions: [(title: String, items: [SettingDefinition])] {
+    private var groupedDefinitions:
+        [(title: String, items: [SettingDefinition])]
+    {
         var groups: [String: [SettingDefinition]] = [:]
         for def in visibleDefinitions {
             let title = groupTitle(for: def.id)
@@ -37,16 +39,18 @@ struct EnvironmentSettingsSection: View {
     var body: some View {
         Group {
             if definitions.isEmpty {
-                Section {
+                SettingsSection {
                     ContentUnavailableView(
                         "No Environment Settings",
                         systemImage: "gearshape.slash",
-                        description: Text("This environment has no configurable settings.")
+                        description: Text(
+                            "This environment has no configurable settings."
+                        )
                     )
                 }
             } else {
                 ForEach(groupedDefinitions, id: \.title) { group in
-                    Section(group.title) {
+                    SettingsSection(group.title) {
                         ForEach(group.items) { definition in
                             settingRow(for: definition)
                         }
@@ -73,7 +77,10 @@ struct EnvironmentSettingsSection: View {
             case .float:
                 floatSetting(definition: definition, currentValue: currentValue)
             case .string:
-                stringSetting(definition: definition, currentValue: currentValue)
+                stringSetting(
+                    definition: definition,
+                    currentValue: currentValue
+                )
             case .int:
                 intSetting(definition: definition, currentValue: currentValue)
             }
@@ -87,17 +94,26 @@ struct EnvironmentSettingsSection: View {
     }
 
     @ViewBuilder
-    private func boolSetting(definition: SettingDefinition, currentValue: SettingValue) -> some View {
+    private func boolSetting(
+        definition: SettingDefinition,
+        currentValue: SettingValue
+    ) -> some View {
         let isOn = if case .bool(let b) = currentValue { b } else { false }
 
-        Toggle(definition.label, isOn: Binding(
-            get: { isOn },
-            set: { settings[definition.id] = .bool($0) }
-        ))
+        Toggle(
+            definition.label,
+            isOn: Binding(
+                get: { isOn },
+                set: { settings[definition.id] = .bool($0) }
+            )
+        )
     }
 
     @ViewBuilder
-    private func floatSetting(definition: SettingDefinition, currentValue: SettingValue) -> some View {
+    private func floatSetting(
+        definition: SettingDefinition,
+        currentValue: SettingValue
+    ) -> some View {
         let value = if case .float(let f) = currentValue { f } else { Float(0) }
 
         if let range = definition.range {
@@ -138,15 +154,24 @@ struct EnvironmentSettingsSection: View {
     }
 
     @ViewBuilder
-    private func stringSetting(definition: SettingDefinition, currentValue: SettingValue) -> some View {
+    private func stringSetting(
+        definition: SettingDefinition,
+        currentValue: SettingValue
+    ) -> some View {
         let value = if case .string(let s) = currentValue { s } else { "" }
-        let validationMessage = validationMessage(for: definition.id, value: value)
+        let validationMessage = validationMessage(
+            for: definition.id,
+            value: value
+        )
 
         if let options = definition.options {
-            Picker(definition.label, selection: Binding(
-                get: { value },
-                set: { settings[definition.id] = .string($0) }
-            )) {
+            Picker(
+                definition.label,
+                selection: Binding(
+                    get: { value },
+                    set: { settings[definition.id] = .string($0) }
+                )
+            ) {
                 ForEach(options, id: \.self) { option in
                     Text(option).tag(option)
                 }
@@ -188,7 +213,8 @@ struct EnvironmentSettingsSection: View {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty { return nil }
 
-        let rows = trimmed
+        let rows =
+            trimmed
             .components(separatedBy: CharacterSet(charactersIn: ",\n"))
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
@@ -222,7 +248,9 @@ struct EnvironmentSettingsSection: View {
     private func updateValidationErrors() {
         var errors = Set<String>()
         if let seedValue = settings["seed"]?.stringValue {
-            let trimmed = seedValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            let trimmed = seedValue.trimmingCharacters(
+                in: .whitespacesAndNewlines
+            )
             if !trimmed.isEmpty && UInt64(trimmed) == nil {
                 errors.insert("seed")
             }
@@ -240,16 +268,16 @@ struct EnvironmentSettingsSection: View {
         case "seed":
             return "General"
         case "size",
-             "is_slippery",
-             "success_rate",
-             "hole_probability",
-             "custom_map":
+            "is_slippery",
+            "success_rate",
+            "hole_probability",
+            "custom_map":
             return "Map"
         case "x_init",
-             "y_init",
-             "low",
-             "high",
-             "randomize":
+            "y_init",
+            "low",
+            "high",
+            "randomize":
             return "Reset"
         default:
             return "Settings"
@@ -257,7 +285,10 @@ struct EnvironmentSettingsSection: View {
     }
 
     @ViewBuilder
-    private func intSetting(definition: SettingDefinition, currentValue: SettingValue) -> some View {
+    private func intSetting(
+        definition: SettingDefinition,
+        currentValue: SettingValue
+    ) -> some View {
         let value = if case .int(let i) = currentValue { i } else { 0 }
 
         if let range = definition.range {
@@ -273,7 +304,9 @@ struct EnvironmentSettingsSection: View {
                 Slider(
                     value: Binding(
                         get: { Double(value) },
-                        set: { settings[definition.id] = .int(Int($0.rounded())) }
+                        set: {
+                            settings[definition.id] = .int(Int($0.rounded()))
+                        }
                     ),
                     in: Double(range.lowerBound)...Double(range.upperBound),
                     step: 1

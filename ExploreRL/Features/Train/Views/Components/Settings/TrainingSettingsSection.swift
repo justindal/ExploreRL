@@ -36,14 +36,12 @@ struct TrainingSettingsSection: View {
 
     @ViewBuilder
     private var algorithmSection: some View {
-        Section {
+        SettingsSection("Algorithm") {
             Picker("Algorithm", selection: $config.algorithm) {
                 ForEach(availableAlgorithms) { algo in
                     Text(algo.rawValue).tag(algo)
                 }
             }
-        } header: {
-            Text("Algorithm")
         } footer: {
             algorithmDescription
         }
@@ -55,31 +53,43 @@ struct TrainingSettingsSection: View {
         case .qLearning:
             Text("Off-policy tabular algorithm. Uses max Q-value for updates.")
         case .sarsa:
-            Text("On-policy tabular algorithm. Uses actual next action for updates.")
+            Text(
+                "On-policy tabular algorithm. Uses actual next action for updates."
+            )
         case .dqn:
             Text("Deep Q-Network with experience replay and target network.")
         case .ppo:
             Text("Proximal Policy Optimization with clipped policy updates.")
         case .sac:
-            Text("Soft Actor-Critic for continuous control with entropy regularization.")
+            Text(
+                "Soft Actor-Critic for continuous control with entropy regularization."
+            )
         case .td3:
-            Text("Twin Delayed DDPG for continuous control with clipped double Q-learning.")
+            Text(
+                "Twin Delayed DDPG for continuous control with clipped double Q-learning."
+            )
         }
     }
 
     @ViewBuilder
     private var trainingSection: some View {
-        Section("Training") {
+        SettingsSection("Training") {
             HStack {
                 Text("Total Timesteps")
                 Spacer()
-                TextField("Timesteps", value: $config.totalTimesteps, format: .number)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(width: 100)
-                    .multilineTextAlignment(.trailing)
+                TextField(
+                    "Timesteps",
+                    value: $config.totalTimesteps,
+                    format: .number
+                )
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 100)
+                .multilineTextAlignment(.trailing)
             }
 
-            let seedValue = config.seed.trimmingCharacters(in: .whitespacesAndNewlines)
+            let seedValue = config.seed.trimmingCharacters(
+                in: .whitespacesAndNewlines
+            )
             let seedIsValid = seedValue.isEmpty || UInt64(seedValue) != nil
 
             VStack(alignment: .leading, spacing: 4) {
@@ -103,12 +113,15 @@ struct TrainingSettingsSection: View {
 
     @ViewBuilder
     private var renderSection: some View {
-        Section {
+        SettingsSection("Visualization") {
             Toggle("Render During Training", isOn: $config.renderDuringTraining)
 
             if config.renderDuringTraining {
                 let sliderBinding = Binding<Double>(
-                    get: { config.renderFPS <= 0 ? 121 : Double(min(120, config.renderFPS)) },
+                    get: {
+                        config.renderFPS <= 0
+                            ? 121 : Double(min(120, config.renderFPS))
+                    },
                     set: { value in
                         let v = Int(value.rounded())
                         config.renderFPS = v >= 121 ? 0 : max(1, min(120, v))
@@ -120,11 +133,14 @@ struct TrainingSettingsSection: View {
                         Text("Render FPS")
                             .lineLimit(1)
                         Spacer()
-                        Text(config.renderFPS <= 0 ? "Unlimited" : "\(config.renderFPS) fps")
-                            .foregroundStyle(.secondary)
-                            .monospacedDigit()
-                            .lineLimit(1)
-                            .frame(width: 120, alignment: .trailing)
+                        Text(
+                            config.renderFPS <= 0
+                                ? "Unlimited" : "\(config.renderFPS) fps"
+                        )
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                        .lineLimit(1)
+                        .frame(width: 120, alignment: .trailing)
                     }
                     Slider(
                         value: sliderBinding,
@@ -132,16 +148,18 @@ struct TrainingSettingsSection: View {
                     )
                 }
             }
-        } header: {
-            Text("Visualization")
         } footer: {
-            Text("Live rendering shows the environment state during training but may slow down training speed.")
+            Text(
+                "Live rendering shows the environment state during training but may slow down training speed."
+            )
         }
     }
 
     private func updateValidationErrors() {
         var errors = hyperparameterErrors
-        let seedValue = config.seed.trimmingCharacters(in: .whitespacesAndNewlines)
+        let seedValue = config.seed.trimmingCharacters(
+            in: .whitespacesAndNewlines
+        )
         if !seedValue.isEmpty && UInt64(seedValue) == nil {
             errors.insert("seed")
         } else {

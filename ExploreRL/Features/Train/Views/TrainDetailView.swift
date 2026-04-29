@@ -5,7 +5,11 @@ struct TrainDetailView: View {
 
     @State private var showInfo: Bool = false
     @State private var showSettings: Bool = false
-    @State private var showSettingsInspector: Bool = false
+    #if os(macOS)
+        @State private var showSettingsInspector: Bool = true
+    #else
+        @State private var showSettingsInspector: Bool = false
+    #endif
     @State private var showSaveSheet: Bool = false
     @State private var showLoadSheet: Bool = false
     @State private var persistenceError: String?

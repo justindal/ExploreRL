@@ -91,7 +91,9 @@ struct TrainSettingsView: View {
     }
 
     private var canApplyTrainingConfig: Bool {
-        let seedValue = localTrainingConfig.seed.trimmingCharacters(in: .whitespacesAndNewlines)
+        let seedValue = localTrainingConfig.seed.trimmingCharacters(
+            in: .whitespacesAndNewlines
+        )
         let seedIsValid = seedValue.isEmpty || UInt64(seedValue) != nil
         return seedIsValid && trainingValidationErrors.isEmpty
     }
@@ -101,7 +103,9 @@ struct TrainSettingsView: View {
             return false
         }
         if let seedValue = localEnvSettings["seed"]?.stringValue {
-            let trimmed = seedValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            let trimmed = seedValue.trimmingCharacters(
+                in: .whitespacesAndNewlines
+            )
             if !trimmed.isEmpty && UInt64(trimmed) == nil {
                 return false
             }
@@ -126,99 +130,132 @@ struct TrainSettingsView: View {
     }
 
     private var settingsForm: some View {
-        Form {
-            Section {
-                InspectorPicker(
-                    selection: $selectedTab,
-                    options: settingsTabOptions
-                )
-                #if os(iOS)
-                    .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets())
-                #endif
-            }
-
-            Group {
-                switch selectedTab {
-                case .environment:
-                    EnvironmentSettingsSection(
-                        definitions: envDefinitions,
-                        settings: $localEnvSettings,
-                        validationErrors: $envValidationErrors
-                    )
-                case .training:
-                    TrainingSettingsSection(
-                        availableAlgorithms: availableAlgorithms,
-                        supportsImageNormalization: supportsImageNormalization,
-                        config: $localTrainingConfig,
-                        validationErrors: $trainingValidationErrors
-                    )
+        settingsContainer
+            #if os(macOS)
+                .modify(if: showsDismissButton) { content in
+                    content
+                    .formStyle(.grouped)
+                    .frame(minWidth: 420, idealWidth: 520, minHeight: 520)
                 }
-            }
-            .disabled(parametersLocked)
-
-            Section {
-                Button("Reset to Defaults", role: .destructive) {
-                    showResetAlert = true
-                }
-            }
-            .disabled(parametersLocked)
-
-            if parametersLocked {
-                Section {
-                    Text("Parameters are locked once a run has started. Reset training to edit settings.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
-        #if os(macOS)
-            .formStyle(.grouped)
-            .modify(if: showsDismissButton) { content in
-                content.frame(minWidth: 420, idealWidth: 520, minHeight: 520)
-            }
-        #endif
-        .toolbar {
-            if showsDismissButton {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button {
-                        dismiss()
-                    } label: {
-                        Image(systemName: "xmark")
+            #endif
+            .toolbar {
+                if showsDismissButton {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button {
+                            dismiss()
+                        } label: {
+                            Image(systemName: "xmark")
+                        }
                     }
                 }
             }
-        }
-        .alert("Reset to Defaults?", isPresented: $showResetAlert) {
-            Button("Reset", role: .destructive) {
-                resetToDefaults()
+            .alert("Reset to Defaults?", isPresented: $showResetAlert) {
+                Button("Reset", role: .destructive) {
+                    resetToDefaults()
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text(
+                    "This will reset \(selectedTab.rawValue.lowercased()) settings to their default values."
+                )
             }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text(
-                "This will reset \(selectedTab.rawValue.lowercased()) settings to their default values."
+            .onChange(of: localTrainingConfig.algorithm) { oldValue, newValue in
+                guard oldValue != newValue else { return }
+                guard !parametersLocked else { return }
+                applyAlgorithmDefaultsIfNeeded(from: oldValue, to: newValue)
+            }
+            .onChange(of: localEnvSettings) { _, _ in
+                applySettingsIfPossible()
+            }
+            .onChange(of: localTrainingConfig) { _, _ in
+                applySettingsIfPossible()
+            }
+            .onChange(of: envValidationErrors) { _, _ in
+                applySettingsIfPossible()
+            }
+            .onChange(of: trainingValidationErrors) { _, _ in
+                applySettingsIfPossible()
+            }
+            .onDisappear {
+                scheduledResetTask?.cancel()
+                scheduledResetTask = nil
+            }
+    }
+
+    @ViewBuilder
+    private var settingsContainer: some View {
+        #if os(macOS)
+            if showsDismissButton {
+                Form {
+                    settingsContent
+                }
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 12) {
+                        settingsContent
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 12)
+                }
+                .headerProminence(.increased)
+                .environment(\.isInspectorStyle, true)
+            }
+        #else
+            Form {
+                settingsContent
+            }
+        #endif
+    }
+
+    @ViewBuilder
+    private var settingsContent: some View {
+        SettingsSection {
+            InspectorPicker(
+                selection: $selectedTab,
+                options: settingsTabOptions
             )
+            #if os(iOS)
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets())
+            #endif
         }
-        .onChange(of: localTrainingConfig.algorithm) { oldValue, newValue in
-            guard oldValue != newValue else { return }
-            guard !parametersLocked else { return }
-            applyAlgorithmDefaultsIfNeeded(from: oldValue, to: newValue)
+
+        Group {
+            switch selectedTab {
+            case .environment:
+                EnvironmentSettingsSection(
+                    definitions: envDefinitions,
+                    settings: $localEnvSettings,
+                    validationErrors: $envValidationErrors
+                )
+            case .training:
+                TrainingSettingsSection(
+                    availableAlgorithms: availableAlgorithms,
+                    supportsImageNormalization: supportsImageNormalization,
+                    config: $localTrainingConfig,
+                    validationErrors: $trainingValidationErrors
+                )
+            }
         }
-        .onChange(of: localEnvSettings) { _, _ in
-            applySettingsIfPossible()
+        .id(selectedTab)
+        .disabled(parametersLocked)
+
+        SettingsSection {
+            Button("Reset to Defaults", role: .destructive) {
+                showResetAlert = true
+            }
         }
-        .onChange(of: localTrainingConfig) { _, _ in
-            applySettingsIfPossible()
-        }
-        .onChange(of: envValidationErrors) { _, _ in
-            applySettingsIfPossible()
-        }
-        .onChange(of: trainingValidationErrors) { _, _ in
-            applySettingsIfPossible()
-        }
-        .onDisappear {
-            scheduledResetTask?.cancel()
-            scheduledResetTask = nil
+        .disabled(parametersLocked)
+
+        if parametersLocked {
+            SettingsSection {
+                Text(
+                    "Parameters are locked once a run has started. Reset training to edit settings."
+                )
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            }
         }
     }
 
@@ -248,7 +285,8 @@ struct TrainSettingsView: View {
             didApply = true
         }
 
-        if canApplyTrainingConfig, localTrainingConfig != appliedTrainingConfig {
+        if canApplyTrainingConfig, localTrainingConfig != appliedTrainingConfig
+        {
             vm.updateTrainingConfig(for: envID) { config in
                 config = localTrainingConfig
             }
@@ -275,7 +313,8 @@ struct TrainSettingsView: View {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty { return nil }
 
-        let rows = trimmed
+        let rows =
+            trimmed
             .components(separatedBy: CharacterSet(charactersIn: ",\n"))
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
@@ -312,10 +351,11 @@ struct TrainSettingsView: View {
     ) {
         let baseDefaults = TrainingConfig()
         let envDefaults = EnvironmentDefaults.config(for: envID)
-        let previousTimestepsDefault = EnvironmentDefaults.totalTimestepsDefault(
-            for: envID,
-            algorithm: previousAlgorithm
-        )
+        let previousTimestepsDefault =
+            EnvironmentDefaults.totalTimestepsDefault(
+                for: envID,
+                algorithm: previousAlgorithm
+            )
         let nextTimestepsDefault = EnvironmentDefaults.totalTimestepsDefault(
             for: envID,
             algorithm: algorithm
