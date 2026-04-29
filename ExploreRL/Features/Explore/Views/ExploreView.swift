@@ -18,22 +18,6 @@ struct ExploreView: View {
         }
     }
 
-    private var exploreDetail: some View {
-        Group {
-            if let selection = viewModel.selection {
-                ExploreItemDetailView(item: selection)
-                    .navigationTitle(selection.title)
-            } else {
-                ContentUnavailableView(
-                    "Select a Topic",
-                    systemImage: "book.closed",
-                    description: Text("Explore RL algorithms and environments.")
-                )
-                .navigationTitle("Explore")
-            }
-        }
-    }
-
     var body: some View {
         #if os(iOS)
         iosLayout
@@ -43,21 +27,14 @@ struct ExploreView: View {
     }
 
     #if os(iOS)
-    @State private var columnVisibility = NavigationSplitViewVisibility.automatic
-    @State private var preferredCompactColumn = NavigationSplitViewColumn.sidebar
-
     private var iosLayout: some View {
-        NavigationSplitView(
-            columnVisibility: $columnVisibility,
-            preferredCompactColumn: $preferredCompactColumn
-        ) {
+        NavigationStack {
             topicList
-                .navigationSplitViewColumnWidth(min: 250, ideal: 300, max: 400)
-        } detail: {
-            exploreDetail
-        }
-        .onChange(of: viewModel.selection) { _, newSelection in
-            preferredCompactColumn = newSelection == nil ? .sidebar : .detail
+                .navigationTitle("Explore")
+                .navigationDestination(for: ExploreItem.self) { item in
+                    ExploreItemDetailView(item: item)
+                        .navigationTitle(item.title)
+                }
         }
     }
     #endif
@@ -76,9 +53,47 @@ struct ExploreView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
+
+    private var exploreDetail: some View {
+        Group {
+            if let selection = viewModel.selection {
+                ExploreItemDetailView(item: selection)
+                    .navigationTitle(selection.title)
+            } else {
+                ContentUnavailableView(
+                    "Select a Topic",
+                    systemImage: "book.closed",
+                    description: Text("Explore RL algorithms and environments.")
+                )
+                .navigationTitle("Explore")
+            }
+        }
+    }
     #endif
 
     private var topicList: some View {
+        #if os(macOS)
+        @Bindable var vm = viewModel
+        return listContent
+            .listStyle(.sidebar)
+            .searchable(text: $searchText, prompt: "Search topics")
+            .onAppear { restoreTopic() }
+            .onChange(of: viewModel.selection) { _, newValue in
+                storedTopic = newValue?.rawValue
+            }
+        #else
+        return listContent
+            .listStyle(.insetGrouped)
+            .searchable(text: $searchText, prompt: "Search topics")
+            .onAppear { restoreTopic() }
+            .onChange(of: viewModel.selection) { _, newValue in
+                storedTopic = newValue?.rawValue
+            }
+        #endif
+    }
+
+    private var listContent: some View {
+        #if os(macOS)
         @Bindable var vm = viewModel
         return List(selection: $vm.selection) {
             ForEach(filteredSections, id: \.section) { entry in
@@ -86,9 +101,6 @@ struct ExploreView: View {
                     ForEach(entry.items) { item in
                         ExploreItemRow(item: item)
                             .tag(item)
-                            #if os(iOS)
-                            .listRowSeparator(.hidden)
-                            #endif
                     }
                 }
             }
@@ -98,22 +110,23 @@ struct ExploreView: View {
                 view.scrollEdgeEffectStyle(.hard, for: .top)
             }
         }
-        .listStyle(exploreListStyle)
-        .navigationTitle("Explore")
-        .searchable(text: $searchText, prompt: "Search topics")
-        .onAppear {
-            restoreTopic()
-        }
-        .onChange(of: viewModel.selection) { _, newValue in
-            storedTopic = newValue?.rawValue
-        }
-    }
-
-    private var exploreListStyle: some ListStyle {
-        #if os(macOS)
-        SidebarListStyle()
         #else
-        InsetGroupedListStyle()
+        return List {
+            ForEach(filteredSections, id: \.section) { entry in
+                Section(entry.section.title) {
+                    ForEach(entry.items) { item in
+                        NavigationLink(value: item) {
+                            ExploreItemRow(item: item)
+                        }
+                    }
+                }
+            }
+        }
+        .modify { view in
+            if #available(iOS 26.0, *), #available(macOS 26.0, *) {
+                view.scrollEdgeEffectStyle(.hard, for: .top)
+            }
+        }
         #endif
     }
 

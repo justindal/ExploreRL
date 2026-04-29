@@ -15,17 +15,18 @@ struct TrainListRow: View {
     var isTraining: Bool = false
 
     var body: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 3) {
+        HStack(alignment: .top, spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(name)
-                    .font(.body.weight(.semibold))
+                    .font(.body)
+                    .bold()
                     .lineLimit(1)
 
                 if !description.isEmpty {
                     Text(description)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                        .lineLimit(2)
+                        .lineLimit(1)
                 }
 
                 if !algorithms.isEmpty {
@@ -40,20 +41,14 @@ struct TrainListRow: View {
 
             Spacer()
 
-            #if os(macOS)
             if isTraining {
                 Image(systemName: "circle.fill")
-                    .font(.system(size: 6))
+                    .font(.system(size: 7))
                     .foregroundStyle(.orange)
                     .symbolEffect(.pulse, isActive: true)
             }
-            #endif
-
-            Image(systemName: "chevron.right")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.tertiary)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 2)
     }
 }
 

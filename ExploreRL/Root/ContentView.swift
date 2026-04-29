@@ -9,6 +9,7 @@ struct ContentView: View {
 
 #if os(macOS)
     @State private var trainViewModel = TrainViewModel()
+    @State private var showTrainSettingsInspector = true
     @State private var selectedSidebarDestination: RootDestination = .library
     @SceneStorage("sidebarDestination") private var storedSidebarDestination = "library"
     @State private var trainLoadError: String?
@@ -187,6 +188,20 @@ struct ContentView: View {
                     }
                 }
         }
+        .modify(if: selectedTrainEnvironmentID != nil) { content in
+            content
+                .inspector(isPresented: $showTrainSettingsInspector) {
+                    trainInspectorContent
+                }
+                .inspectorColumnWidth(min: 320, ideal: 420, max: 520)
+        }
+        .onChange(of: selectedTrainEnvironmentID) { oldValue, newValue in
+            if newValue == nil {
+                showTrainSettingsInspector = false
+            } else if oldValue == nil {
+                showTrainSettingsInspector = true
+            }
+        }
     }
 
     private var sidebarContent: some View {
@@ -221,7 +236,11 @@ struct ContentView: View {
                 onEvaluate: handleLibraryEvaluate
             )
         case .trainEnvironment(let envID):
-            TrainDetailView(id: envID, vm: trainViewModel)
+            TrainDetailView(
+                id: envID,
+                vm: trainViewModel,
+                showSettingsInspector: $showTrainSettingsInspector
+            )
         case .evaluate:
             makeEvaluateView {
                 selectedSidebarDestination = .library
@@ -270,6 +289,27 @@ struct ContentView: View {
                 ProgressView()
                     .controlSize(.small)
             }
+        }
+    }
+
+    private var selectedTrainEnvironmentID: String? {
+        if case .trainEnvironment(let envID) = selectedSidebarDestination {
+            envID
+        } else {
+            nil
+        }
+    }
+
+    @ViewBuilder
+    private var trainInspectorContent: some View {
+        if let envID = selectedTrainEnvironmentID {
+            TrainSettingsView(
+                envID: envID,
+                vm: trainViewModel,
+                showsDismissButton: false
+            )
+        } else {
+            EmptyView()
         }
     }
 

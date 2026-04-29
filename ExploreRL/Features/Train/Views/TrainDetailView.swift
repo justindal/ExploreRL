@@ -5,20 +5,15 @@ struct TrainDetailView: View {
 
     @State private var showInfo: Bool = false
     @State private var showSettings: Bool = false
-    #if os(macOS)
-        @State private var showSettingsInspector: Bool = true
-    #else
-        @State private var showSettingsInspector: Bool = false
-    #endif
     @State private var showSaveSheet: Bool = false
     @State private var showLoadSheet: Bool = false
     @State private var persistenceError: String?
     @State private var isLoadingSession: Bool = false
     @State private var showResetAlert: Bool = false
     @Environment(\.horizontalSizeClass) private var sizeClass
-    @Environment(\.verticalSizeClass) private var verticalSizeClass
     let id: String
     @Bindable var vm: TrainViewModel
+    var showSettingsInspector: Binding<Bool>? = nil
 
     private var trainingConfig: TrainingConfig {
         vm.trainingConfigs[id] ?? EnvironmentDefaults.config(for: id)
@@ -28,26 +23,21 @@ struct TrainDetailView: View {
         vm.trainingStates[id] ?? TrainingState()
     }
 
+    private var navigationTitleText: String {
+        vm.env(for: id)?.spec?.displayName ?? id
+    }
+
     private var usesSettingsInspector: Bool {
-        #if os(macOS)
-            true
-        #else
-            sizeClass == .regular && verticalSizeClass == .regular
-        #endif
+        showSettingsInspector != nil
     }
 
     var body: some View {
         mainContent
-            .navigationTitle(id)
+            .navigationTitle(navigationTitleText)
+            #if os(iOS)
+                .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar { toolbarContent }
-            .inspector(isPresented: $showSettingsInspector) {
-                TrainSettingsView(
-                    envID: id,
-                    vm: vm,
-                    showsDismissButton: false
-                )
-            }
-            .inspectorColumnWidth(min: 320, ideal: 420, max: 520)
             .sheet(isPresented: $showSettings) {
                 TrainSettingsView(
                     envID: id,
@@ -154,7 +144,7 @@ struct TrainDetailView: View {
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .automatic) {
+        ToolbarItem(placement: toolbarPlacement) {
             Menu {
                 Button {
                     showSaveSheet = true
@@ -184,21 +174,17 @@ struct TrainDetailView: View {
             .disabled(trainingState.status == .training)
         }
 
-        if #available(iOS 26.0, *), #available(macOS 26.0, *) {
-            ToolbarSpacer()
-        }
-
-        ToolbarItem(placement: .automatic) {
+        ToolbarItem(placement: toolbarPlacement) {
             Button {
                 showInfo.toggle()
             } label: {
                 Image(systemName: "info.circle")
             }
         }
-        ToolbarItem(placement: .automatic) {
+        ToolbarItem(placement: toolbarPlacement) {
             Button {
-                if usesSettingsInspector {
-                    showSettingsInspector.toggle()
+                if let binding = showSettingsInspector {
+                    binding.wrappedValue.toggle()
                 } else {
                     showSettings = true
                 }
@@ -212,6 +198,12 @@ struct TrainDetailView: View {
             .disabled(trainingState.status == .training)
         }
     }
+
+    #if os(iOS)
+        private var toolbarPlacement: ToolbarItemPlacement { .topBarTrailing }
+    #else
+        private var toolbarPlacement: ToolbarItemPlacement { .automatic }
+    #endif
 
     @ViewBuilder
     private func topSection(env: any Env) -> some View {
@@ -333,5 +325,8 @@ struct TrainDetailView: View {
 }
 
 #Preview {
-    TrainDetailView(id: "CartPole", vm: TrainViewModel())
+    TrainDetailView(
+        id: "CartPole",
+        vm: TrainViewModel()
+    )
 }
