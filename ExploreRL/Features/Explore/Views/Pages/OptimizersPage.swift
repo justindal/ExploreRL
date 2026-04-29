@@ -16,7 +16,6 @@ struct OptimizersPage: View {
             }
             .padding()
         }
-        .navigationTitle("Optimizers")
     }
 }
 

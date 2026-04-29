@@ -2,9 +2,8 @@ import SwiftUI
 
 struct ExploreView: View {
     @State private var viewModel = ExploreViewModel()
-    @State private var columnVisibility = NavigationSplitViewVisibility.doubleColumn
-    @State private var preferredCompactColumn = NavigationSplitViewColumn.sidebar
     @State private var searchText = ""
+    @SceneStorage("exploreTopic") private var storedTopic: String?
 
     private var filteredSections: [(section: ExploreSection, items: [ExploreItem])] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -19,39 +18,77 @@ struct ExploreView: View {
         }
     }
 
-    var body: some View {
-        @Bindable var viewModel = viewModel
+    private var exploreDetail: some View {
+        Group {
+            if let selection = viewModel.selection {
+                ExploreItemDetailView(item: selection)
+                    .navigationTitle(selection.title)
+            } else {
+                ContentUnavailableView(
+                    "Select a Topic",
+                    systemImage: "book.closed",
+                    description: Text("Explore RL algorithms and environments.")
+                )
+                .navigationTitle("Explore")
+            }
+        }
+    }
 
+    var body: some View {
+        #if os(iOS)
+        iosLayout
+        #else
+        macLayout
+        #endif
+    }
+
+    #if os(iOS)
+    @State private var columnVisibility = NavigationSplitViewVisibility.automatic
+    @State private var preferredCompactColumn = NavigationSplitViewColumn.sidebar
+
+    private var iosLayout: some View {
         NavigationSplitView(
             columnVisibility: $columnVisibility,
             preferredCompactColumn: $preferredCompactColumn
         ) {
-            sidebar(selection: $viewModel.selection)
+            topicList
                 .navigationSplitViewColumnWidth(min: 250, ideal: 300, max: 400)
         } detail: {
-            detail(selection: viewModel.selection)
+            exploreDetail
         }
-        .toolbar(removing: .sidebarToggle)
+        .onChange(of: viewModel.selection) { _, newSelection in
+            preferredCompactColumn = newSelection == nil ? .sidebar : .detail
+        }
     }
+    #endif
 
-    private func row(for item: ExploreItem) -> some View {
-        ExploreItemRow(item: item)
-            .tag(item)
-            .modify { view in
-                #if os(iOS)
-                view.listRowSeparator(.hidden)
-                #else
-                view
-                #endif
+    #if os(macOS)
+    private var macLayout: some View {
+        HStack(spacing: 0) {
+            topicList
+                .frame(minWidth: 250, idealWidth: 300, maxWidth: 400)
+
+            Divider()
+
+            NavigationStack {
+                exploreDetail
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
     }
+    #endif
 
-    private func sidebar(selection: Binding<ExploreItem?>) -> some View {
-        List(selection: selection) {
+    private var topicList: some View {
+        @Bindable var vm = viewModel
+        return List(selection: $vm.selection) {
             ForEach(filteredSections, id: \.section) { entry in
                 Section(entry.section.title) {
                     ForEach(entry.items) { item in
-                        row(for: item)
+                        ExploreItemRow(item: item)
+                            .tag(item)
+                            #if os(iOS)
+                            .listRowSeparator(.hidden)
+                            #endif
                     }
                 }
             }
@@ -63,28 +100,26 @@ struct ExploreView: View {
         }
         .listStyle(exploreListStyle)
         .navigationTitle("Explore")
-        .searchable(text: $searchText, placement: .sidebar, prompt: "Search topics")
-    }
-
-    @ViewBuilder
-    private func detail(selection: ExploreItem?) -> some View {
-        if let selection {
-            ExploreItemDetailView(item: selection)
-        } else {
-            ContentUnavailableView(
-                "Select a Topic",
-                systemImage: "book.closed",
-                description: Text("Explore RL algorithms and environments.")
-            )
+        .searchable(text: $searchText, prompt: "Search topics")
+        .onAppear {
+            restoreTopic()
+        }
+        .onChange(of: viewModel.selection) { _, newValue in
+            storedTopic = newValue?.rawValue
         }
     }
-    
+
     private var exploreListStyle: some ListStyle {
         #if os(macOS)
-        return SidebarListStyle()
+        SidebarListStyle()
         #else
-        return InsetGroupedListStyle()
+        InsetGroupedListStyle()
         #endif
+    }
+
+    private func restoreTopic() {
+        guard let raw = storedTopic, let item = ExploreItem(rawValue: raw) else { return }
+        viewModel.selection = item
     }
 }
 

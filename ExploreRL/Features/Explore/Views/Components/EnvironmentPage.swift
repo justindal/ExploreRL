@@ -34,6 +34,5 @@ struct EnvironmentPage: View {
             }
             .padding()
         }
-        .navigationTitle(title)
     }
 }

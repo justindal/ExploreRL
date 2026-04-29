@@ -52,6 +52,8 @@ final class EvaluateViewModel {
 
             let checkpointDir = storage.checkpointDirectory(for: session.id)
 
+            env = loadedEnv
+
             switch session.algorithmType {
             case .qLearning, .sarsa:
                 tabularAgent = try TabularAgent.load(from: checkpointDir, env: loadedEnv)
@@ -65,7 +67,6 @@ final class EvaluateViewModel {
                 td3Algorithm = try TD3.load(from: checkpointDir, env: loadedEnv, includeBuffer: false)
             }
 
-            env = loadedEnv
             loadedSession = session
             state.status = .idle
         } catch {

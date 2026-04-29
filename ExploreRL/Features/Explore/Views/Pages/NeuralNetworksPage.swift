@@ -16,7 +16,6 @@ struct NeuralNetworksPage: View {
             }
             .padding()
         }
-        .navigationTitle("Neural Networks")
     }
 }
 

@@ -28,6 +28,5 @@ struct AlgorithmPage: View {
             }
             .padding()
         }
-        .navigationTitle(title)
     }
 }

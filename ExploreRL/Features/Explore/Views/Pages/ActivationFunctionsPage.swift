@@ -15,7 +15,6 @@ struct ActivationFunctionsPage: View {
             }
             .padding()
         }
-        .navigationTitle("Activation Functions")
     }
 }
 

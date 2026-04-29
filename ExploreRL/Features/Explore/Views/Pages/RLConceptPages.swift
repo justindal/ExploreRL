@@ -26,7 +26,6 @@ struct RLLoopPage: View {
             }
             .padding()
         }
-        .navigationTitle("The RL Loop")
     }
 }
 
@@ -59,7 +58,6 @@ struct ReturnsPage: View {
             }
             .padding()
         }
-        .navigationTitle("Returns & Discounting")
     }
 }
 
@@ -89,7 +87,6 @@ struct ExplorationPage: View {
             }
             .padding()
         }
-        .navigationTitle("Exploration vs Exploitation")
     }
 }
 
@@ -125,6 +122,5 @@ struct ReplayPage: View {
             }
             .padding()
         }
-        .navigationTitle("Experience Replay")
     }
 }

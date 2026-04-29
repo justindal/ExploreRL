@@ -9,7 +9,7 @@ struct EvaluateView: View {
     @Binding var sessionToLoad: SavedSession?
     var onGoToLibrary: (() -> Void)?
     @State private var viewModel = EvaluateViewModel()
-    @State private var selectedSessionID: UUID?
+    @State private var path: [UUID] = []
 
     init(sessionToLoad: Binding<SavedSession?> = .constant(nil), onGoToLibrary: (() -> Void)? = nil) {
         _sessionToLoad = sessionToLoad
@@ -17,32 +17,9 @@ struct EvaluateView: View {
     }
 
     var body: some View {
-        NavigationSplitView {
+        NavigationStack(path: $path) {
             Group {
                 if viewModel.sessions.isEmpty {
-                    ContentUnavailableView(
-                        "No Saved Sessions",
-                        systemImage: "tray",
-                        description: Text("Train an agent and save it to evaluate here.")
-                    )
-                } else {
-                    sessionList
-                }
-            }
-            .navigationTitle("Evaluate")
-            .onAppear {
-                viewModel.loadSessions()
-            }
-            .onChange(of: sessionToLoad) { _, newValue in
-                guard let session = newValue else { return }
-                selectedSessionID = session.id
-                sessionToLoad = nil
-            }
-        } detail: {
-            Group {
-                if let session = selectedSession {
-                    EvaluateDetailView(session: session, vm: viewModel)
-                } else if viewModel.sessions.isEmpty {
                     ContentUnavailableView {
                         Label("No Saved Sessions", systemImage: "tray")
                     } description: {
@@ -56,28 +33,41 @@ struct EvaluateView: View {
                         }
                     }
                 } else {
+                    sessionList
+                }
+            }
+            .navigationTitle("Evaluate")
+            .onAppear {
+                viewModel.loadSessions()
+            }
+            .onChange(of: sessionToLoad) { _, newValue in
+                guard let session = newValue else { return }
+                sessionToLoad = nil
+                viewModel.loadSessions()
+                path = [session.id]
+            }
+            .navigationDestination(for: UUID.self) { sessionID in
+                if let session = viewModel.sessions.first(where: { $0.id == sessionID }) {
+                    EvaluateDetailView(session: session, vm: viewModel)
+                } else {
                     ContentUnavailableView(
-                        "Select a Session",
-                        systemImage: "play.circle"
+                        "Session Not Found",
+                        systemImage: "exclamationmark.triangle"
                     )
                 }
             }
         }
     }
 
-    private var selectedSession: SavedSession? {
-        guard let id = selectedSessionID else { return nil }
-        return viewModel.sessions.first { $0.id == id }
-    }
-
     @ViewBuilder
     private var sessionList: some View {
-        List(selection: $selectedSessionID) {
+        List {
             ForEach(groupedSessions, id: \.envID) { group in
                 Section(group.envID) {
                     ForEach(group.sessions) { session in
-                        SavedSessionRow(session: session)
-                            .tag(session.id)
+                        NavigationLink(value: session.id) {
+                            SavedSessionRow(session: session)
+                        }
                     }
                 }
             }

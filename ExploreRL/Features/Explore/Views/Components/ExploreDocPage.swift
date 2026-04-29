@@ -16,7 +16,6 @@ struct ExploreDocPage<Content: View>: View {
             }
             .padding()
         }
-        .navigationTitle(title)
     }
 }
 

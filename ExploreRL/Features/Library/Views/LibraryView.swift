@@ -6,11 +6,6 @@ struct LibraryView: View {
     var onEvaluate: (SavedSession) -> Void
 
     @State private var viewModel = LibraryViewModel()
-    @State private var columnVisibility = NavigationSplitViewVisibility
-        .doubleColumn
-    @State private var preferredCompactColumn = NavigationSplitViewColumn
-        .sidebar
-    @State private var selectedSessionID: UUID?
     @State private var showImportPicker = false
     @State private var searchText = ""
     @State private var shareURL: URL?
@@ -76,155 +71,117 @@ struct LibraryView: View {
     }
 
     var body: some View {
-        renameAlertView
-    }
-
-    private var splitView: some View {
-        NavigationSplitView(
-            columnVisibility: $columnVisibility,
-            preferredCompactColumn: $preferredCompactColumn
-        ) {
+        NavigationStack {
             sidebarContent
-        } detail: {
-            detailContent
         }
-    }
-
-    private var lifecycleView: some View {
-        splitView
-            .toolbar(removing: .sidebarToggle)
-            .onAppear {
-                viewModel.loadSessions()
-                consumePendingImports()
-            }
-            .onChange(of: externalImportURLs) { _, _ in
-                consumePendingImports()
-            }
-            .onChange(of: viewModel.sessions) { _, _ in
-                if let selectedSessionID,
-                    !viewModel.sessions.contains(where: {
-                        $0.id == selectedSessionID
-                    })
-                {
-                    self.selectedSessionID = nil
-                }
-            }
-    }
-
-    private var alertsView: some View {
-        lifecycleView
-            .alert("Delete Failed", isPresented: hasDeleteError) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text(viewModel.deleteError ?? "")
-            }
-            .alert("Rename Failed", isPresented: hasRenameError) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text(viewModel.renameError ?? "")
-            }
-            .alert("Transfer Failed", isPresented: hasTransferError) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text(viewModel.transferError ?? "")
-            }
-            .alert("Import Complete", isPresented: hasImportResult) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text("Imported \(viewModel.lastImportedCount ?? 0) session(s).")
-            }
-            .alert("Export Failed", isPresented: hasExportError) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text(viewModel.exportError ?? "")
-            }
-            .alert(
-                "Delete Session?",
-                isPresented: Binding(
-                    get: { deleteRequest != nil },
-                    set: { if !$0 { deleteRequest = nil } }
-                ),
-                presenting: deleteRequest
-            ) { request in
-                Button("Delete", role: .destructive) {
-                    confirmDelete(request)
-                }
-                Button("Cancel", role: .cancel) {
-                    deleteRequest = nil
-                }
-            } message: { request in
-                Text(
-                    "Are you sure you want to delete '\(request.name)'? This will permanently delete this saved session and its trained model."
-                )
-            }
-    }
-
-    @ViewBuilder
-    private var shareSheetView: some View {
-        #if os(iOS)
-        alertsView.sheet(
+        .onAppear {
+            viewModel.loadSessions()
+            consumePendingImports()
+        }
+        .onChange(of: externalImportURLs) { _, _ in
+            consumePendingImports()
+        }
+        .alert("Delete Failed", isPresented: hasDeleteError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(viewModel.deleteError ?? "")
+        }
+        .alert("Rename Failed", isPresented: hasRenameError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(viewModel.renameError ?? "")
+        }
+        .alert("Transfer Failed", isPresented: hasTransferError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(viewModel.transferError ?? "")
+        }
+        .alert("Import Complete", isPresented: hasImportResult) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Imported \(viewModel.lastImportedCount ?? 0) session(s).")
+        }
+        .alert("Export Failed", isPresented: hasExportError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(viewModel.exportError ?? "")
+        }
+        .alert(
+            "Delete Session?",
             isPresented: Binding(
-                get: { shareURL != nil },
-                set: { if !$0 { shareURL = nil } }
+                get: { deleteRequest != nil },
+                set: { if !$0 { deleteRequest = nil } }
+            ),
+            presenting: deleteRequest
+        ) { request in
+            Button("Delete", role: .destructive) {
+                confirmDelete(request)
+            }
+            Button("Cancel", role: .cancel) {
+                deleteRequest = nil
+            }
+        } message: { request in
+            Text(
+                "Are you sure you want to delete '\(request.name)'? This will permanently delete this saved session and its trained model."
             )
-        ) {
-            if let shareURL {
-                SessionShareSheet(url: shareURL)
-                    .presentationDetents([.medium])
+        }
+        .modify { view in
+            #if os(iOS)
+            view.sheet(
+                isPresented: Binding(
+                    get: { shareURL != nil },
+                    set: { if !$0 { shareURL = nil } }
+                )
+            ) {
+                if let shareURL {
+                    SessionShareSheet(url: shareURL)
+                        .presentationDetents([.medium])
+                }
+            }
+            #else
+            view
+            #endif
+        }
+        .fileImporter(
+            isPresented: $showImportPicker,
+            allowedContentTypes: [SessionStorage.archiveContentType],
+            allowsMultipleSelection: true
+        ) { result in
+            switch result {
+            case .success(let urls):
+                viewModel.importSessions(from: urls)
+            case .failure(let error):
+                viewModel.transferError = error.localizedDescription
             }
         }
-        #else
-        alertsView
-        #endif
-    }
-
-    private var importSearchView: some View {
-        shareSheetView
-            .fileImporter(
-                isPresented: $showImportPicker,
-                allowedContentTypes: [SessionStorage.archiveContentType],
-                allowsMultipleSelection: true
-            ) { result in
-                switch result {
-                case .success(let urls):
-                    viewModel.importSessions(from: urls)
-                case .failure(let error):
-                    viewModel.transferError = error.localizedDescription
-                }
-            }
-            .searchable(
-                text: $searchText,
-                placement: .sidebar,
-                prompt: "Search sessions"
-            )
-    }
-
-    private var renameAlertView: some View {
-        importSearchView
-            .alert(
-                "Rename Session",
-                isPresented: Binding(
-                    get: { sessionToRename != nil },
-                    set: {
-                        if !$0 {
-                            sessionToRename = nil
-                            renameText = ""
-                        }
+        .searchable(
+            text: $searchText,
+            prompt: "Search sessions"
+        )
+        .alert(
+            "Rename Session",
+            isPresented: Binding(
+                get: { sessionToRename != nil },
+                set: {
+                    if !$0 {
+                        sessionToRename = nil
+                        renameText = ""
                     }
-                ),
-                presenting: sessionToRename
-            ) { session in
-                TextField("Session name", text: $renameText)
-                Button("Save") {
-                    commitRename()
                 }
-                Button("Cancel", role: .cancel) {
-                    sessionToRename = nil
-                    renameText = ""
-                }
-            } message: { session in
-                Text("Enter a new name for '\(session.name)'.")
+            ),
+            presenting: sessionToRename
+        ) { session in
+            TextField("Session name", text: $renameText)
+            Button("Save") {
+                commitRename()
             }
+            Button("Cancel", role: .cancel) {
+                sessionToRename = nil
+                renameText = ""
+            }
+        } message: { session in
+            Text("Enter a new name for '\(session.name)'.")
+        }
     }
 
     @ViewBuilder
@@ -245,7 +202,7 @@ struct LibraryView: View {
                     description: Text(noResultsDescription)
                 )
             } else {
-                List(selection: $selectedSessionID) {
+                List {
                     ForEach(groupedSessions, id: \.envID) { group in
                         Section(group.envID) {
                             ForEach(group.sessions) { session in
@@ -369,37 +326,6 @@ struct LibraryView: View {
         }
     }
 
-    @ViewBuilder
-    private var detailContent: some View {
-        if let selectedSessionID,
-            let session = viewModel.sessions.first(where: {
-                $0.id == selectedSessionID
-            })
-        {
-            LibraryDetailView(
-                session: session,
-                onLoad: onLoad,
-                onEvaluate: onEvaluate,
-                onExport: exportAndShare,
-                onRename: beginRenaming,
-                onDelete: { viewModel.delete(session: session) }
-            )
-        } else if viewModel.sessions.isEmpty {
-            ContentUnavailableView(
-                "No Saved Sessions",
-                systemImage: "tray",
-                description: Text(
-                    "Train an agent and save your progress to see it here."
-                )
-            )
-        } else {
-            ContentUnavailableView(
-                "Select a Session",
-                systemImage: "sidebar.left"
-            )
-        }
-    }
-
     private var libraryListStyle: some ListStyle {
         #if os(macOS)
             return SidebarListStyle()
@@ -440,9 +366,6 @@ struct LibraryView: View {
             return
         }
         viewModel.delete(session: session)
-        if session.id == selectedSessionID {
-            selectedSessionID = nil
-        }
     }
 
     private func commitRename() {
