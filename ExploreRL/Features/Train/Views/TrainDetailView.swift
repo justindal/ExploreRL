@@ -270,7 +270,11 @@ struct TrainDetailView: View {
         EnvView(
             env: env,
             snapshot: vm.renderSnapshots[id],
-            renderVersion: trainingState.renderVersion
+            renderVersion: trainingState.renderVersion,
+            renderDuringTraining: trainingConfig.renderDuringTraining,
+            trainingState: trainingState,
+            trainingConfig: trainingConfig,
+            elapsed: vm.activeTrainingElapsed(for: id)
         )
         .id(id)
     }

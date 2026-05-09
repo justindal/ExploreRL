@@ -12,11 +12,24 @@ struct EnvView: View {
     let env: any Env
     let snapshot: (any Sendable)?
     var renderVersion: Int = 0
+    var renderDuringTraining: Bool = true
+    var trainingState: TrainingState? = nil
+    var trainingConfig: TrainingConfig? = nil
+    var elapsed: TimeInterval = 0
     @State private var output: RenderOutput?
 
     var body: some View {
         Group {
-            if let snapshot {
+            if !renderDuringTraining,
+                let trainingState,
+                let trainingConfig
+            {
+                TrainingOverviewView(
+                    trainingState: trainingState,
+                    trainingConfig: trainingConfig,
+                    elapsed: elapsed
+                )
+            } else if let snapshot {
                 snapshotView(snapshot)
             } else if let output {
                 switch output {
@@ -50,7 +63,10 @@ struct EnvView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .textSelection(.enabled)
             .padding(12)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+            .background(
+                .regularMaterial,
+                in: RoundedRectangle(cornerRadius: 12)
+            )
     }
 
     #if canImport(CoreGraphics)
@@ -135,7 +151,9 @@ struct EnvView: View {
         ContentUnavailableView(
             title,
             systemImage: "eye.slash",
-            description: Text("This environment doesn't support preview rendering yet.")
+            description: Text(
+                "This environment doesn't support preview rendering yet."
+            )
         )
     }
 
