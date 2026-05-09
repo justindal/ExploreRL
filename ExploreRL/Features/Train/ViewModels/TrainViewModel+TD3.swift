@@ -76,6 +76,7 @@ extension TrainViewModel {
             targetUpdateInterval: 1,
             optimizeMemoryUsage: td3Settings.optimizeMemoryUsage,
             handleTimeoutTermination: td3Settings.handleTimeoutTermination,
+            replayFrameStack: replayFrameStackConfig(for: id),
             useSDEAtWarmup: false,
             sdeSampleFreq: -1,
             sdeSupported: false

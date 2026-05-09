@@ -373,7 +373,8 @@ extension TrainViewModel {
             explorationFinalEps: dqnSettings.explorationFinalEps,
             maxGradNorm: maxGradNorm,
             optimizeMemoryUsage: dqnSettings.optimizeMemoryUsage,
-            handleTimeoutTermination: dqnSettings.handleTimeoutTermination
+            handleTimeoutTermination: dqnSettings.handleTimeoutTermination,
+            replayFrameStack: replayFrameStackConfig(for: id)
         )
 
         let policyConfig = DQNPolicyConfig(
@@ -497,6 +498,7 @@ extension TrainViewModel {
             targetUpdateInterval: sacSettings.targetUpdateInterval,
             optimizeMemoryUsage: sacSettings.optimizeMemoryUsage,
             handleTimeoutTermination: sacSettings.handleTimeoutTermination,
+            replayFrameStack: replayFrameStackConfig(for: id),
             useSDEAtWarmup: sacSettings.useSDEAtWarmup,
             sdeSampleFreq: sacSettings.sdeSampleFreq,
             sdeSupported: true

@@ -15,6 +15,14 @@ struct EnvironmentSettingsSection: View {
             if def.id == "success_rate" {
                 return settings["is_slippery"]?.boolValue ?? true
             }
+            if def.id == "obs_size" {
+                return settings["obs_resize"]?.boolValue ?? true
+            }
+            if def.id == "obs_stack_size" || def.id == "obs_stack_padding"
+                || def.id == "obs_replay_stack_compression"
+            {
+                return settings["obs_frame_stack"]?.boolValue ?? true
+            }
             return true
         }
     }
@@ -27,7 +35,7 @@ struct EnvironmentSettingsSection: View {
             let title = groupTitle(for: def.id)
             groups[title, default: []].append(def)
         }
-        let order = ["General", "Map", "Reset", "Settings"]
+        let order = ["General", "Observation", "Map", "Reset", "Settings"]
         let remaining = groups.keys.filter { !order.contains($0) }.sorted()
         let titles = order.filter { groups[$0] != nil } + remaining
         return titles.compactMap { title in
@@ -279,6 +287,15 @@ struct EnvironmentSettingsSection: View {
             "high",
             "randomize":
             return "Reset"
+        case "obs_grayscale",
+            "obs_resize",
+            "obs_size",
+            "obs_frame_stack",
+            "obs_frame_skip",
+            "obs_stack_size",
+            "obs_replay_stack_compression",
+            "obs_stack_padding":
+            return "Observation"
         default:
             return "Settings"
         }

@@ -30,7 +30,9 @@ extension TrainViewModel {
             let options = envOptions(for: id)
             let maxSteps = frozenLakeMaxSteps(for: id)
             var env = try await Gymnazo.make(id, maxEpisodeSteps: maxSteps, options: options)
-            env.renderMode = .human
+            env = try wrappedEnv(env, id: id)
+            let shouldRender = trainingConfig(for: id).renderDuringTraining
+            env.renderMode = shouldRender ? .human : nil
             let resetOptions = envResetOptions(for: id)
             let resetSeed = envResetSeed(for: id)
             let resetPayload = resetOptions.isEmpty ? nil : resetOptions
@@ -95,7 +97,15 @@ extension TrainViewModel {
                 "y_init",
                 "low",
                 "high",
-                "randomize"
+                "randomize",
+                "obs_grayscale",
+                "obs_resize",
+                "obs_size",
+                "obs_frame_stack",
+                "obs_frame_skip",
+                "obs_stack_size",
+                "obs_replay_stack_compression",
+                "obs_stack_padding"
             ]
             for (key, value) in currentSettings {
                 if resetKeys.contains(key) { continue }
@@ -159,11 +169,67 @@ extension TrainViewModel {
         return UInt64(seedValue)
     }
 
+    func replayFrameStackConfig(for id: String) -> ReplayBuffer.Configuration.FrameStackConfig? {
+        let baseName = id.split(separator: "-").first.map(String.init) ?? id
+        guard baseName == "CarRacing" || baseName == "CarRacingDiscrete" else {
+            return nil
+        }
+
+        let currentSettings = settings(for: id)
+        let frameStack = currentSettings["obs_frame_stack"]?.boolValue ?? true
+        let replayStackCompression =
+            currentSettings["obs_replay_stack_compression"]?.boolValue ?? true
+        let stackSize = max(1, currentSettings["obs_stack_size"]?.intValue ?? 4)
+        guard frameStack, replayStackCompression, stackSize > 1 else { return nil }
+
+        let paddingValue = currentSettings["obs_stack_padding"]?.stringValue ?? "reset"
+        let padding: ReplayBuffer.Configuration.FrameStackPadding =
+            paddingValue == "zero" ? .zero : .reset
+        return ReplayBuffer.Configuration.FrameStackConfig(
+            size: stackSize,
+            padding: padding,
+            axis: -1
+        )
+    }
+
     func updateEnv(id: String, env: any Env) {
         envStates[id] = .loaded(env)
     }
 
     func closeEnv(id: String) {
         envStates[id] = nil
+    }
+
+    private func wrappedEnv(_ env: any Env, id: String) throws -> any Env {
+        let baseName = id.split(separator: "-").first.map(String.init) ?? id
+        guard baseName == "CarRacing" || baseName == "CarRacingDiscrete" else {
+            return env
+        }
+
+        let currentSettings = settings(for: id)
+        var wrapped: any Env = env
+
+        let grayscale = currentSettings["obs_grayscale"]?.boolValue ?? true
+        let resize = currentSettings["obs_resize"]?.boolValue ?? true
+        let size = max(32, min(96, currentSettings["obs_size"]?.intValue ?? 84))
+        let frameSkip = max(1, currentSettings["obs_frame_skip"]?.intValue ?? 2)
+        let frameStack = currentSettings["obs_frame_stack"]?.boolValue ?? true
+        let stackSize = max(1, currentSettings["obs_stack_size"]?.intValue ?? 4)
+        let paddingValue = currentSettings["obs_stack_padding"]?.stringValue ?? "reset"
+        let padding: FrameStackPadding = paddingValue == "zero" ? .zero : .reset
+
+        if frameSkip > 1 {
+            wrapped = try wrapped.frameSkipped(frameSkip)
+        }
+        if grayscale {
+            wrapped = try wrapped.grayscale(keepDim: false)
+        }
+        if resize, size != 96 {
+            wrapped = try wrapped.resized(to: (size, size))
+        }
+        if frameStack, stackSize > 1 {
+            wrapped = try wrapped.frameStacked(stackSize, paddingType: padding, stackAxis: -1)
+        }
+        return wrapped
     }
 }
