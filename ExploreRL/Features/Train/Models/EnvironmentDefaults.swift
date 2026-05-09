@@ -330,8 +330,8 @@ extension EnvironmentDefaults {
         c.sac.batchSize = 256
         c.sac.gamma = 0.99
         c.sac.tau = 0.02
-        c.sac.trainFrequency = 8
-        c.sac.gradientSteps = 10
+        c.sac.trainFrequency = 16
+        c.sac.gradientSteps = 4
         c.sac.learningStarts = 1_000
         c.sac.useSDE = true
         c.sac.useSDEAtWarmup = true

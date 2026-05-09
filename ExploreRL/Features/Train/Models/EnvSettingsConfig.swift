@@ -296,6 +296,58 @@ struct EnvSettingsConfig {
             return [
                 seedSetting,
                 SettingDefinition(
+                    id: "obs_grayscale",
+                    label: "Grayscale Obs",
+                    defaultValue: .bool(true),
+                    description: "Convert RGB observations to grayscale"
+                ),
+                SettingDefinition(
+                    id: "obs_resize",
+                    label: "Resize Obs",
+                    defaultValue: .bool(true),
+                    description: "Resize image observations before training"
+                ),
+                SettingDefinition(
+                    id: "obs_size",
+                    label: "Obs Size",
+                    defaultValue: .int(84),
+                    description: "Target observation size (NxN)",
+                    range: 32...96
+                ),
+                SettingDefinition(
+                    id: "obs_frame_stack",
+                    label: "Frame Stack",
+                    defaultValue: .bool(true),
+                    description: "Stack consecutive observations"
+                ),
+                SettingDefinition(
+                    id: "obs_frame_skip",
+                    label: "Frame Skip",
+                    defaultValue: .int(2),
+                    description: "Repeat each action for this many frames",
+                    range: 1...8
+                ),
+                SettingDefinition(
+                    id: "obs_stack_size",
+                    label: "Stack Size",
+                    defaultValue: .int(4),
+                    description: "Number of observations to stack",
+                    range: 1...8
+                ),
+                SettingDefinition(
+                    id: "obs_replay_stack_compression",
+                    label: "Replay Stack Compression",
+                    defaultValue: .bool(true),
+                    description: "Store one frame in replay and reconstruct stacks when sampling"
+                ),
+                SettingDefinition(
+                    id: "obs_stack_padding",
+                    label: "Stack Padding",
+                    defaultValue: .string("reset"),
+                    description: "Padding strategy for initial stacked observations",
+                    options: ["reset", "zero"]
+                ),
+                SettingDefinition(
                     id: "lap_complete_percent",
                     label: "Lap Complete %",
                     defaultValue: .float(0.95),
