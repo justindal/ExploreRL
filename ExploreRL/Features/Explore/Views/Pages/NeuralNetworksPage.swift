@@ -21,14 +21,18 @@ struct NeuralNetworksPage: View {
 
 extension NeuralNetworksPage {
     private var introSection: some View {
-        Text("Neural networks are the function approximators that power deep reinforcement learning. They enable agents to handle large, continuous state spaces that tabular methods cannot.")
-            .foregroundStyle(.secondary)
+        Text(
+            "Neural networks are the function approximators that power deep reinforcement learning. They enable agents to handle large, continuous state spaces that tabular methods cannot."
+        )
+        .foregroundStyle(.secondary)
     }
 
     private var whatIsNNSection: some View {
         ExploreSectionCard(title: "What is a Neural Network?") {
-            Text("A neural network is a function that maps inputs to outputs through layers of interconnected neurons. Each neuron computes a weighted sum of its inputs, adds a bias, and applies an activation function.")
-                .foregroundStyle(.secondary)
+            Text(
+                "A neural network is a function that maps inputs to outputs through layers of interconnected neurons. Each neuron computes a weighted sum of its inputs, adds a bias, and applies an activation function."
+            )
+            .foregroundStyle(.secondary)
 
             EquationBlock(text: "y = f(Wx + b)")
 
@@ -37,7 +41,7 @@ extension NeuralNetworksPage {
                 "W: weight matrix (learned)",
                 "b: bias vector (learned)",
                 "f: activation function (introduces non-linearity)",
-                "y: output vector"
+                "y: output vector",
             ])
         }
     }
@@ -54,46 +58,52 @@ extension NeuralNetworksPage {
                 "      ↓",
                 "Hidden Layer 2 →  Dense(256) + ReLU",
                 "      ↓",
-                "Output Layer   →  Q-values or action distribution"
+                "Output Layer   →  Q-values or action distribution",
             ])
 
             BulletList(items: [
                 "More layers = deeper network = more complex functions",
                 "More neurons = wider network = more capacity",
                 "Too large → overfitting, slow training",
-                "Too small → underfitting, can't learn the task"
+                "Too small → underfitting, can't learn the task",
             ])
         }
     }
 
     private var forwardPassSection: some View {
         ExploreSectionCard(title: "Forward Pass") {
-            Text("The forward pass computes the output given an input by passing data through each layer sequentially:")
-                .foregroundStyle(.secondary)
+            Text(
+                "The forward pass computes the output given an input by passing data through each layer sequentially:"
+            )
+            .foregroundStyle(.secondary)
 
             CodeBlock([
                 "h₁ = ReLU(W₁ · x + b₁)",
                 "h₂ = ReLU(W₂ · h₁ + b₂)",
-                "y  = W₃ · h₂ + b₃"
+                "y  = W₃ · h₂ + b₃",
             ])
 
-            Text("Each layer transforms its input using weights and biases, then applies an activation function (except often the output layer).")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .padding(.top, 4)
+            Text(
+                "Each layer transforms its input using weights and biases, then applies an activation function (except often the output layer)."
+            )
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .padding(.top, 4)
         }
     }
 
     private var backpropSection: some View {
         ExploreSectionCard(title: "Backpropagation") {
-            Text("Backpropagation computes how much each weight contributed to the error, enabling learning:")
-                .foregroundStyle(.secondary)
+            Text(
+                "Backpropagation computes how much each weight contributed to the error, enabling learning:"
+            )
+            .foregroundStyle(.secondary)
 
             BulletList(items: [
                 "Compute loss (error) from output vs target",
                 "Calculate gradient of loss with respect to each weight",
                 "Use chain rule to propagate gradients backward",
-                "Each weight gets a gradient indicating how to change"
+                "Each weight gets a gradient indicating how to change",
             ])
 
             EquationBlock(text: "∂L/∂W = ∂L/∂y · ∂y/∂h · ∂h/∂W")
@@ -117,7 +127,7 @@ extension NeuralNetworksPage {
                 BulletList(items: [
                     "SGD: Stochastic gradient descent (one sample)",
                     "Mini-batch: Average gradient over batch",
-                    "Adam: Adaptive learning rates per parameter"
+                    "Adam: Adaptive learning rates per parameter",
                 ])
             }
 
@@ -139,7 +149,7 @@ extension NeuralNetworksPage {
                 "    2. Compute loss: compare to targets",
                 "    3. Backward pass: compute gradients",
                 "    4. Update weights: apply optimizer step",
-                "    5. Zero gradients: reset for next batch"
+                "    5. Zero gradients: reset for next batch",
             ])
         }
     }
@@ -190,7 +200,7 @@ extension NeuralNetworksPage {
                 "Normalize inputs when possible",
                 "Use Adam optimizer with lr=3e-4",
                 "Monitor loss and gradient magnitudes",
-                "Use target networks for stability (DQN, SAC)"
+                "Use target networks for stability (DQN, SAC)",
             ])
         }
     }

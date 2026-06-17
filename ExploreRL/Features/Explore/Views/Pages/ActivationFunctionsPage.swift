@@ -20,8 +20,10 @@ struct ActivationFunctionsPage: View {
 
 extension ActivationFunctionsPage {
     private var introSection: some View {
-        Text("Activation functions introduce non-linearity into neural networks. Without them, stacking layers would just produce a linear function, limiting what the network can learn.")
-            .foregroundStyle(.secondary)
+        Text(
+            "Activation functions introduce non-linearity into neural networks. Without them, stacking layers would just produce a linear function, limiting what the network can learn."
+        )
+        .foregroundStyle(.secondary)
     }
 
     private var whySection: some View {
@@ -31,8 +33,10 @@ extension ActivationFunctionsPage {
 
             EquationBlock(text: "W₂(W₁x) = (W₂W₁)x = Wx")
 
-            Text("Activation functions break this linearity, enabling networks to learn complex, non-linear mappings from states to values or actions.")
-                .foregroundStyle(.secondary)
+            Text(
+                "Activation functions break this linearity, enabling networks to learn complex, non-linear mappings from states to values or actions."
+            )
+            .foregroundStyle(.secondary)
         }
     }
 
@@ -46,14 +50,14 @@ extension ActivationFunctionsPage {
                 "    │    ╱",
                 "────┼──●────▶",
                 "    │",
-                "    │"
+                "    │",
             ])
 
             BulletList(items: [
                 "Most common activation for hidden layers",
                 "Simple, fast to compute",
                 "No vanishing gradient for positive values",
-                "Can cause \"dead neurons\" if always negative"
+                "Can cause \"dead neurons\" if always negative",
             ])
         }
     }
@@ -66,7 +70,7 @@ extension ActivationFunctionsPage {
                 "Output range: [-1, 1]",
                 "Zero-centered (unlike sigmoid)",
                 "Can cause vanishing gradients at extremes",
-                "Sometimes used for bounded action outputs"
+                "Sometimes used for bounded action outputs",
             ])
 
             Text("In SAC, tanh squashes unbounded Gaussian samples to [-1, 1] for action bounds.")
@@ -84,7 +88,7 @@ extension ActivationFunctionsPage {
                 "Output range: (0, 1)",
                 "Useful for probabilities",
                 "Suffers from vanishing gradients",
-                "Rarely used in hidden layers today"
+                "Rarely used in hidden layers today",
             ])
         }
     }
@@ -97,13 +101,15 @@ extension ActivationFunctionsPage {
                 "Converts logits to probability distribution",
                 "All outputs sum to 1",
                 "Used for discrete action selection",
-                "Temperature parameter controls sharpness"
+                "Temperature parameter controls sharpness",
             ])
 
-            Text("In discrete action policies, softmax over Q-values or logits gives action probabilities.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .padding(.top, 4)
+            Text(
+                "In discrete action policies, softmax over Q-values or logits gives action probabilities."
+            )
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .padding(.top, 4)
         }
     }
 

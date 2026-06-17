@@ -54,7 +54,8 @@ struct QTableView: View {
                 .padding(.vertical, 6)
 
             ForEach(Array(actions.enumerated()), id: \.offset) { colIndex, _ in
-                let isHighlighted = highlightedCell?.row == rowIndex && highlightedCell?.col == colIndex
+                let isHighlighted =
+                    highlightedCell?.row == rowIndex && highlightedCell?.col == colIndex
                 let value = values[rowIndex][colIndex]
 
                 Text(String(format: "%.2f", value))

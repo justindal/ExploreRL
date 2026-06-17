@@ -4,4 +4,3 @@ import Observation
 final class ExploreViewModel {
     var selection: ExploreItem?
 }
-

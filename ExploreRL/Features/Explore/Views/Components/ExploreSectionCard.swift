@@ -16,4 +16,3 @@ struct ExploreSectionCard<Content: View>: View {
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
     }
 }
-

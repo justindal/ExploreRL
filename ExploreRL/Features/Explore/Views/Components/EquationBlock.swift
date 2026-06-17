@@ -12,4 +12,3 @@ struct EquationBlock: View {
             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
     }
 }
-

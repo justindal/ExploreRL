@@ -1,8 +1,9 @@
 import SwiftUI
 
 struct DQNPage: View {
+    var relatedItems: [ExploreItem] = []
     var body: some View {
-        ExploreDocPage(title: "DQN") {
+        ExploreDocPage(title: "DQN", relatedItems: relatedItems) {
             introSection
             whyDeepSection
             networkArchitectureSection
@@ -21,8 +22,10 @@ struct DQNPage: View {
 
 extension DQNPage {
     private var introSection: some View {
-        Text("Deep Q-Network (DQN) extends Q-Learning to handle large or continuous state spaces by using a neural network to approximate Q-values. It introduced two key innovations: experience replay and target networks.")
-            .foregroundStyle(.secondary)
+        Text(
+            "Deep Q-Network (DQN) extends Q-Learning to handle large or continuous state spaces by using a neural network to approximate Q-values. It introduced two key innovations: experience replay and target networks."
+        )
+        .foregroundStyle(.secondary)
     }
 
     private var whyDeepSection: some View {
@@ -33,12 +36,14 @@ extension DQNPage {
             BulletList(items: [
                 "Atari games: ~10¹⁸ possible screen configurations",
                 "Continuous states: infinite possible values",
-                "High dimensions: curse of dimensionality"
+                "High dimensions: curse of dimensionality",
             ])
 
-            Text("Neural networks generalize across similar states; learning Q(s,a) for one state helps estimate Q-values for similar unseen states.")
-                .foregroundStyle(.secondary)
-                .padding(.top, 4)
+            Text(
+                "Neural networks generalize across similar states; learning Q(s,a) for one state helps estimate Q-values for similar unseen states."
+            )
+            .foregroundStyle(.secondary)
+            .padding(.top, 4)
         }
     }
 
@@ -53,27 +58,31 @@ extension DQNPage {
                 "Hidden: Dense layers or CNN for feature extraction",
                 "        ↓",
                 "Output: Q(s, a₁), Q(s, a₂), ..., Q(s, aₙ)",
-                "        One output per action"
+                "        One output per action",
             ])
 
-            Text("This design is efficient: one forward pass gives Q-values for all actions, enabling fast argmax for action selection.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .padding(.top, 4)
+            Text(
+                "This design is efficient: one forward pass gives Q-values for all actions, enabling fast argmax for action selection."
+            )
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .padding(.top, 4)
         }
     }
 
     private var targetNetworkSection: some View {
         ExploreSectionCard(title: "Target Network") {
-            Text("A key insight: using the same network for both prediction and target leads to instability. The target keeps moving as we update.")
-                .foregroundStyle(.secondary)
+            Text(
+                "A key insight: using the same network for both prediction and target leads to instability. The target keeps moving as we update."
+            )
+            .foregroundStyle(.secondary)
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("The solution:").fontWeight(.medium)
                 BulletList(items: [
                     "Maintain two networks: Q (online) and Q⁻ (target)",
                     "Train Q using targets computed from Q⁻",
-                    "Periodically copy Q → Q⁻ (or use soft updates)"
+                    "Periodically copy Q → Q⁻ (or use soft updates)",
                 ])
             }
 
@@ -88,8 +97,10 @@ extension DQNPage {
 
     private var experienceReplaySection: some View {
         ExploreSectionCard(title: "Experience Replay") {
-            Text("Neural networks assume training samples are independent. Sequential RL data violates this because consecutive states are highly correlated.")
-                .foregroundStyle(.secondary)
+            Text(
+                "Neural networks assume training samples are independent. Sequential RL data violates this because consecutive states are highly correlated."
+            )
+            .foregroundStyle(.secondary)
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("Replay buffer benefits:").fontWeight(.medium)
@@ -97,14 +108,14 @@ extension DQNPage {
                     "Breaks temporal correlation by sampling randomly",
                     "Each experience can be used for multiple updates",
                     "Improves sample efficiency significantly",
-                    "Enables mini-batch gradient descent"
+                    "Enables mini-batch gradient descent",
                 ])
             }
 
             CodeBlock([
                 "Buffer stores: (s, a, r, s′, done)",
                 "Capacity: 10,000 – 1,000,000 transitions",
-                "Sample: random mini-batch for each update"
+                "Sample: random mini-batch for each update",
             ])
         }
     }
@@ -121,7 +132,7 @@ extension DQNPage {
                 BulletList(items: [
                     "y = r + γ max Q⁻(s′,a′) is the TD target",
                     "Q_θ(s,a) is the current network's prediction",
-                    "Gradient descent updates θ to minimize L"
+                    "Gradient descent updates θ to minimize L",
                 ])
             }
 
@@ -154,10 +165,17 @@ extension DQNPage {
                 "        y = r + γ max Q⁻(s′,·)  (0 if done)",
                 "        Update θ by gradient descent on (y − Q(s,a))²",
                 "        ",
-                "        Soft update: θ⁻ ← τθ + (1-τ)θ⁻",
+                "        Every C steps: Q⁻ ← Q  (hard update)",
                 "        s ← s′",
-                "    Decay ε"
+                "    Decay ε",
             ])
+
+            Text(
+                "Some implementations use soft updates (θ⁻ ← τθ + (1−τ)θ⁻) instead of hard periodic copies, but the original DQN uses hard updates every C steps."
+            )
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .padding(.top, 4)
         }
     }
 
@@ -169,13 +187,15 @@ extension DQNPage {
             CodeBlock([
                 "ε starts at 1.0 (fully random)",
                 "ε decays linearly over exploration_fraction of training",
-                "ε ends at ε_min (e.g., 0.01 or 0.05)"
+                "ε ends at ε_min (e.g., 0.01 or 0.05)",
             ])
 
-            Text("Example: with 1M steps and exploration_fraction=0.1, ε decays from 1.0 to 0.01 over the first 100K steps, then stays at 0.01.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .padding(.top, 4)
+            Text(
+                "Example: with 1M steps and exploration_fraction=0.1, ε decays from 1.0 to 0.01 over the first 100K steps, then stays at 0.01."
+            )
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .padding(.top, 4)
         }
     }
 
@@ -219,7 +239,7 @@ extension DQNPage {
 
     private var vsTabularSection: some View {
         ExploreComparisonCard(
-            title: "DQN vs Tabular Q‑Learning",
+            title: "DQN vs Tabular Q-Learning",
             leftTitle: "Tabular",
             rightTitle: "DQN",
             rows: [
@@ -258,7 +278,7 @@ extension DQNPage {
                 "State space too large for tabular methods",
                 "Discrete action space (DQN requires argmax over actions)",
                 "Image-based observations (Atari, visual tasks)",
-                "Environments like CartPole, LunarLander, MountainCar"
+                "Environments like CartPole, LunarLander, MountainCar",
             ])
         }
     }
@@ -270,7 +290,7 @@ extension DQNPage {
                 "Overestimation bias: max operator tends to overestimate Q",
                 "Hyperparameter sensitive: learning rate, buffer, architecture",
                 "Sample inefficient compared to model-based methods",
-                "For continuous actions, use SAC or DDPG instead"
+                "For continuous actions, use SAC or DDPG instead",
             ])
         }
     }

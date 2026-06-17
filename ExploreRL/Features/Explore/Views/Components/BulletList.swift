@@ -12,4 +12,3 @@ struct BulletList: View {
         }
     }
 }
-

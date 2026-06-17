@@ -1,8 +1,9 @@
 import SwiftUI
 
 struct SACPage: View {
+    var relatedItems: [ExploreItem] = []
     var body: some View {
-        ExploreDocPage(title: "SAC") {
+        ExploreDocPage(title: "SAC", relatedItems: relatedItems) {
             introSection
             whyContinuousSection
             maxEntropySection
@@ -22,31 +23,39 @@ struct SACPage: View {
 
 extension SACPage {
     private var introSection: some View {
-        Text("Soft Actor-Critic (SAC) is a state-of-the-art algorithm for continuous control. It combines actor-critic methods with maximum entropy reinforcement learning, achieving sample efficiency and exploration through an entropy bonus that encourages diverse behavior.")
-            .foregroundStyle(.secondary)
+        Text(
+            "Soft Actor-Critic (SAC) is a state-of-the-art algorithm for continuous control. It combines actor-critic methods with maximum entropy reinforcement learning, achieving sample efficiency and exploration through an entropy bonus that encourages diverse behavior."
+        )
+        .foregroundStyle(.secondary)
     }
 
     private var whyContinuousSection: some View {
         ExploreSectionCard(title: "Why SAC for Continuous Actions?") {
-            Text("DQN requires computing argmax over all actions, which is impossible when actions are continuous:")
-                .foregroundStyle(.secondary)
+            Text(
+                "DQN requires computing argmax over all actions, which is impossible when actions are continuous:"
+            )
+            .foregroundStyle(.secondary)
 
             BulletList(items: [
                 "Continuous actions: steering angle, joint torques, throttle",
                 "Infinite action space: can't enumerate all possibilities",
-                "SAC outputs a probability distribution, then samples actions"
+                "SAC outputs a probability distribution, then samples actions",
             ])
 
-            Text("SAC learns both a policy (actor) and value estimates (critics) simultaneously, enabling efficient learning in high-dimensional continuous spaces.")
-                .foregroundStyle(.secondary)
-                .padding(.top, 4)
+            Text(
+                "SAC learns both a policy (actor) and value estimates (critics) simultaneously, enabling efficient learning in high-dimensional continuous spaces."
+            )
+            .foregroundStyle(.secondary)
+            .padding(.top, 4)
         }
     }
 
     private var maxEntropySection: some View {
         ExploreSectionCard(title: "Maximum Entropy RL") {
-            Text("Standard RL maximizes expected return. SAC adds an entropy bonus to encourage exploration:")
-                .foregroundStyle(.secondary)
+            Text(
+                "Standard RL maximizes expected return. SAC adds an entropy bonus to encourage exploration:"
+            )
+            .foregroundStyle(.secondary)
 
             EquationBlock(text: "J(π) = E[ Σₜ γᵗ ( rₜ + α H(π(·|sₜ)) ) ]")
 
@@ -56,21 +65,25 @@ extension SACPage {
                     "H(π) = entropy of the policy's action distribution",
                     "Higher entropy = more random, exploratory actions",
                     "α = temperature controlling the exploration–exploitation trade-off",
-                    "Prevents premature convergence to suboptimal deterministic policies"
+                    "Prevents premature convergence to suboptimal deterministic policies",
                 ])
             }
 
-            Text("This \"soft\" objective leads to policies that are stochastic by design, not just during training.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .padding(.top, 4)
+            Text(
+                "This \"soft\" objective leads to policies that are stochastic by design, not just during training."
+            )
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .padding(.top, 4)
         }
     }
 
     private var actorCriticSection: some View {
         ExploreSectionCard(title: "Actor-Critic Architecture") {
-            Text("SAC uses separate networks for the policy (actor) and value estimation (critics):")
-                .foregroundStyle(.secondary)
+            Text(
+                "SAC uses separate networks for the policy (actor) and value estimation (critics):"
+            )
+            .foregroundStyle(.secondary)
 
             CodeBlock([
                 "Actor (Policy Network):",
@@ -80,7 +93,7 @@ extension SACPage {
                 "",
                 "Critics (Q-Networks):",
                 "    Input:  State s, Action a",
-                "    Output: Q(s, a): expected return"
+                "    Output: Q(s, a): expected return",
             ])
 
             VStack(alignment: .leading, spacing: 8) {
@@ -88,7 +101,7 @@ extension SACPage {
                 BulletList(items: [
                     "Actor outputs distribution parameters, not raw actions",
                     "Tanh squashing bounds actions to [-1, 1]",
-                    "Critics take state AND action as input (unlike DQN)"
+                    "Critics take state AND action as input (unlike DQN)",
                 ])
             }
         }
@@ -107,21 +120,25 @@ extension SACPage {
                     "Train two critics independently on the same data",
                     "Use the minimum Q-value for computing targets",
                     "This pessimistic estimate reduces overestimation",
-                    "Both critics have their own target networks (soft updated)"
+                    "Both critics have their own target networks (soft updated)",
                 ])
             }
 
-            Text("This technique, called Clipped Double Q-Learning, was introduced in TD3 and adopted by SAC.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .padding(.top, 4)
+            Text(
+                "This technique, called Clipped Double Q-Learning, was introduced in TD3 and adopted by SAC."
+            )
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .padding(.top, 4)
         }
     }
 
     private var entropyTuningSection: some View {
         ExploreSectionCard(title: "Automatic Entropy Tuning") {
-            Text("The entropy coefficient α is crucial but hard to tune. SAC can learn it automatically:")
-                .foregroundStyle(.secondary)
+            Text(
+                "The entropy coefficient α is crucial but hard to tune. SAC can learn it automatically:"
+            )
+            .foregroundStyle(.secondary)
 
             EquationBlock(text: "α* = argmin E[ −α log π(a|s) − α H̄ ]")
 
@@ -131,14 +148,16 @@ extension SACPage {
                     "H̄ = target entropy (typically −dim(action))",
                     "If policy entropy < target: increase α → more exploration",
                     "If policy entropy > target: decrease α → more exploitation",
-                    "α is learned via gradient descent alongside other networks"
+                    "α is learned via gradient descent alongside other networks",
                 ])
             }
 
-            Text("This removes a sensitive hyperparameter and enables SAC to adapt exploration throughout training.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .padding(.top, 4)
+            Text(
+                "This removes a sensitive hyperparameter and enables SAC to adapt exploration throughout training."
+            )
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .padding(.top, 4)
         }
     }
 
@@ -151,7 +170,7 @@ extension SACPage {
                 "Instead of: a ~ N(μ, σ)        // can't differentiate",
                 "Use:        a = μ + σ · ε      // where ε ~ N(0, 1)",
                 "",
-                "Then apply: a_bounded = tanh(a)"
+                "Then apply: a_bounded = tanh(a)",
             ])
 
             VStack(alignment: .leading, spacing: 8) {
@@ -159,7 +178,7 @@ extension SACPage {
                 BulletList(items: [
                     "Moves randomness outside the network (ε is fixed noise)",
                     "Gradients flow through μ and σ to update the actor",
-                    "Enables end-to-end training of the policy network"
+                    "Enables end-to-end training of the policy network",
                 ])
             }
         }
@@ -170,10 +189,20 @@ extension SACPage {
             VStack(alignment: .leading, spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Critic Loss:").fontWeight(.medium)
-                    Text("Mean squared TD error using soft Bellman backup:")
+                    Text("Mean squared TD error using the soft Bellman backup:")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                    EquationBlock(text: "L_Q = E[ (Q(s,a) − (r + γ(Q_target − α log π(a′|s′))))² ]")
+                    EquationBlock(text: "L_Q = E[ (Q(s,a) − y)² ]")
+                    Text("where the soft target y is:")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .padding(.top, 2)
+                    EquationBlock(text: "y = r + γ( min(Q₁⁻,Q₂⁻)(s′,a′) − α log π(a′|s′) )")
+                    BulletList(items: [
+                        "a′ is sampled from the current policy: a′ ~ π(·|s′)",
+                        "min(Q₁⁻,Q₂⁻) uses the pessimistic estimate from twin critics",
+                        "−α log π(a′|s′) adds the entropy bonus to the target",
+                    ])
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
@@ -225,7 +254,7 @@ extension SACPage {
                 "    ",
                 "    // Target update",
                 "    Q₁⁻ ← τQ₁ + (1−τ)Q₁⁻",
-                "    Q₂⁻ ← τQ₂ + (1−τ)Q₂⁻"
+                "    Q₂⁻ ← τQ₂ + (1−τ)Q₂⁻",
             ])
         }
     }
@@ -309,7 +338,7 @@ extension SACPage {
                 "Continuous action spaces (robotics, control, locomotion)",
                 "Tasks requiring sample efficiency (real-world robotics)",
                 "Environments where exploration is important",
-                "Benchmark environments: HalfCheetah, Ant, Humanoid, Pendulum"
+                "Benchmark environments: HalfCheetah, Ant, Humanoid, Pendulum",
             ])
         }
     }
@@ -321,7 +350,7 @@ extension SACPage {
                 "Hyperparameter sensitive: target entropy, learning rates",
                 "Assumes Gaussian actions: may not suit all distributions",
                 "Computationally heavier than simpler methods like PPO",
-                "Discrete actions: requires modification (SAC-Discrete)"
+                "Discrete actions: requires modification (SAC-Discrete)",
             ])
         }
     }

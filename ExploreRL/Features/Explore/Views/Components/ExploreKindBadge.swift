@@ -13,4 +13,3 @@ struct ExploreKindBadge: View {
             .background(tint.opacity(0.12), in: Capsule())
     }
 }
-
