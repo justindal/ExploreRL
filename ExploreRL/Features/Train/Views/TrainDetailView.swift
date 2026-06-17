@@ -209,6 +209,7 @@ struct TrainDetailView: View {
     private func topSection(env: any Env) -> some View {
         let showsMetrics =
             trainingState.status != .idle || trainingState.hasHistory
+        let showControlsProgress = trainingConfig.renderDuringTraining
         if sizeClass == .regular {
             if showsMetrics {
                 HStack(alignment: .top, spacing: 20) {
@@ -228,7 +229,8 @@ struct TrainDetailView: View {
                     vm: vm,
                     trainingConfig: trainingConfig,
                     trainingState: trainingState,
-                    showResetAlert: $showResetAlert
+                    showResetAlert: $showResetAlert,
+                    showDetailedProgress: showControlsProgress
                 )
             } else {
                 VStack(spacing: 16) {
@@ -240,7 +242,8 @@ struct TrainDetailView: View {
                         vm: vm,
                         trainingConfig: trainingConfig,
                         trainingState: trainingState,
-                        showResetAlert: $showResetAlert
+                        showResetAlert: $showResetAlert,
+                        showDetailedProgress: showControlsProgress
                     )
                 }
                 .frame(maxWidth: 600)
@@ -254,7 +257,8 @@ struct TrainDetailView: View {
                 vm: vm,
                 trainingConfig: trainingConfig,
                 trainingState: trainingState,
-                showResetAlert: $showResetAlert
+                showResetAlert: $showResetAlert,
+                showDetailedProgress: showControlsProgress
             )
             if showsMetrics {
                 TrainingMetricsView(
