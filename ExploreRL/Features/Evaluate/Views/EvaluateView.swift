@@ -9,7 +9,7 @@ struct EvaluateView: View {
     @Binding var sessionToLoad: SavedSession?
     var onGoToLibrary: (() -> Void)?
     @State private var viewModel = EvaluateViewModel()
-    @State private var path: [UUID] = []
+    @State private var selectedSession: SavedSession?
 
     init(sessionToLoad: Binding<SavedSession?> = .constant(nil), onGoToLibrary: (() -> Void)? = nil)
     {
@@ -18,13 +18,13 @@ struct EvaluateView: View {
     }
 
     var body: some View {
-        NavigationStack(path: $path) {
+        NavigationStack {
             Group {
                 if viewModel.sessions.isEmpty {
                     ContentUnavailableView {
-                        Label("No Saved Sessions", systemImage: "tray")
+                        Label("No Agents to Evaluate", systemImage: "play.square.stack")
                     } description: {
-                        Text("Train an agent and save it to evaluate here.")
+                        Text("Agents appear here after you train and save them in the Library.")
                     } actions: {
                         if let onGoToLibrary {
                             Button("Go to Library") {
@@ -45,17 +45,10 @@ struct EvaluateView: View {
                 guard let session = newValue else { return }
                 sessionToLoad = nil
                 viewModel.loadSessions()
-                path = [session.id]
+                selectedSession = session
             }
-            .navigationDestination(for: UUID.self) { sessionID in
-                if let session = viewModel.sessions.first(where: { $0.id == sessionID }) {
-                    EvaluateDetailView(session: session, vm: viewModel)
-                } else {
-                    ContentUnavailableView(
-                        "Session Not Found",
-                        systemImage: "exclamationmark.triangle"
-                    )
-                }
+            .sheet(item: $selectedSession) { session in
+                EvaluateDetailView(session: session, vm: viewModel)
             }
         }
     }
@@ -63,23 +56,31 @@ struct EvaluateView: View {
     @ViewBuilder
     private var sessionList: some View {
         List {
-            ForEach(groupedSessions, id: \.envID) { group in
-                Section(group.envID) {
+            ForEach(groupedSessions, id: \.algorithm) { group in
+                Section(group.algorithm) {
                     ForEach(group.sessions) { session in
-                        NavigationLink(value: session.id) {
-                            SavedSessionRow(session: session)
+                        EvaluateSessionRow(session: session) {
+                            selectedSession = session
                         }
                     }
                 }
             }
         }
-        .listStyle(.sidebar)
+        .listStyle(evaluateListStyle)
     }
 
-    private var groupedSessions: [(envID: String, sessions: [SavedSession])] {
-        let grouped = Dictionary(grouping: viewModel.sessions, by: \.environmentID)
+    private var groupedSessions: [(algorithm: String, sessions: [SavedSession])] {
+        let grouped = Dictionary(grouping: viewModel.sessions, by: \.algorithmType.rawValue)
         return grouped.keys.sorted().map { key in
-            (envID: key, sessions: grouped[key] ?? [])
+            (algorithm: key, sessions: grouped[key] ?? [])
         }
+    }
+
+    private var evaluateListStyle: some ListStyle {
+        #if os(macOS)
+            return SidebarListStyle()
+        #else
+            return InsetGroupedListStyle()
+        #endif
     }
 }

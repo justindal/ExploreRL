@@ -10,12 +10,13 @@ struct EvaluateDetailView: View {
     let session: SavedSession
     @Bindable var vm: EvaluateViewModel
     @Environment(\.horizontalSizeClass) private var sizeClass
-    @State private var showAgentInfo = false
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                sessionHeader
+                agentInfoCard
+                evaluationSummaryCard
                 topSection
                 if !vm.state.episodeRewards.isEmpty {
                     EvaluationResults(state: vm.state)
@@ -26,31 +27,24 @@ struct EvaluateDetailView: View {
             .padding()
         }
         .navigationTitle(session.name)
+        #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+        #endif
         .task(id: session.id) {
             await vm.loadSession(session)
         }
     }
 
     @ViewBuilder
-    private var topSection: some View {
-        if let env = vm.env, sizeClass == .regular {
-            HStack(alignment: .top, spacing: 20) {
-                envSection(env: env)
-                controlsSection
-                    .frame(minWidth: 280, idealWidth: 320, maxWidth: 360)
+    private var agentInfoCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Agent Info")
+                    .font(.headline)
+                Spacer()
+                AlgorithmBadge(text: session.algorithmType.rawValue)
             }
-        } else {
-            if let env = vm.env {
-                envSection(env: env)
-                    .frame(maxWidth: .infinity)
-            }
-            controlsSection
-        }
-    }
 
-    @ViewBuilder
-    private var sessionHeader: some View {
-        DisclosureGroup(isExpanded: $showAgentInfo) {
             LazyVGrid(
                 columns: [GridItem(.flexible()), GridItem(.flexible())],
                 alignment: .leading,
@@ -64,17 +58,67 @@ struct EvaluateDetailView: View {
                 }
             }
             .font(.subheadline)
-            .padding(.top, 8)
-        } label: {
-            HStack {
-                Text("Agent Info")
-                    .font(.headline)
-                Spacer()
-                AlgorithmBadge(text: session.algorithmType.rawValue)
-            }
         }
         .padding()
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    @ViewBuilder
+    private var evaluationSummaryCard: some View {
+        if vm.state.status == .completed || !vm.state.episodeRewards.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text("Evaluation Summary")
+                        .font(.headline)
+                    Spacer()
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                }
+
+                LazyVGrid(
+                    columns: [GridItem(.flexible()), GridItem(.flexible())],
+                    alignment: .leading,
+                    spacing: 12
+                ) {
+                    MetricCard(
+                        title: "Mean Reward",
+                        value: vm.state.meanReward.map { String(format: "%.2f", $0) } ?? "-"
+                    )
+                    MetricCard(
+                        title: "Best Reward",
+                        value: vm.state.episodeRewards.max().map { String(format: "%.2f", $0) }
+                            ?? "-"
+                    )
+                    MetricCard(
+                        title: "Mean Length",
+                        value: vm.state.meanLength.map { String(format: "%.1f", $0) } ?? "-"
+                    )
+                    MetricCard(
+                        title: "Episodes",
+                        value: "\(vm.state.episodeRewards.count)"
+                    )
+                }
+            }
+            .padding()
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+        }
+    }
+
+    @ViewBuilder
+    private var topSection: some View {
+        if let env = vm.env, sizeClass == .regular {
+            HStack(alignment: .top, spacing: 20) {
+                envSection(env: env)
+                controlsCard
+                    .frame(minWidth: 280, idealWidth: 320, maxWidth: 360)
+            }
+        } else {
+            if let env = vm.env {
+                envSection(env: env)
+                    .frame(maxWidth: .infinity)
+            }
+            controlsCard
+        }
     }
 
     @ViewBuilder
@@ -87,7 +131,7 @@ struct EvaluateDetailView: View {
     }
 
     @ViewBuilder
-    private var controlsSection: some View {
+    private var controlsCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Evaluation")
                 .font(.headline)
@@ -106,6 +150,7 @@ struct EvaluateDetailView: View {
                             .monospacedDigit()
                     }
                     ProgressView(value: vm.state.progress)
+                        .tint(.green)
 
                     HStack {
                         Text("Step: \(vm.state.currentStep)")

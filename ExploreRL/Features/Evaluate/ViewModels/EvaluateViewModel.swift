@@ -224,7 +224,22 @@ final class EvaluateViewModel {
             options["is_slippery"] = isSlippery
             options["success_rate"] = successRate
         } else {
-            let resetKeys: Set<String> = ["seed", "x_init", "y_init", "low", "high", "randomize"]
+            let resetKeys: Set<String> = [
+                "seed",
+                "x_init",
+                "y_init",
+                "low",
+                "high",
+                "randomize",
+                "obs_grayscale",
+                "obs_resize",
+                "obs_size",
+                "obs_frame_stack",
+                "obs_frame_skip",
+                "obs_stack_size",
+                "obs_replay_stack_compression",
+                "obs_stack_padding",
+            ]
             for (key, value) in settings {
                 if resetKeys.contains(key) { continue }
                 switch value {
