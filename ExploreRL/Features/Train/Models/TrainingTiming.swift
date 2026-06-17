@@ -27,4 +27,3 @@ struct TrainingTiming: Sendable, Equatable {
         return max(0, now.timeIntervalSince(startedAt) - pausedDuration - pausedNow)
     }
 }
-

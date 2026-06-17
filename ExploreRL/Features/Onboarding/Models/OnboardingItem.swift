@@ -57,19 +57,22 @@ extension OnboardingItem {
         OnboardingItem(
             id: 3,
             title: "Save, import, and export",
-            subtitle: "Keep sessions in Library, export them to share, and import sessions from other devices.",
+            subtitle:
+                "Keep sessions in Library, export them to share, and import sessions from other devices.",
             imageName: "ios-library"
         ),
         OnboardingItem(
             id: 4,
             title: "Learn the concepts",
-            subtitle: "Use Explore to understand RL fundamentals, algorithms, and environments. Disable the tab in Settings if you are experienced!",
+            subtitle:
+                "Use Explore to understand RL fundamentals, algorithms, and environments. Disable the tab in Settings if you are experienced!",
             imageName: "ios-learn"
         ),
         OnboardingItem(
             id: 5,
             title: "All done",
-            subtitle: "Start in Train to run your first agent. Need a refresher later? Open Settings to run onboarding again."
-        )
+            subtitle:
+                "Start in Train to run your first agent. Need a refresher later? Open Settings to run onboarding again."
+        ),
     ]
 }

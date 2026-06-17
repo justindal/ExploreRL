@@ -55,11 +55,13 @@ extension TrainViewModel {
             let holeProbability = currentSettings["hole_probability"]?.floatValue ?? 0.2
             let isSlippery = currentSettings["is_slippery"]?.boolValue ?? true
             let successRate = currentSettings["success_rate"]?.floatValue ?? Float(1.0 / 3.0)
-            let customMap = currentSettings["custom_map"]?.stringValue?
+            let customMap =
+                currentSettings["custom_map"]?.stringValue?
                 .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
 
             if !customMap.isEmpty {
-                let rows = customMap
+                let rows =
+                    customMap
                     .components(separatedBy: CharacterSet(charactersIn: ",\n"))
                     .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
                     .filter { !$0.isEmpty }
@@ -105,7 +107,7 @@ extension TrainViewModel {
                 "obs_frame_skip",
                 "obs_stack_size",
                 "obs_replay_stack_compression",
-                "obs_stack_padding"
+                "obs_stack_padding",
             ]
             for (key, value) in currentSettings {
                 if resetKeys.contains(key) { continue }
@@ -163,7 +165,8 @@ extension TrainViewModel {
     }
 
     func envResetSeed(for id: String) -> UInt64? {
-        let seedValue = settings(for: id)["seed"]?.stringValue?
+        let seedValue =
+            settings(for: id)["seed"]?.stringValue?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         if seedValue.isEmpty { return nil }
         return UInt64(seedValue)

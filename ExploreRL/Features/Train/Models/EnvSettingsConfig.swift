@@ -75,7 +75,9 @@ enum SettingValue: Equatable, Codable {
         case "int": self = .int(try container.decode(Int.self, forKey: .value))
         default:
             throw DecodingError.dataCorrupted(
-                .init(codingPath: [CodingKeys.type], debugDescription: "Unknown setting type: \(type)")
+                .init(
+                    codingPath: [CodingKeys.type], debugDescription: "Unknown setting type: \(type)"
+                )
             )
         }
     }
@@ -132,7 +134,8 @@ struct EnvSettingsConfig {
                     id: "is_slippery",
                     label: "Slippery",
                     defaultValue: .bool(true),
-                    description: "Ice is slippery, actions may not work as intended (makes learning harder)"
+                    description:
+                        "Ice is slippery, actions may not work as intended (makes learning harder)"
                 ),
                 SettingDefinition(
                     id: "success_rate",
@@ -153,7 +156,7 @@ struct EnvSettingsConfig {
                     label: "Custom Map",
                     defaultValue: .string(""),
                     description: "Comma or newline separated rows, e.g. SFFF,FHFH,FFFH,HFFG"
-                )
+                ),
             ]
 
         case "Taxi":
@@ -170,7 +173,7 @@ struct EnvSettingsConfig {
                     label: "Fickle Passenger",
                     defaultValue: .bool(false),
                     description: "Passenger may change destination"
-                )
+                ),
             ]
 
         case "CliffWalking":
@@ -181,7 +184,7 @@ struct EnvSettingsConfig {
                     label: "Slippery",
                     defaultValue: .bool(false),
                     description: "Adds wind effect to movements"
-                )
+                ),
             ]
 
         case "Blackjack":
@@ -198,7 +201,7 @@ struct EnvSettingsConfig {
                     label: "Sutton & Barto Rules",
                     defaultValue: .bool(false),
                     description: "Use Sutton & Barto textbook rules"
-                )
+                ),
             ]
 
         case "Pendulum":
@@ -223,7 +226,7 @@ struct EnvSettingsConfig {
                     defaultValue: .float(1.0),
                     description: "Initial angular velocity range",
                     range: 0.0...5.0
-                )
+                ),
             ]
 
         case "MountainCar", "MountainCarContinuous":
@@ -235,7 +238,7 @@ struct EnvSettingsConfig {
                     defaultValue: .float(0.0),
                     description: "Minimum velocity at goal",
                     range: 0.0...0.1
-                )
+                ),
             ]
 
         case "Acrobot":
@@ -261,7 +264,7 @@ struct EnvSettingsConfig {
                     defaultValue: .float(0.1),
                     description: "Upper bound for random initial state",
                     range: 0.0...1.0
-                )
+                ),
             ]
 
         case "LunarLander", "LunarLanderContinuous":
@@ -289,7 +292,7 @@ struct EnvSettingsConfig {
                     label: "Turbulence Power",
                     defaultValue: .float(1.5),
                     range: 0.0...5.0
-                )
+                ),
             ]
 
         case "CarRacing", "CarRacingDiscrete":
@@ -365,7 +368,7 @@ struct EnvSettingsConfig {
                     label: "Randomize Colors",
                     defaultValue: .bool(true),
                     description: "Randomize colors on reset"
-                )
+                ),
             ]
 
         default:

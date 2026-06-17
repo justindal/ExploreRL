@@ -37,8 +37,8 @@ struct SaveSessionSheet: View {
             }
             .navigationTitle("Save Session")
             #if os(macOS)
-            .formStyle(.grouped)
-            .frame(minWidth: 380, idealWidth: 440, minHeight: 260)
+                .formStyle(.grouped)
+                .frame(minWidth: 380, idealWidth: 440, minHeight: 260)
             #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -52,7 +52,8 @@ struct SaveSessionSheet: View {
             .onAppear {
                 let formatter = DateFormatter()
                 formatter.dateFormat = "MMM d, h:mm a"
-                name = "\(environmentID) - \(algorithmType.rawValue) - \(formatter.string(from: Date()))"
+                name =
+                    "\(environmentID) - \(algorithmType.rawValue) - \(formatter.string(from: Date()))"
             }
         }
     }

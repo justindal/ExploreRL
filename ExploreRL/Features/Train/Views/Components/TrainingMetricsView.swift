@@ -22,11 +22,13 @@ struct TrainingMetricsView: View {
                 spacing: 12
             ) {
                 coreMetrics
-                
+
                 if algorithm == .qLearning || algorithm == .sarsa || algorithm == .dqn {
                     MetricCard(
                         title: "Exploration",
-                        value: trainingState.explorationRate.map { $0.formatted(.percent.precision(.fractionLength(1))) } ?? "-"
+                        value: trainingState.explorationRate.map {
+                            $0.formatted(.percent.precision(.fractionLength(1)))
+                        } ?? "-"
                     )
                 }
 
@@ -36,23 +38,29 @@ struct TrainingMetricsView: View {
         .padding()
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
     }
-    
+
     @ViewBuilder
     private var coreMetrics: some View {
         MetricCard(
             title: "Avg Reward",
-            value: trainingState.meanReward.map { $0.formatted(.number.precision(.fractionLength(2))) } ?? "-"
+            value: trainingState.meanReward.map {
+                $0.formatted(.number.precision(.fractionLength(2)))
+            } ?? "-"
         )
         MetricCard(
             title: "Best Reward",
-            value: trainingState.rewardHistory.max().map { $0.formatted(.number.precision(.fractionLength(2))) } ?? "-"
+            value: trainingState.rewardHistory.max().map {
+                $0.formatted(.number.precision(.fractionLength(2)))
+            } ?? "-"
         )
         MetricCard(
             title: "Avg Length",
-            value: trainingState.meanEpisodeLength.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "-"
+            value: trainingState.meanEpisodeLength.map {
+                $0.formatted(.number.precision(.fractionLength(1)))
+            } ?? "-"
         )
     }
-    
+
     @ViewBuilder
     private var algorithmSpecificMetrics: some View {
         switch algorithm {
@@ -68,7 +76,7 @@ struct TrainingMetricsView: View {
             td3Metrics
         }
     }
-    
+
     @ViewBuilder
     private var dqnMetrics: some View {
         MetricCard(
@@ -80,7 +88,7 @@ struct TrainingMetricsView: View {
             value: trainingState.learningRateHistory.last.map { formatLearningRate($0) } ?? "-"
         )
     }
-    
+
     @ViewBuilder
     private var ppoMetrics: some View {
         MetricCard(
@@ -104,7 +112,7 @@ struct TrainingMetricsView: View {
             value: trainingState.learningRateHistory.last.map { formatLearningRate($0) } ?? "-"
         )
     }
-    
+
     @ViewBuilder
     private var sacMetrics: some View {
         MetricCard(
@@ -124,7 +132,7 @@ struct TrainingMetricsView: View {
             value: trainingState.learningRateHistory.last.map { formatLearningRate($0) } ?? "-"
         )
     }
-    
+
     @ViewBuilder
     private var td3Metrics: some View {
         MetricCard(
@@ -140,11 +148,11 @@ struct TrainingMetricsView: View {
             value: trainingState.learningRateHistory.last.map { formatLearningRate($0) } ?? "-"
         )
     }
-    
+
     private func formatValue(_ value: Double) -> String {
         value.formatted(.number.precision(.fractionLength(4)))
     }
-    
+
     private func formatLearningRate(_ value: Double) -> String {
         if value < 0.001 {
             return String(format: "%.1e", value)

@@ -11,7 +11,8 @@ struct EvaluateView: View {
     @State private var viewModel = EvaluateViewModel()
     @State private var path: [UUID] = []
 
-    init(sessionToLoad: Binding<SavedSession?> = .constant(nil), onGoToLibrary: (() -> Void)? = nil) {
+    init(sessionToLoad: Binding<SavedSession?> = .constant(nil), onGoToLibrary: (() -> Void)? = nil)
+    {
         _sessionToLoad = sessionToLoad
         self.onGoToLibrary = onGoToLibrary
     }

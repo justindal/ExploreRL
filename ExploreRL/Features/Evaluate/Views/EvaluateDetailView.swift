@@ -106,7 +106,7 @@ struct EvaluateDetailView: View {
                             .monospacedDigit()
                     }
                     ProgressView(value: vm.state.progress)
-                    
+
                     HStack {
                         Text("Step: \(vm.state.currentStep)")
                             .font(.caption)
@@ -191,7 +191,7 @@ struct EvaluateDetailView: View {
                             .buttonStyle(.glass(.regular.tint(.red).interactive()))
                             .controlSize(.large)
                             #if os(macOS)
-                            .tint(.red)
+                                .tint(.red)
                             #endif
                     } else {
                         button
@@ -219,7 +219,7 @@ struct EvaluateDetailView: View {
                             .buttonStyle(.glass(.regular.tint(.green).interactive()))
                             .controlSize(.large)
                             #if os(macOS)
-                            .tint(.green)
+                                .tint(.green)
                             #endif
                     } else {
                         button

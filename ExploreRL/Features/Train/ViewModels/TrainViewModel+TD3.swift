@@ -159,7 +159,9 @@ extension TrainViewModel {
         output.targetPolicyNoise = max(output.targetPolicyNoise, 0.0)
         output.targetNoiseClip = max(output.targetNoiseClip, 0.0)
         output.actionNoiseType = output.actionNoiseType.lowercased()
-        if !["none", "normal", "ou", "ornsteinuhlenbeck", "ornstein-uhlenbeck"].contains(output.actionNoiseType) {
+        if !["none", "normal", "ou", "ornsteinuhlenbeck", "ornstein-uhlenbeck"].contains(
+            output.actionNoiseType)
+        {
             output.actionNoiseType = "none"
         }
         output.actionNoiseStd = max(output.actionNoiseStd, 0.0)

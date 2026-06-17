@@ -2,11 +2,11 @@ import Foundation
 import Metal
 
 #if canImport(Darwin)
-import Darwin
+    import Darwin
 #endif
 
 #if os(macOS)
-import AppKit
+    import AppKit
 #endif
 
 @MainActor
@@ -22,7 +22,7 @@ final class SettingsViewModel {
     private(set) var isExporting = false
     private(set) var exportURL: URL?
     private(set) var sessionCount = 0
-    
+
     private(set) var deviceInfo = DeviceInfo()
     private(set) var isLoadingDevice = false
     private(set) var readinessChecks: [ReadinessCheck] = []
@@ -70,9 +70,9 @@ final class SettingsViewModel {
 
     func openAppFiles() {
         #if os(macOS)
-        let url = storage.sessionsDirectory
-        try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
-        NSWorkspace.shared.open(url)
+            let url = storage.sessionsDirectory
+            try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+            NSWorkspace.shared.open(url)
         #endif
     }
 
@@ -193,11 +193,11 @@ final class SettingsViewModel {
 
     private func machineIdentifier() -> String {
         #if os(macOS)
-        return sysctlString("hw.model")
-            ?? sysctlString("machdep.cpu.brand_string")
-            ?? "Unknown"
+            return sysctlString("hw.model")
+                ?? sysctlString("machdep.cpu.brand_string")
+                ?? "Unknown"
         #else
-        return sysctlString("hw.machine") ?? "Unknown"
+            return sysctlString("hw.machine") ?? "Unknown"
         #endif
     }
 

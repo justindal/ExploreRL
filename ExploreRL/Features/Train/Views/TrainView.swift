@@ -33,7 +33,8 @@ struct TrainView: View {
                     ContentUnavailableView(
                         "Select an Environment",
                         systemImage: "square.grid.2x2",
-                        description: Text("Choose an environment from the sidebar to start training.")
+                        description: Text(
+                            "Choose an environment from the sidebar to start training.")
                     )
                 }
             }
@@ -79,7 +80,8 @@ struct TrainView: View {
                                 name: spec.displayName ?? spec.name,
                                 description: spec.description ?? "",
                                 algorithms: [],
-                                isTraining: viewModel.trainingState(for: spec.id).status == .training
+                                isTraining: viewModel.trainingState(for: spec.id).status
+                                    == .training
                             )
                             .tag(spec.id)
                         #else
@@ -88,7 +90,8 @@ struct TrainView: View {
                                     name: spec.displayName ?? spec.name,
                                     description: spec.description ?? "",
                                     algorithms: [],
-                                    isTraining: viewModel.trainingState(for: spec.id).status == .training
+                                    isTraining: viewModel.trainingState(for: spec.id).status
+                                        == .training
                                 )
                             }
                         #endif

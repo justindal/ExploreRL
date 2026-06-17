@@ -20,9 +20,7 @@ struct HyperparametersSection: View {
         HyperparameterAccessor(config: config)
     }
 
-    private var groupedDefinitions:
-        [(title: String, items: [HyperparameterDefinition])]
-    {
+    private var groupedDefinitions: [(title: String, items: [HyperparameterDefinition])] {
         let visible = definitions.filter { isVisible($0) }
         var groups: [String: [HyperparameterDefinition]] = [:]
         for def in visible {
@@ -74,8 +72,7 @@ struct HyperparametersSection: View {
     }
 
     @ViewBuilder
-    private func hyperparameterRow(_ def: HyperparameterDefinition) -> some View
-    {
+    private func hyperparameterRow(_ def: HyperparameterDefinition) -> some View {
         switch def.type {
         case .double(_, let range, let step):
             doubleHyperparameter(def, range: range, step: step)
@@ -277,8 +274,7 @@ struct HyperparametersSection: View {
                             get: { value },
                             set: { newVal in
                                 stringValues[def.id] = newVal
-                                if isValidStringValue(id: def.id, value: newVal)
-                                {
+                                if isValidStringValue(id: def.id, value: newVal) {
                                     HyperparameterAccessor.setString(
                                         id: def.id,
                                         value: newVal,
@@ -665,8 +661,7 @@ struct HyperparametersSection: View {
         }
     }
 
-    private func optionDisplayLabel(_ option: String, for id: String) -> String
-    {
+    private func optionDisplayLabel(_ option: String, for id: String) -> String {
         switch id {
         case "gradientStepsMode":
             switch option {

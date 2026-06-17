@@ -47,11 +47,15 @@ struct TD3Hyperparameters: Equatable, Codable {
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         learningRate = try c.decodeIfPresent(Float.self, forKey: .learningRate) ?? 1e-3
-        learningRateSchedule = try c.decodeIfPresent(String.self, forKey: .learningRateSchedule) ?? "constant"
+        learningRateSchedule =
+            try c.decodeIfPresent(String.self, forKey: .learningRateSchedule) ?? "constant"
         learningRateFinal = try c.decodeIfPresent(Float.self, forKey: .learningRateFinal) ?? 0.0
-        learningRateDecayRate = try c.decodeIfPresent(Float.self, forKey: .learningRateDecayRate) ?? 0.99
-        learningRateMinValue = try c.decodeIfPresent(Float.self, forKey: .learningRateMinValue) ?? 0.0
-        learningRateMilestones = try c.decodeIfPresent(String.self, forKey: .learningRateMilestones) ?? "0.5,0.75"
+        learningRateDecayRate =
+            try c.decodeIfPresent(Float.self, forKey: .learningRateDecayRate) ?? 0.99
+        learningRateMinValue =
+            try c.decodeIfPresent(Float.self, forKey: .learningRateMinValue) ?? 0.0
+        learningRateMilestones =
+            try c.decodeIfPresent(String.self, forKey: .learningRateMilestones) ?? "0.5,0.75"
         learningRateGamma = try c.decodeIfPresent(Float.self, forKey: .learningRateGamma) ?? 0.1
         warmupEnabled = try c.decodeIfPresent(Bool.self, forKey: .warmupEnabled) ?? false
         warmupFraction = try c.decodeIfPresent(Double.self, forKey: .warmupFraction) ?? 0.05
@@ -62,7 +66,8 @@ struct TD3Hyperparameters: Equatable, Codable {
         tau = try c.decodeIfPresent(Double.self, forKey: .tau) ?? 0.005
         learningStarts = try c.decodeIfPresent(Int.self, forKey: .learningStarts) ?? 100
         trainFrequency = try c.decodeIfPresent(Int.self, forKey: .trainFrequency) ?? 1
-        trainFrequencyUnit = try c.decodeIfPresent(String.self, forKey: .trainFrequencyUnit) ?? "step"
+        trainFrequencyUnit =
+            try c.decodeIfPresent(String.self, forKey: .trainFrequencyUnit) ?? "step"
         gradientSteps = try c.decodeIfPresent(Int.self, forKey: .gradientSteps) ?? 1
         gradientStepsMode =
             try c.decodeIfPresent(GradientStepsMode.self, forKey: .gradientStepsMode) ?? .fixed
@@ -76,16 +81,22 @@ struct TD3Hyperparameters: Equatable, Codable {
         ouInitialNoise = try c.decodeIfPresent(Float.self, forKey: .ouInitialNoise) ?? 0.0
         netArch = try c.decodeIfPresent([Int].self, forKey: .netArch) ?? [400, 300]
         nCritics = try c.decodeIfPresent(Int.self, forKey: .nCritics) ?? 2
-        shareFeaturesExtractor = try c.decodeIfPresent(Bool.self, forKey: .shareFeaturesExtractor) ?? false
+        shareFeaturesExtractor =
+            try c.decodeIfPresent(Bool.self, forKey: .shareFeaturesExtractor) ?? false
         activation = try c.decodeIfPresent(String.self, forKey: .activation) ?? "relu"
         normalizeImages = try c.decodeIfPresent(Bool.self, forKey: .normalizeImages) ?? true
-        optimizeMemoryUsage = try c.decodeIfPresent(Bool.self, forKey: .optimizeMemoryUsage) ?? false
-        handleTimeoutTermination = try c.decodeIfPresent(Bool.self, forKey: .handleTimeoutTermination) ?? true
+        optimizeMemoryUsage =
+            try c.decodeIfPresent(Bool.self, forKey: .optimizeMemoryUsage) ?? false
+        handleTimeoutTermination =
+            try c.decodeIfPresent(Bool.self, forKey: .handleTimeoutTermination) ?? true
         optimizerActorBeta1 = try c.decodeIfPresent(Float.self, forKey: .optimizerActorBeta1) ?? 0.9
-        optimizerActorBeta2 = try c.decodeIfPresent(Float.self, forKey: .optimizerActorBeta2) ?? 0.999
+        optimizerActorBeta2 =
+            try c.decodeIfPresent(Float.self, forKey: .optimizerActorBeta2) ?? 0.999
         optimizerActorEps = try c.decodeIfPresent(Float.self, forKey: .optimizerActorEps) ?? 1e-8
-        optimizerCriticBeta1 = try c.decodeIfPresent(Float.self, forKey: .optimizerCriticBeta1) ?? 0.9
-        optimizerCriticBeta2 = try c.decodeIfPresent(Float.self, forKey: .optimizerCriticBeta2) ?? 0.999
+        optimizerCriticBeta1 =
+            try c.decodeIfPresent(Float.self, forKey: .optimizerCriticBeta1) ?? 0.9
+        optimizerCriticBeta2 =
+            try c.decodeIfPresent(Float.self, forKey: .optimizerCriticBeta2) ?? 0.999
         optimizerCriticEps = try c.decodeIfPresent(Float.self, forKey: .optimizerCriticEps) ?? 1e-8
     }
 }

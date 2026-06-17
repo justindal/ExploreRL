@@ -157,10 +157,11 @@ final class TrainViewModel {
         let pending = accumulator.drain()
 
         let currentTimestep = trainingState(for: id).currentTimestep
-        guard pending.timestep != currentTimestep
-            || !pending.episodes.isEmpty
-            || !pending.metrics.isEmpty
-            || pending.renderSnapshot != nil
+        guard
+            pending.timestep != currentTimestep
+                || !pending.episodes.isEmpty
+                || !pending.metrics.isEmpty
+                || pending.renderSnapshot != nil
         else { return }
 
         updateTrainingState(for: id) { state in

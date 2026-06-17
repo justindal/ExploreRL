@@ -285,8 +285,7 @@ struct TrainSettingsView: View {
             didApply = true
         }
 
-        if canApplyTrainingConfig, localTrainingConfig != appliedTrainingConfig
-        {
+        if canApplyTrainingConfig, localTrainingConfig != appliedTrainingConfig {
             vm.updateTrainingConfig(for: envID) { config in
                 config = localTrainingConfig
             }

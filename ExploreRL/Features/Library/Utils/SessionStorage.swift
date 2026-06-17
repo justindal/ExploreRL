@@ -26,10 +26,12 @@ final class SessionStorage: Sendable {
     func listSessions() -> [SavedSession] {
         let fm = FileManager.default
         guard fm.fileExists(atPath: sessionsDirectory.path) else { return [] }
-        guard let contents = try? fm.contentsOfDirectory(
-            at: sessionsDirectory,
-            includingPropertiesForKeys: [.contentModificationDateKey]
-        ) else { return [] }
+        guard
+            let contents = try? fm.contentsOfDirectory(
+                at: sessionsDirectory,
+                includingPropertiesForKeys: [.contentModificationDateKey]
+            )
+        else { return [] }
 
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
@@ -68,10 +70,12 @@ final class SessionStorage: Sendable {
 
     func sessionSize(for id: UUID) -> Int64 {
         let dir = sessionDirectory(for: id)
-        guard let enumerator = FileManager.default.enumerator(
-            at: dir,
-            includingPropertiesForKeys: [.fileSizeKey]
-        ) else { return 0 }
+        guard
+            let enumerator = FileManager.default.enumerator(
+                at: dir,
+                includingPropertiesForKeys: [.fileSizeKey]
+            )
+        else { return 0 }
 
         var total: Int64 = 0
         for case let url as URL in enumerator {

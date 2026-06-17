@@ -39,7 +39,7 @@ struct LoadSessionSheet: View {
                             }
                             .tint(.primary)
                             #if os(macOS)
-                            .listRowSeparator(.hidden)
+                                .listRowSeparator(.hidden)
                             #endif
                         }
                     }
@@ -47,7 +47,7 @@ struct LoadSessionSheet: View {
             }
             .navigationTitle("Load Session")
             #if os(macOS)
-            .frame(minWidth: 400, idealWidth: 500, minHeight: 400)
+                .frame(minWidth: 400, idealWidth: 500, minHeight: 400)
             #endif
             .onAppear {
                 viewModel.loadSessions()

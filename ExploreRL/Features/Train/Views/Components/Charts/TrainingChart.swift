@@ -214,7 +214,8 @@ struct TrainingChart: View {
     private func syncLockedDomain() {
         if lockYScale {
             if lockedYDomain == nil {
-                lockedYDomain = prepared.yDomain
+                lockedYDomain =
+                    prepared.yDomain
                     ?? Self.automaticDomain(for: prepared.display)
             }
         } else {
@@ -253,7 +254,8 @@ struct TrainingChart: View {
         scaleMode: TrainingChartScaleMode
     ) -> PreparedData {
         let display = sampled(from: data)
-        let average = showAverage
+        let average =
+            showAverage
             ? rollingAverage(of: display, averageWindow: averageWindow)
             : []
         let yDomain = domain(for: display, scaleMode: scaleMode)
@@ -377,7 +379,7 @@ struct TrainingChart: View {
         for values: [TrainingChartPoint]
     ) -> ClosedRange<Double>? {
         guard let minValue = values.map(\.value).min(),
-              let maxValue = values.map(\.value).max()
+            let maxValue = values.map(\.value).max()
         else {
             return nil
         }

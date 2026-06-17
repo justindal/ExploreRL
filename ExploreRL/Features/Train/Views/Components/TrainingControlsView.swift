@@ -171,7 +171,7 @@ struct TrainingControlsView: View {
                     .buttonStyle(.glass(.regular.tint(.blue).interactive()))
                     .controlSize(.large)
                     #if os(macOS)
-                    .tint(.blue)
+                        .tint(.blue)
                     #endif
             } else {
                 button
@@ -194,7 +194,7 @@ struct TrainingControlsView: View {
                     .buttonStyle(.glass(.regular.tint(.green).interactive()))
                     .controlSize(.large)
                     #if os(macOS)
-                    .tint(.green)
+                        .tint(.green)
                     #endif
             } else {
                 button
@@ -217,7 +217,7 @@ struct TrainingControlsView: View {
                     .buttonStyle(.glass(.regular.tint(.orange).interactive()))
                     .controlSize(.large)
                     #if os(macOS)
-                    .tint(.orange)
+                        .tint(.orange)
                     #endif
             } else {
                 button
@@ -255,7 +255,7 @@ struct TrainingControlsView: View {
                     )
                     .controlSize(.large)
                     #if os(macOS)
-                    .tint(isTraining ? .red : .primary)
+                        .tint(isTraining ? .red : .primary)
                     #endif
             } else {
                 button

@@ -58,13 +58,16 @@ final class EvaluateViewModel {
             case .qLearning, .sarsa:
                 tabularAgent = try TabularAgent.load(from: checkpointDir, env: loadedEnv)
             case .dqn:
-                dqnAlgorithm = try DQN.load(from: checkpointDir, env: loadedEnv, includeBuffer: false)
+                dqnAlgorithm = try DQN.load(
+                    from: checkpointDir, env: loadedEnv, includeBuffer: false)
             case .ppo:
                 ppoAlgorithm = try PPO.load(from: checkpointDir, env: loadedEnv)
             case .sac:
-                sacAlgorithm = try SAC.load(from: checkpointDir, env: loadedEnv, includeBuffer: false)
+                sacAlgorithm = try SAC.load(
+                    from: checkpointDir, env: loadedEnv, includeBuffer: false)
             case .td3:
-                td3Algorithm = try TD3.load(from: checkpointDir, env: loadedEnv, includeBuffer: false)
+                td3Algorithm = try TD3.load(
+                    from: checkpointDir, env: loadedEnv, includeBuffer: false)
             }
 
             loadedSession = session
@@ -193,12 +196,14 @@ final class EvaluateViewModel {
             let size = settings["size"]?.intValue ?? defaultSize
             let isSlippery = settings["is_slippery"]?.boolValue ?? true
             let successRate = settings["success_rate"]?.floatValue ?? Float(1.0 / 3.0)
-            let customMap = settings["custom_map"]?.stringValue?
+            let customMap =
+                settings["custom_map"]?.stringValue?
                 .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             let generatedDesc = settings["_generated_desc"]?.stringValue ?? ""
 
             if !customMap.isEmpty {
-                let rows = customMap
+                let rows =
+                    customMap
                     .components(separatedBy: CharacterSet(charactersIn: ",\n"))
                     .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
                     .filter { !$0.isEmpty }
@@ -275,7 +280,8 @@ final class EvaluateViewModel {
     }
 
     private func envResetSeed(settings: [String: SettingValue]) -> UInt64? {
-        let seedValue = settings["seed"]?.stringValue?
+        let seedValue =
+            settings["seed"]?.stringValue?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         if seedValue.isEmpty { return nil }
         return UInt64(seedValue)

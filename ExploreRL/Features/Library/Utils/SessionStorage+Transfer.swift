@@ -1,5 +1,5 @@
-import Foundation
 import AppleArchive
+import Foundation
 import System
 import UniformTypeIdentifiers
 
@@ -27,14 +27,16 @@ extension SessionStorage {
         try fm.createDirectory(at: sessionsDirectory, withIntermediateDirectories: true)
 
         let archiveName = "ExploreRL-Sessions"
-        let archiveURL = exportsDirectory
+        let archiveURL =
+            exportsDirectory
             .appendingPathComponent(archiveName)
             .appendingPathExtension("xrlsession")
 
         if fm.fileExists(atPath: archiveURL.path),
-           let archiveMod = modificationDate(of: archiveURL),
-           let latestSource = latestModificationDate(under: sessionsDirectory),
-           archiveMod >= latestSource {
+            let archiveMod = modificationDate(of: archiveURL),
+            let latestSource = latestModificationDate(under: sessionsDirectory),
+            archiveMod >= latestSource
+        {
             return archiveURL
         }
 
@@ -43,7 +45,8 @@ extension SessionStorage {
 
     nonisolated func invalidateExportCache() {
         try? FileManager.default.removeItem(
-            at: exportsDirectory
+            at:
+                exportsDirectory
                 .appendingPathComponent("ExploreRL-Sessions")
                 .appendingPathExtension("xrlsession")
         )
@@ -61,33 +64,40 @@ extension SessionStorage {
     }
 }
 
-private extension SessionStorage {
+extension SessionStorage {
 
-    nonisolated func writeArchive(from source: URL, name: String) throws -> URL {
+    fileprivate nonisolated func writeArchive(from source: URL, name: String) throws -> URL {
         let fm = FileManager.default
         try fm.createDirectory(at: exportsDirectory, withIntermediateDirectories: true)
 
-        let destination = exportsDirectory
+        let destination =
+            exportsDirectory
             .appendingPathComponent(name)
             .appendingPathExtension("xrlsession")
 
-        guard let writeStream = ArchiveByteStream.fileStream(
-            path: FilePath(destination.path),
-            mode: .writeOnly,
-            options: [.create, .truncate],
-            permissions: FilePermissions(rawValue: 0o644)
-        ) else { throw CocoaError(.fileWriteUnknown) }
+        guard
+            let writeStream = ArchiveByteStream.fileStream(
+                path: FilePath(destination.path),
+                mode: .writeOnly,
+                options: [.create, .truncate],
+                permissions: FilePermissions(rawValue: 0o644)
+            )
+        else { throw CocoaError(.fileWriteUnknown) }
         defer { try? writeStream.close() }
 
-        guard let compressStream = ArchiveByteStream.compressionStream(
-            using: .lzfse,
-            writingTo: writeStream
-        ) else { throw CocoaError(.fileWriteUnknown) }
+        guard
+            let compressStream = ArchiveByteStream.compressionStream(
+                using: .lzfse,
+                writingTo: writeStream
+            )
+        else { throw CocoaError(.fileWriteUnknown) }
         defer { try? compressStream.close() }
 
-        guard let encodeStream = ArchiveStream.encodeStream(
-            writingTo: compressStream
-        ) else { throw CocoaError(.fileWriteUnknown) }
+        guard
+            let encodeStream = ArchiveStream.encodeStream(
+                writingTo: compressStream
+            )
+        else { throw CocoaError(.fileWriteUnknown) }
         defer { try? encodeStream.close() }
 
         guard let keySet = ArchiveHeader.FieldKeySet("TYP,PAT,DAT,MOD") else {
@@ -102,35 +112,43 @@ private extension SessionStorage {
         return destination
     }
 
-    func extractArchive(at source: URL, to destination: URL) throws {
-        guard let readStream = ArchiveByteStream.fileStream(
-            path: FilePath(source.path),
-            mode: .readOnly,
-            options: [],
-            permissions: FilePermissions(rawValue: 0o644)
-        ) else { throw CocoaError(.fileReadUnknown) }
+    fileprivate func extractArchive(at source: URL, to destination: URL) throws {
+        guard
+            let readStream = ArchiveByteStream.fileStream(
+                path: FilePath(source.path),
+                mode: .readOnly,
+                options: [],
+                permissions: FilePermissions(rawValue: 0o644)
+            )
+        else { throw CocoaError(.fileReadUnknown) }
         defer { try? readStream.close() }
 
-        guard let decompressStream = ArchiveByteStream.decompressionStream(
-            readingFrom: readStream
-        ) else { throw CocoaError(.fileReadCorruptFile) }
+        guard
+            let decompressStream = ArchiveByteStream.decompressionStream(
+                readingFrom: readStream
+            )
+        else { throw CocoaError(.fileReadCorruptFile) }
         defer { try? decompressStream.close() }
 
-        guard let decodeStream = ArchiveStream.decodeStream(
-            readingFrom: decompressStream
-        ) else { throw CocoaError(.fileReadCorruptFile) }
+        guard
+            let decodeStream = ArchiveStream.decodeStream(
+                readingFrom: decompressStream
+            )
+        else { throw CocoaError(.fileReadCorruptFile) }
         defer { try? decodeStream.close() }
 
-        guard let extractStream = ArchiveStream.extractStream(
-            extractingTo: FilePath(destination.path),
-            flags: [.ignoreOperationNotPermitted]
-        ) else { throw CocoaError(.fileReadUnknown) }
+        guard
+            let extractStream = ArchiveStream.extractStream(
+                extractingTo: FilePath(destination.path),
+                flags: [.ignoreOperationNotPermitted]
+            )
+        else { throw CocoaError(.fileReadUnknown) }
         defer { try? extractStream.close() }
 
         _ = try ArchiveStream.process(readingFrom: decodeStream, writingTo: extractStream)
     }
 
-    func restoreSessions(from staging: URL) throws -> Int {
+    fileprivate func restoreSessions(from staging: URL) throws -> Int {
         let fm = FileManager.default
         let sessionFiles = findSessionFiles(under: staging)
         guard !sessionFiles.isEmpty else {
@@ -157,7 +175,8 @@ private extension SessionStorage {
 
             if sourceDir.standardizedFileURL == staging.standardizedFileURL {
                 try fm.createDirectory(at: destination, withIntermediateDirectories: true)
-                for item in try fm.contentsOfDirectory(at: staging, includingPropertiesForKeys: nil) {
+                for item in try fm.contentsOfDirectory(at: staging, includingPropertiesForKeys: nil)
+                {
                     try fm.moveItem(
                         at: item,
                         to: destination.appendingPathComponent(item.lastPathComponent)
@@ -187,11 +206,13 @@ private extension SessionStorage {
         return count
     }
 
-    func findSessionFiles(under directory: URL) -> [URL] {
-        guard let enumerator = FileManager.default.enumerator(
-            at: directory,
-            includingPropertiesForKeys: [.isRegularFileKey]
-        ) else { return [] }
+    fileprivate func findSessionFiles(under directory: URL) -> [URL] {
+        guard
+            let enumerator = FileManager.default.enumerator(
+                at: directory,
+                includingPropertiesForKeys: [.isRegularFileKey]
+            )
+        else { return [] }
 
         var results: [URL] = []
         for case let url as URL in enumerator where url.lastPathComponent == "session.json" {
@@ -200,7 +221,7 @@ private extension SessionStorage {
         return results
     }
 
-    nonisolated func sanitize(_ name: String) -> String {
+    fileprivate nonisolated func sanitize(_ name: String) -> String {
         let invalid = CharacterSet(charactersIn: "/\\:?%*|\"<>")
             .union(.newlines).union(.controlCharacters)
         return name.components(separatedBy: invalid)
@@ -208,19 +229,24 @@ private extension SessionStorage {
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    nonisolated func modificationDate(of url: URL) -> Date? {
+    fileprivate nonisolated func modificationDate(of url: URL) -> Date? {
         try? FileManager.default.attributesOfItem(atPath: url.path)[.modificationDate] as? Date
     }
 
-    nonisolated func latestModificationDate(under directory: URL) -> Date? {
-        guard let enumerator = FileManager.default.enumerator(
-            at: directory,
-            includingPropertiesForKeys: [.contentModificationDateKey]
-        ) else { return nil }
+    fileprivate nonisolated func latestModificationDate(under directory: URL) -> Date? {
+        guard
+            let enumerator = FileManager.default.enumerator(
+                at: directory,
+                includingPropertiesForKeys: [.contentModificationDateKey]
+            )
+        else { return nil }
 
         var latest: Date?
         for case let url as URL in enumerator {
-            guard let date = try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate else {
+            guard
+                let date = try? url.resourceValues(forKeys: [.contentModificationDateKey])
+                    .contentModificationDate
+            else {
                 continue
             }
             if latest == nil || date > latest! {

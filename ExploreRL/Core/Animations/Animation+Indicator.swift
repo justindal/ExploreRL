@@ -8,6 +8,7 @@
 import SwiftUI
 
 extension Animation {
-    static let indicatorAnimation =  Animation
+    static let indicatorAnimation =
+        Animation
         .interpolatingSpring(duration: 0.6, bounce: 0.3, initialVelocity: 0)
 }

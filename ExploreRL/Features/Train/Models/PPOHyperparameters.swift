@@ -40,11 +40,15 @@ struct PPOHyperparameters: Equatable, Codable {
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         learningRate = try c.decodeIfPresent(Float.self, forKey: .learningRate) ?? 3e-4
-        learningRateSchedule = try c.decodeIfPresent(String.self, forKey: .learningRateSchedule) ?? "constant"
+        learningRateSchedule =
+            try c.decodeIfPresent(String.self, forKey: .learningRateSchedule) ?? "constant"
         learningRateFinal = try c.decodeIfPresent(Float.self, forKey: .learningRateFinal) ?? 0.0
-        learningRateDecayRate = try c.decodeIfPresent(Float.self, forKey: .learningRateDecayRate) ?? 0.99
-        learningRateMinValue = try c.decodeIfPresent(Float.self, forKey: .learningRateMinValue) ?? 0.0
-        learningRateMilestones = try c.decodeIfPresent(String.self, forKey: .learningRateMilestones) ?? "0.5,0.75"
+        learningRateDecayRate =
+            try c.decodeIfPresent(Float.self, forKey: .learningRateDecayRate) ?? 0.99
+        learningRateMinValue =
+            try c.decodeIfPresent(Float.self, forKey: .learningRateMinValue) ?? 0.0
+        learningRateMilestones =
+            try c.decodeIfPresent(String.self, forKey: .learningRateMilestones) ?? "0.5,0.75"
         learningRateGamma = try c.decodeIfPresent(Float.self, forKey: .learningRateGamma) ?? 0.1
         warmupEnabled = try c.decodeIfPresent(Bool.self, forKey: .warmupEnabled) ?? false
         warmupFraction = try c.decodeIfPresent(Double.self, forKey: .warmupFraction) ?? 0.05

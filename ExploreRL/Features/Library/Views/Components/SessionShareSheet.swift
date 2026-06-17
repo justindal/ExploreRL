@@ -8,28 +8,29 @@
 import SwiftUI
 
 #if os(iOS)
-struct SessionShareSheet: UIViewControllerRepresentable {
-    let url: URL
+    struct SessionShareSheet: UIViewControllerRepresentable {
+        let url: URL
 
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: [url], applicationActivities: nil)
-    }
-
-    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
-}
-#elseif os(macOS)
-struct SessionShareSheet: NSViewRepresentable {
-    let url: URL
-
-    func makeNSView(context: Context) -> NSView {
-        let view = NSView()
-        DispatchQueue.main.async {
-            let picker = NSSharingServicePicker(items: [url])
-            picker.show(relativeTo: view.bounds, of: view, preferredEdge: .minY)
+        func makeUIViewController(context: Context) -> UIActivityViewController {
+            UIActivityViewController(activityItems: [url], applicationActivities: nil)
         }
-        return view
-    }
 
-    func updateNSView(_ nsView: NSView, context: Context) {}
-}
+        func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context)
+        {}
+    }
+#elseif os(macOS)
+    struct SessionShareSheet: NSViewRepresentable {
+        let url: URL
+
+        func makeNSView(context: Context) -> NSView {
+            let view = NSView()
+            DispatchQueue.main.async {
+                let picker = NSSharingServicePicker(items: [url])
+                picker.show(relativeTo: view.bounds, of: view, preferredEdge: .minY)
+            }
+            return view
+        }
+
+        func updateNSView(_ nsView: NSView, context: Context) {}
+    }
 #endif

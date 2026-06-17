@@ -1,14 +1,15 @@
 #if os(iOS)
-import SwiftUI
-import UIKit
+    import SwiftUI
+    import UIKit
 
-struct ActivitySheet: UIViewControllerRepresentable {
-    let url: URL
+    struct ActivitySheet: UIViewControllerRepresentable {
+        let url: URL
 
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: [url], applicationActivities: nil)
+        func makeUIViewController(context: Context) -> UIActivityViewController {
+            UIActivityViewController(activityItems: [url], applicationActivities: nil)
+        }
+
+        func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context)
+        {}
     }
-
-    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
-}
 #endif

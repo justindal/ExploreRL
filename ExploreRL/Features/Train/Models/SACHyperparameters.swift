@@ -63,11 +63,15 @@ struct SACHyperparameters: Equatable, Codable {
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         learningRate = try c.decodeIfPresent(Float.self, forKey: .learningRate) ?? 3e-4
-        learningRateSchedule = try c.decodeIfPresent(String.self, forKey: .learningRateSchedule) ?? "constant"
+        learningRateSchedule =
+            try c.decodeIfPresent(String.self, forKey: .learningRateSchedule) ?? "constant"
         learningRateFinal = try c.decodeIfPresent(Float.self, forKey: .learningRateFinal) ?? 0.0
-        learningRateDecayRate = try c.decodeIfPresent(Float.self, forKey: .learningRateDecayRate) ?? 0.99
-        learningRateMinValue = try c.decodeIfPresent(Float.self, forKey: .learningRateMinValue) ?? 0.0
-        learningRateMilestones = try c.decodeIfPresent(String.self, forKey: .learningRateMilestones) ?? "0.5,0.75"
+        learningRateDecayRate =
+            try c.decodeIfPresent(Float.self, forKey: .learningRateDecayRate) ?? 0.99
+        learningRateMinValue =
+            try c.decodeIfPresent(Float.self, forKey: .learningRateMinValue) ?? 0.0
+        learningRateMilestones =
+            try c.decodeIfPresent(String.self, forKey: .learningRateMilestones) ?? "0.5,0.75"
         learningRateGamma = try c.decodeIfPresent(Float.self, forKey: .learningRateGamma) ?? 0.1
         warmupEnabled = try c.decodeIfPresent(Bool.self, forKey: .warmupEnabled) ?? false
         warmupFraction = try c.decodeIfPresent(Double.self, forKey: .warmupFraction) ?? 0.05
@@ -81,7 +85,8 @@ struct SACHyperparameters: Equatable, Codable {
         gradientStepsMode =
             try c.decodeIfPresent(GradientStepsMode.self, forKey: .gradientStepsMode) ?? .fixed
         trainFrequency = try c.decodeIfPresent(Int.self, forKey: .trainFrequency) ?? 1
-        trainFrequencyUnit = try c.decodeIfPresent(String.self, forKey: .trainFrequencyUnit) ?? "step"
+        trainFrequencyUnit =
+            try c.decodeIfPresent(String.self, forKey: .trainFrequencyUnit) ?? "step"
         learningStarts = try c.decodeIfPresent(Int.self, forKey: .learningStarts) ?? 100
         autoEntropyTuning = try c.decodeIfPresent(Bool.self, forKey: .autoEntropyTuning) ?? true
         autoEntropyInit = try c.decodeIfPresent(Float.self, forKey: .autoEntropyInit) ?? 1.0
@@ -89,7 +94,8 @@ struct SACHyperparameters: Equatable, Codable {
         useTargetEntropy = try c.decodeIfPresent(Bool.self, forKey: .useTargetEntropy) ?? false
         targetEntropy = try c.decodeIfPresent(Float.self, forKey: .targetEntropy) ?? 0.0
         netArch = try c.decodeIfPresent([Int].self, forKey: .netArch) ?? [256, 256]
-        useSeparateNetworks = try c.decodeIfPresent(Bool.self, forKey: .useSeparateNetworks) ?? false
+        useSeparateNetworks =
+            try c.decodeIfPresent(Bool.self, forKey: .useSeparateNetworks) ?? false
         criticNetArch = try c.decodeIfPresent([Int].self, forKey: .criticNetArch) ?? [256, 256]
         activation = try c.decodeIfPresent(String.self, forKey: .activation) ?? "relu"
         normalizeImages = try c.decodeIfPresent(Bool.self, forKey: .normalizeImages) ?? true
@@ -100,19 +106,29 @@ struct SACHyperparameters: Equatable, Codable {
         fullStd = try c.decodeIfPresent(Bool.self, forKey: .fullStd) ?? true
         clipMean = try c.decodeIfPresent(Float.self, forKey: .clipMean) ?? 2.0
         nCritics = try c.decodeIfPresent(Int.self, forKey: .nCritics) ?? 2
-        shareFeaturesExtractor = try c.decodeIfPresent(Bool.self, forKey: .shareFeaturesExtractor) ?? false
+        shareFeaturesExtractor =
+            try c.decodeIfPresent(Bool.self, forKey: .shareFeaturesExtractor) ?? false
         criticActivation = try c.decodeIfPresent(String.self, forKey: .criticActivation) ?? "relu"
-        criticNormalizeImages = try c.decodeIfPresent(Bool.self, forKey: .criticNormalizeImages) ?? true
-        optimizeMemoryUsage = try c.decodeIfPresent(Bool.self, forKey: .optimizeMemoryUsage) ?? false
-        handleTimeoutTermination = try c.decodeIfPresent(Bool.self, forKey: .handleTimeoutTermination) ?? true
+        criticNormalizeImages =
+            try c.decodeIfPresent(Bool.self, forKey: .criticNormalizeImages) ?? true
+        optimizeMemoryUsage =
+            try c.decodeIfPresent(Bool.self, forKey: .optimizeMemoryUsage) ?? false
+        handleTimeoutTermination =
+            try c.decodeIfPresent(Bool.self, forKey: .handleTimeoutTermination) ?? true
         optimizerActorBeta1 = try c.decodeIfPresent(Float.self, forKey: .optimizerActorBeta1) ?? 0.9
-        optimizerActorBeta2 = try c.decodeIfPresent(Float.self, forKey: .optimizerActorBeta2) ?? 0.999
+        optimizerActorBeta2 =
+            try c.decodeIfPresent(Float.self, forKey: .optimizerActorBeta2) ?? 0.999
         optimizerActorEps = try c.decodeIfPresent(Float.self, forKey: .optimizerActorEps) ?? 1e-8
-        optimizerCriticBeta1 = try c.decodeIfPresent(Float.self, forKey: .optimizerCriticBeta1) ?? 0.9
-        optimizerCriticBeta2 = try c.decodeIfPresent(Float.self, forKey: .optimizerCriticBeta2) ?? 0.999
+        optimizerCriticBeta1 =
+            try c.decodeIfPresent(Float.self, forKey: .optimizerCriticBeta1) ?? 0.9
+        optimizerCriticBeta2 =
+            try c.decodeIfPresent(Float.self, forKey: .optimizerCriticBeta2) ?? 0.999
         optimizerCriticEps = try c.decodeIfPresent(Float.self, forKey: .optimizerCriticEps) ?? 1e-8
-        optimizerEntropyBeta1 = try c.decodeIfPresent(Float.self, forKey: .optimizerEntropyBeta1) ?? 0.9
-        optimizerEntropyBeta2 = try c.decodeIfPresent(Float.self, forKey: .optimizerEntropyBeta2) ?? 0.999
-        optimizerEntropyEps = try c.decodeIfPresent(Float.self, forKey: .optimizerEntropyEps) ?? 1e-8
+        optimizerEntropyBeta1 =
+            try c.decodeIfPresent(Float.self, forKey: .optimizerEntropyBeta1) ?? 0.9
+        optimizerEntropyBeta2 =
+            try c.decodeIfPresent(Float.self, forKey: .optimizerEntropyBeta2) ?? 0.999
+        optimizerEntropyEps =
+            try c.decodeIfPresent(Float.self, forKey: .optimizerEntropyEps) ?? 1e-8
     }
 }

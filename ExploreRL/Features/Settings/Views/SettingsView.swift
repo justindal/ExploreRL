@@ -1,7 +1,8 @@
-#if os(iOS)
-import UIKit
-#endif
 import SwiftUI
+
+#if os(iOS)
+    import UIKit
+#endif
 
 struct SettingsView: View {
     @Environment(\.openURL) private var openURL
@@ -95,8 +96,11 @@ struct SettingsView: View {
 
                     Button {
                         let subject = "ExploreRL Feedback"
-                        if let encoded = subject.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-                           let url = URL(string: "mailto:justin@justindaludado.com?subject=\(encoded)") {
+                        if let encoded = subject.addingPercentEncoding(
+                            withAllowedCharacters: .urlQueryAllowed),
+                            let url = URL(
+                                string: "mailto:justin@justindaludado.com?subject=\(encoded)")
+                        {
                             openURL(url)
                         }
                     } label: {
@@ -188,20 +192,20 @@ struct SettingsView: View {
                 .presentationDragIndicator(.visible)
         }
         #if os(iOS)
-        .fullScreenCover(isPresented: $showOnboarding) {
-            OnboardingView(pages: OnboardingItem.pages) {
-                hasSeenOnboarding = true
-                showOnboarding = false
+            .fullScreenCover(isPresented: $showOnboarding) {
+                OnboardingView(pages: OnboardingItem.pages) {
+                    hasSeenOnboarding = true
+                    showOnboarding = false
+                }
             }
-        }
         #else
-        .sheet(isPresented: $showOnboarding) {
-            OnboardingView(pages: OnboardingItem.pages) {
-                hasSeenOnboarding = true
-                showOnboarding = false
+            .sheet(isPresented: $showOnboarding) {
+                OnboardingView(pages: OnboardingItem.pages) {
+                    hasSeenOnboarding = true
+                    showOnboarding = false
+                }
+                .frame(minWidth: 900, minHeight: 700)
             }
-            .frame(minWidth: 900, minHeight: 700)
-        }
         #endif
         .alert(
             "Delete Failed",
@@ -262,20 +266,23 @@ struct SettingsView: View {
         .onChange(of: viewModel.exportURL) { _, url in
             guard url != nil else { return }
             #if os(macOS)
-            SessionSharePresenter.present(url: url!)
-            viewModel.clearExportURL()
+                SessionSharePresenter.present(url: url!)
+                viewModel.clearExportURL()
             #else
-            showExportShare = true
+                showExportShare = true
             #endif
         }
         #if os(iOS)
-        .sheet(isPresented: $showExportShare, onDismiss: {
-            viewModel.clearExportURL()
-        }) {
-            if let url = viewModel.exportURL {
-                ActivitySheet(url: url)
+            .sheet(
+                isPresented: $showExportShare,
+                onDismiss: {
+                    viewModel.clearExportURL()
+                }
+            ) {
+                if let url = viewModel.exportURL {
+                    ActivitySheet(url: url)
+                }
             }
-        }
         #endif
         .alert(
             "Export Failed",

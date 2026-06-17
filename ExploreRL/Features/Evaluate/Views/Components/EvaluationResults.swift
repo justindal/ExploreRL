@@ -11,10 +11,10 @@ struct EvaluationResults: View {
                 .padding(.bottom, 4)
 
             summarySection
-            
+
             Divider()
                 .padding(.vertical, 4)
-            
+
             episodesSection
         }
         .padding(.vertical, 8)
@@ -27,9 +27,15 @@ struct EvaluationResults: View {
             alignment: .leading,
             spacing: 16
         ) {
-            statView(title: "Mean Reward", value: formatStat(mean: state.meanReward, std: state.stdReward))
-            statView(title: "Mean Length", value: formatStat(mean: state.meanLength, std: state.stdLength))
-            statView(title: "Best Reward", value: state.episodeRewards.max().map { String(format: "%.2f", $0) } ?? "-")
+            statView(
+                title: "Mean Reward",
+                value: formatStat(mean: state.meanReward, std: state.stdReward))
+            statView(
+                title: "Mean Length",
+                value: formatStat(mean: state.meanLength, std: state.stdLength))
+            statView(
+                title: "Best Reward",
+                value: state.episodeRewards.max().map { String(format: "%.2f", $0) } ?? "-")
             statView(title: "Episodes", value: "\(state.episodeRewards.count)")
         }
     }
@@ -67,10 +73,10 @@ struct EvaluationResults: View {
                     Text("\(index + 1)")
                         .frame(width: 40, alignment: .leading)
                         .foregroundStyle(.secondary)
-                    
+
                     Text(String(format: "%.2f", reward))
                         .frame(maxWidth: .infinity, alignment: .leading)
-                    
+
                     if index < state.episodeLengths.count {
                         Text("\(state.episodeLengths[index])")
                             .frame(maxWidth: .infinity, alignment: .trailing)
@@ -81,7 +87,7 @@ struct EvaluationResults: View {
                 .font(.subheadline.monospacedDigit())
                 .padding(.horizontal, 4)
                 .padding(.vertical, 6)
-                
+
                 if index < state.episodeRewards.count - 1 {
                     Divider()
                         .padding(.leading, 40)

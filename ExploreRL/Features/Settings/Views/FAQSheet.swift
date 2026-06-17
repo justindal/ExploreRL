@@ -12,20 +12,20 @@ struct FAQSheet: View {
                         Text(item.answer)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
-                        
+
                         if item.hasAppFilesAction {
                             #if os(macOS)
-                            Button("Show in Finder") {
-                                viewModel.openAppFiles()
-                            }
-                            .buttonStyle(.bordered)
-                            .controlSize(.small)
+                                Button("Show in Finder") {
+                                    viewModel.openAppFiles()
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
                             #else
-                            Text("Files Location: On My iPhone → ExploreRL")
-                                .font(.caption)
-                                .fontWeight(.medium)
-                                .foregroundStyle(.secondary)
-                                .padding(.top, 4)
+                                Text("Files Location: On My iPhone → ExploreRL")
+                                    .font(.caption)
+                                    .fontWeight(.medium)
+                                    .foregroundStyle(.secondary)
+                                    .padding(.top, 4)
                             #endif
                         }
                     }
@@ -40,7 +40,7 @@ struct FAQSheet: View {
                 }
             }
             #if os(macOS)
-            .frame(minWidth: 400, idealWidth: 500, minHeight: 400)
+                .frame(minWidth: 400, idealWidth: 500, minHeight: 400)
             #endif
         }
     }

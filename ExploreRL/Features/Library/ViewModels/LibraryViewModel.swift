@@ -155,7 +155,8 @@ final class LibraryViewModel {
             return list.sorted { $0.savedAt < $1.savedAt }
         case .rewardDesc:
             return list.sorted {
-                ($0.trainingState.meanReward ?? -.infinity) > ($1.trainingState.meanReward ?? -.infinity)
+                ($0.trainingState.meanReward ?? -.infinity)
+                    > ($1.trainingState.meanReward ?? -.infinity)
             }
         case .nameAsc:
             return list.sorted { $0.name.localizedCompare($1.name) == .orderedAscending }

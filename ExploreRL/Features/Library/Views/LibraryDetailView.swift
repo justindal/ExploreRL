@@ -48,7 +48,8 @@ struct LibraryDetailView: View {
             ) {
                 LabeledContent("Environment", value: session.environmentID)
                 LabeledContent("Algorithm", value: session.algorithmType.rawValue)
-                LabeledContent("Saved", value: session.savedAt.formatted(date: .abbreviated, time: .shortened))
+                LabeledContent(
+                    "Saved", value: session.savedAt.formatted(date: .abbreviated, time: .shortened))
                 LabeledContent("Total Steps", value: "\(session.trainingConfig.totalTimesteps)")
             }
             .font(.subheadline)
@@ -68,9 +69,11 @@ struct LibraryDetailView: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    Text("\(state.currentTimestep) / \(session.trainingConfig.totalTimesteps) steps")
-                        .font(.caption)
-                        .monospacedDigit()
+                    Text(
+                        "\(state.currentTimestep) / \(session.trainingConfig.totalTimesteps) steps"
+                    )
+                    .font(.caption)
+                    .monospacedDigit()
                     Spacer()
                     Text(String(format: "%.1f%%", progress * 100))
                         .font(.caption)
@@ -150,8 +153,6 @@ struct LibraryDetailView: View {
         TrainingChartsSection(state: session.trainingState)
     }
 
-
-
     @ViewBuilder
     private var hyperparamsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -182,7 +183,8 @@ struct LibraryDetailView: View {
                     LabeledContent("Buffer Size", value: "\(h.bufferSize)")
                     LabeledContent("Batch Size", value: "\(h.batchSize)")
                     LabeledContent("Tau", value: String(format: "%.4g", h.tau))
-                    LabeledContent("Exploration", value: String(format: "%.2f", h.explorationFraction))
+                    LabeledContent(
+                        "Exploration", value: String(format: "%.2f", h.explorationFraction))
                 case .ppo:
                     let h = config.ppo
                     LabeledContent("Learning Rate", value: String(format: "%.2e", h.learningRate))
@@ -271,7 +273,7 @@ struct LibraryDetailView: View {
                             .buttonStyle(.glass(.regular.tint(.blue).interactive()))
                             .controlSize(.large)
                             #if os(macOS)
-                            .tint(.blue)
+                                .tint(.blue)
                             #endif
                     } else {
                         button
@@ -292,7 +294,7 @@ struct LibraryDetailView: View {
                             .buttonStyle(.glass(.regular.tint(.green).interactive()))
                             .controlSize(.large)
                             #if os(macOS)
-                            .tint(.green)
+                                .tint(.green)
                             #endif
                     } else {
                         button
@@ -373,7 +375,7 @@ struct LibraryDetailView: View {
                         .buttonStyle(.glass(.regular.tint(.red).interactive()))
                         .controlSize(.large)
                         #if os(macOS)
-                        .tint(.red)
+                            .tint(.red)
                         #endif
                 } else {
                     button

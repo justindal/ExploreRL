@@ -25,7 +25,8 @@ struct LibraryView: View {
         let hasFilters = !viewModel.algorithmFilters.isEmpty
         switch (hasSearch, hasFilters) {
         case (true, true):
-            return "No sessions match '\(searchText)' with the current filters. Try adjusting your search or filters."
+            return
+                "No sessions match '\(searchText)' with the current filters. Try adjusting your search or filters."
         case (true, false):
             return "No sessions match '\(searchText)'. Try a different search term."
         case (false, true):
@@ -127,19 +128,19 @@ struct LibraryView: View {
         }
         .modify { view in
             #if os(iOS)
-            view.sheet(
-                isPresented: Binding(
-                    get: { shareURL != nil },
-                    set: { if !$0 { shareURL = nil } }
-                )
-            ) {
-                if let shareURL {
-                    SessionShareSheet(url: shareURL)
-                        .presentationDetents([.medium])
+                view.sheet(
+                    isPresented: Binding(
+                        get: { shareURL != nil },
+                        set: { if !$0 { shareURL = nil } }
+                    )
+                ) {
+                    if let shareURL {
+                        SessionShareSheet(url: shareURL)
+                            .presentationDetents([.medium])
+                    }
                 }
-            }
             #else
-            view
+                view
             #endif
         }
         .fileImporter(

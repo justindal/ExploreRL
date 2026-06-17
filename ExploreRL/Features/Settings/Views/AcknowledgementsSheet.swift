@@ -35,7 +35,8 @@ private let acknowledgements: [Acknowledgement] = [
     ),
     Acknowledgement(
         name: "RL Baselines3 Zoo",
-        description: "Training scripts, tuned hyperparameters, and benchmarks for Stable Baselines3.",
+        description:
+            "Training scripts, tuned hyperparameters, and benchmarks for Stable Baselines3.",
         url: URL(string: "https://github.com/DLR-RM/rl-baselines3-zoo")
     ),
 ]
@@ -71,7 +72,7 @@ struct AcknowledgementsSheet: View {
                 }
                 .tint(.primary)
                 #if os(macOS)
-                .listRowSeparator(.hidden)
+                    .listRowSeparator(.hidden)
                 #endif
             }
             .navigationTitle("Acknowledgements")
@@ -81,7 +82,7 @@ struct AcknowledgementsSheet: View {
                 }
             }
             #if os(macOS)
-            .frame(minWidth: 400, idealWidth: 500, minHeight: 400)
+                .frame(minWidth: 400, idealWidth: 500, minHeight: 400)
             #endif
         }
     }

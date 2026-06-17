@@ -14,8 +14,8 @@ struct SystemCheckSheet: View {
             }
             .navigationTitle("System Check")
             #if os(macOS)
-            .formStyle(.grouped)
-            .frame(minWidth: 460, idealWidth: 560, minHeight: 520)
+                .formStyle(.grouped)
+                .frame(minWidth: 460, idealWidth: 560, minHeight: 520)
             #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -68,16 +68,19 @@ struct SystemCheckSheet: View {
     private var memorySection: some View {
         Section("Memory") {
             LabeledContent("Unified Memory", value: viewModel.deviceInfo.physicalMemoryText)
-            LabeledContent("Max Working Set", value: viewModel.deviceInfo.recommendedMaxWorkingSetText)
+            LabeledContent(
+                "Max Working Set", value: viewModel.deviceInfo.recommendedMaxWorkingSetText)
             LabeledContent("Current Allocated", value: viewModel.deviceInfo.currentAllocatedText)
-            LabeledContent("Working Set Use", value: viewModel.deviceInfo.gpuWorkingSetUtilizationText)
+            LabeledContent(
+                "Working Set Use", value: viewModel.deviceInfo.gpuWorkingSetUtilizationText)
         }
     }
 
     private var powerSection: some View {
         Section("Power") {
             LabeledContent("Thermal State", value: viewModel.deviceInfo.thermalState)
-            LabeledContent("Low Power Mode", value: viewModel.deviceInfo.lowPowerMode ? "On" : "Off")
+            LabeledContent(
+                "Low Power Mode", value: viewModel.deviceInfo.lowPowerMode ? "On" : "Off")
         }
     }
 

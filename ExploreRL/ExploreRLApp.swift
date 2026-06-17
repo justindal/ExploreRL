@@ -5,12 +5,12 @@
 //  Created by Justin Daludado on 2026-02-02.
 //
 
-import SwiftUI
-import MLX
 import Gymnazo
+import MLX
+import SwiftUI
 
 #if os(macOS)
-import AppKit
+    import AppKit
 #endif
 
 @main
@@ -21,13 +21,13 @@ struct ExploreRLApp: App {
             ContentView()
         }
         #if os(macOS)
-        .defaultSize(width: 1000, height: 800)
+            .defaultSize(width: 1000, height: 800)
         #endif
 
         #if os(macOS)
-        Settings {
-            SettingsView()
-        }
+            Settings {
+                SettingsView()
+            }
         #endif
     }
 }

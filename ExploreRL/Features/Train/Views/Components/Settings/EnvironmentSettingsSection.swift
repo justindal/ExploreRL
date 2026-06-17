@@ -27,9 +27,7 @@ struct EnvironmentSettingsSection: View {
         }
     }
 
-    private var groupedDefinitions:
-        [(title: String, items: [SettingDefinition])]
-    {
+    private var groupedDefinitions: [(title: String, items: [SettingDefinition])] {
         var groups: [String: [SettingDefinition]] = [:]
         for def in visibleDefinitions {
             let title = groupTitle(for: def.id)

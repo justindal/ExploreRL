@@ -51,7 +51,7 @@ enum HyperparameterConfig {
             label: "Min Epsilon",
             type: .double(default: 0.01, range: 0.0...0.5, step: nil),
             description: "Minimum exploration rate"
-        )
+        ),
     ]
 
     static let dqn: [HyperparameterDefinition] = [
@@ -249,7 +249,7 @@ enum HyperparameterConfig {
             label: "Handle Timeout Termination",
             type: .bool(default: true),
             description: "Treat time limits as terminal states"
-        )
+        ),
     ]
 
     static let ppo: [HyperparameterDefinition] = [
@@ -765,7 +765,7 @@ enum HyperparameterConfig {
             label: "Entropy Adam Eps",
             type: .float(default: 1e-8, range: 1e-12...1e-4, step: nil),
             description: "Entropy optimizer epsilon"
-        )
+        ),
     ]
 
     static let td3: [HyperparameterDefinition] = [
@@ -1011,7 +1011,7 @@ enum HyperparameterConfig {
             label: "Critic Adam Eps",
             type: .float(default: 1e-8, range: 1e-12...1e-4, step: nil),
             description: "Critic optimizer epsilon"
-        )
+        ),
     ]
 
     static func definitions(for algorithm: AlgorithmType) -> [HyperparameterDefinition] {

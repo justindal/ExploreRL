@@ -5,8 +5,8 @@
 //  Created by Justin Daludado on 2026-02-04.
 //
 
-import MLX
 import Gymnazo
+import MLX
 import SwiftUI
 
 struct EnvironmentInfo: View {
@@ -203,7 +203,8 @@ struct EnvironmentInfo: View {
         if let d = space as? Discrete {
             return "Discrete(\(d.n))"
         } else if space is Box {
-            let shape = space.shape.map { "[\($0.map(String.init).joined(separator: ", "))]" } ?? "?"
+            let shape =
+                space.shape.map { "[\($0.map(String.init).joined(separator: ", "))]" } ?? "?"
             return "Box \(shape)"
         } else {
             return spaceTypeName(space)
