@@ -80,9 +80,11 @@ struct TrainingState: Equatable, Codable {
         case learningRateHistory
         case learningRateStepHistory
         case renderVersion
+        case statusMessage
     }
 
     var status: TrainingStatus = .idle
+    var statusMessage: String?
     var currentTimestep: Int = 0
     var episodeCount: Int = 0
     var meanReward: Double?
@@ -115,6 +117,7 @@ struct TrainingState: Equatable, Codable {
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         status = try c.decodeIfPresent(TrainingStatus.self, forKey: .status) ?? .idle
+        statusMessage = try c.decodeIfPresent(String.self, forKey: .statusMessage)
         currentTimestep = try c.decodeIfPresent(Int.self, forKey: .currentTimestep) ?? 0
         episodeCount = try c.decodeIfPresent(Int.self, forKey: .episodeCount) ?? 0
         meanReward = Self.finiteOrNil(
@@ -299,6 +302,7 @@ struct TrainingState: Equatable, Codable {
         try c.encode(learningRateSeries.values, forKey: .learningRateHistory)
         try c.encode(learningRateSeries.steps, forKey: .learningRateStepHistory)
         try c.encode(renderVersion, forKey: .renderVersion)
+        try c.encodeIfPresent(statusMessage, forKey: .statusMessage)
     }
 
     var isFailed: Bool {
@@ -326,6 +330,7 @@ struct TrainingState: Equatable, Codable {
 
     mutating func reset() {
         status = .idle
+        statusMessage = nil
         currentTimestep = 0
         episodeCount = 0
         meanReward = nil

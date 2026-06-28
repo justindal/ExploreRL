@@ -29,7 +29,12 @@ extension TrainViewModel {
             renderEnabled: renderEnabled,
             renderFPS: renderFPS,
             trackExplorationRate: false,
-            onFlush: { [weak self] in self?.flushAccumulator(for: id) }
+            onFlush: { [weak self] in self?.flushAccumulator(for: id) },
+            onBufferAllocated: { @Sendable @MainActor [weak self] info in
+                self?.updateTrainingState(for: id) {
+                    $0.statusMessage = bufferCapMessage(info)
+                }
+            }
         )
 
         try await td3.learn(
@@ -54,7 +59,7 @@ extension TrainViewModel {
             return existing
         }
 
-        let td3Settings = sanitizedTD3Hyperparameters(config.td3)
+        let td3Settings = sanitizedTD3Hyperparameters(config.td3, env: configuredEnv)
 
         let trainFrequency = TrainFrequency(
             frequency: max(1, td3Settings.trainFrequency),
@@ -137,6 +142,15 @@ extension TrainViewModel {
 
         td3Algorithms[id] = td3
         return td3
+    }
+
+    private func sanitizedTD3Hyperparameters(
+        _ values: TD3Hyperparameters,
+        env: any Env
+    ) -> TD3Hyperparameters {
+        var output = sanitizedTD3Hyperparameters(values)
+        clampReplayHyperparameters(for: env, bufferSize: &output.bufferSize, batchSize: &output.batchSize)
+        return output
     }
 
     private func sanitizedTD3Hyperparameters(_ values: TD3Hyperparameters) -> TD3Hyperparameters {

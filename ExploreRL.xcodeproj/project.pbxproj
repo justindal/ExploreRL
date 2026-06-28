@@ -127,7 +127,7 @@
 			mainGroup = B954BC912ECA6A9B0081CE3F;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				B96A6CE72F52D790001B5AFC /* XCRemoteSwiftPackageReference "Gymnazo" */,
+				B96A6CE72F52D790001B5AFC /* XCLocalSwiftPackageReference "Gymnazo" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = B954BC9B2ECA6A9B0081CE3F /* Products */;
@@ -430,26 +430,25 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCRemoteSwiftPackageReference section */
-		B96A6CE72F52D790001B5AFC /* XCRemoteSwiftPackageReference "Gymnazo" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/justindal/Gymnazo.git";
-			requirement = {
-				branch = main;
-				kind = branch;
-			};
+/* Begin XCLocalSwiftPackageReference section */
+		B96A6CE72F52D790001B5AFC /* XCLocalSwiftPackageReference "Gymnazo" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../Gymnazo;
 		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCRemoteSwiftPackageReference section */
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
 		B96A6CE82F52D790001B5AFC /* Box2D */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = B96A6CE72F52D790001B5AFC /* XCRemoteSwiftPackageReference "Gymnazo" */;
+			package = B96A6CE72F52D790001B5AFC /* XCLocalSwiftPackageReference "Gymnazo" */;
 			productName = Box2D;
 		};
 		B96A6CEA2F52D790001B5AFC /* Gymnazo */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = B96A6CE72F52D790001B5AFC /* XCRemoteSwiftPackageReference "Gymnazo" */;
+			package = B96A6CE72F52D790001B5AFC /* XCLocalSwiftPackageReference "Gymnazo" */;
 			productName = Gymnazo;
 		};
 /* End XCSwiftPackageProductDependency section */

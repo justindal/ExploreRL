@@ -43,6 +43,12 @@ struct TrainingControlsView: View {
                 .foregroundStyle(.red)
         }
 
+        if let message = trainingState.statusMessage {
+            Text(message)
+                .font(.caption)
+                .foregroundStyle(.orange)
+        }
+
         if trainingState.status != .training, let reason = policy.reason {
             Text(reason)
                 .font(.caption)
@@ -184,7 +190,7 @@ struct TrainingControlsView: View {
 
     private var pauseButton: some View {
         Button {
-            vm.pauseTraining(for: id)
+            Task { await vm.pauseTraining(for: id) }
         } label: {
             Label("Pause", systemImage: "pause.fill")
                 .frame(maxWidth: .infinity)

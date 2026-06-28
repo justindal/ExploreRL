@@ -40,6 +40,7 @@ extension TrainViewModel {
                 state.reset()
                 state.status = .training
             }
+            state.statusMessage = nil
         }
 
         if trainingTimings[id] == nil
@@ -62,12 +63,16 @@ extension TrainViewModel {
         }
     }
 
-    func pauseTraining(for id: String) {
-        Task { await tabularAgents[id]?.stop() }
-        Task { await dqnAlgorithms[id]?.stop() }
-        Task { await ppoAlgorithms[id]?.stop() }
-        Task { await sacAlgorithms[id]?.stop() }
-        Task { await td3Algorithms[id]?.stop() }
+    @MainActor
+    func pauseTraining(for id: String) async {
+        trainingTasks[id]?.cancel()
+        await tabularAgents[id]?.stop()
+        await dqnAlgorithms[id]?.stop()
+        await ppoAlgorithms[id]?.stop()
+        await sacAlgorithms[id]?.stop()
+        await td3Algorithms[id]?.stop()
+        await trainingTasks[id]?.value
+        trainingTasks[id] = nil
         trainingTimings[id]?.pause(at: .now)
         flushAccumulator(for: id)
         stopFlushLoop(for: id)
@@ -77,6 +82,7 @@ extension TrainViewModel {
     func resumeTraining(for id: String) {
         guard trainingState(for: id).status == .paused else { return }
         guard trainingPolicy(for: id).isAllowed else { return }
+        guard trainingTasks[id] == nil else { return }
         updateTrainingState(for: id) { $0.status = .training }
 
         if trainingTimings[id] == nil {
@@ -159,6 +165,7 @@ extension TrainViewModel {
         defer {
             flushAccumulator(for: id)
             stopFlushLoop(for: id)
+            trainingTasks[id] = nil
         }
 
         let totalTimesteps = config.totalTimesteps
@@ -300,7 +307,7 @@ extension TrainViewModel {
         let dqn = try await dqnAlgorithm(for: id, env: env, config: config)
 
         if !isResuming {
-            let dqnSettings = sanitizedDQNHyperparameters(config.dqn)
+            let dqnSettings = sanitizedDQNHyperparameters(config.dqn, env: env)
             updateTrainingState(for: id) { s in
                 s.currentTimestep = 0
                 s.explorationRate = dqnSettings.explorationInitialEps
@@ -314,7 +321,12 @@ extension TrainViewModel {
             renderEnabled: renderEnabled,
             renderFPS: renderFPS,
             trackExplorationRate: true,
-            onFlush: { [weak self] in self?.flushAccumulator(for: id) }
+            onFlush: { [weak self] in self?.flushAccumulator(for: id) },
+            onBufferAllocated: { @Sendable @MainActor [weak self] info in
+                self?.updateTrainingState(for: id) {
+                    $0.statusMessage = bufferCapMessage(info)
+                }
+            }
         )
 
         try await dqn.learn(
@@ -346,7 +358,7 @@ extension TrainViewModel {
                 "DQN requires a discrete action space"
             )
         }
-        let dqnSettings = sanitizedDQNHyperparameters(config.dqn)
+        let dqnSettings = sanitizedDQNHyperparameters(config.dqn, env: configuredEnv)
 
         let trainFrequency = TrainFrequency(
             frequency: max(1, dqnSettings.trainFrequency),
@@ -450,7 +462,12 @@ extension TrainViewModel {
             renderEnabled: renderEnabled,
             renderFPS: renderFPS,
             trackExplorationRate: false,
-            onFlush: { [weak self] in self?.flushAccumulator(for: id) }
+            onFlush: { [weak self] in self?.flushAccumulator(for: id) },
+            onBufferAllocated: { @Sendable @MainActor [weak self] info in
+                self?.updateTrainingState(for: id) {
+                    $0.statusMessage = bufferCapMessage(info)
+                }
+            }
         )
 
         try await sac.learn(
@@ -476,7 +493,7 @@ extension TrainViewModel {
             await existing.setEnv(EnvBox(configuredEnv))
             return existing
         }
-        let sacSettings = sanitizedSACHyperparameters(config.sac)
+        let sacSettings = sanitizedSACHyperparameters(config.sac, env: configuredEnv)
 
         let trainFrequency = TrainFrequency(
             frequency: max(1, sacSettings.trainFrequency),
@@ -609,6 +626,15 @@ extension TrainViewModel {
         return sac
     }
 
+    private func sanitizedDQNHyperparameters(
+        _ values: DQNHyperparameters,
+        env: any Env
+    ) -> DQNHyperparameters {
+        var output = sanitizedDQNHyperparameters(values)
+        clampReplayHyperparameters(for: env, bufferSize: &output.bufferSize, batchSize: &output.batchSize)
+        return output
+    }
+
     private func sanitizedDQNHyperparameters(_ values: DQNHyperparameters) -> DQNHyperparameters {
         var output = values
         output.learningRate = max(output.learningRate, 1e-12)
@@ -644,6 +670,15 @@ extension TrainViewModel {
         if output.optimizeMemoryUsage && output.handleTimeoutTermination {
             output.optimizeMemoryUsage = false
         }
+        return output
+    }
+
+    private func sanitizedSACHyperparameters(
+        _ values: SACHyperparameters,
+        env: any Env
+    ) -> SACHyperparameters {
+        var output = sanitizedSACHyperparameters(values)
+        clampReplayHyperparameters(for: env, bufferSize: &output.bufferSize, batchSize: &output.batchSize)
         return output
     }
 
@@ -815,7 +850,8 @@ func makeCallbacks(
     renderEnabled: Bool,
     renderFPS: Int,
     trackExplorationRate: Bool = true,
-    onFlush: @Sendable @MainActor @escaping () -> Void
+    onFlush: @Sendable @MainActor @escaping () -> Void,
+    onBufferAllocated: LearnCallbacks.OnBufferAllocatedCallback? = nil
 ) -> LearnCallbacks {
     let snapshotHandler: LearnCallbacks.OnSnapshotCallback? =
         renderEnabled
@@ -845,6 +881,11 @@ func makeCallbacks(
         onSnapshot: snapshotHandler,
         onTrain: { @Sendable metrics in
             accumulator.recordMetrics(metrics)
-        }
+        },
+        onBufferAllocated: onBufferAllocated
     )
+}
+
+func bufferCapMessage(_ info: ReplayBufferAllocationInfo) -> String {
+    "Replay buffer reduced from \(info.requested) to \(info.effective) for this device."
 }

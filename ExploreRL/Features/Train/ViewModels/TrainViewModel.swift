@@ -5,6 +5,7 @@
 
 import Foundation
 import Gymnazo
+import MLX
 
 @Observable
 final class TrainViewModel {
@@ -264,6 +265,24 @@ final class TrainViewModel {
             return .denied("\(active) is currently training")
         }
         return .allowed
+    }
+
+    func clampReplayHyperparameters(
+        for env: any Env,
+        bufferSize: inout Int,
+        batchSize: inout Int
+    ) {
+        if let cap = imageReplayBufferCap(for: env) {
+            bufferSize = min(bufferSize, cap)
+        }
+        batchSize = min(batchSize, max(1, bufferSize))
+    }
+
+    func imageReplayBufferCap(for env: any Env) -> Int? {
+        guard env.observationSpace.dtype == .uint8 else { return nil }
+        let pixels = env.observationSpace.shape?.reduce(1, *) ?? 0
+        guard pixels > 10_000 else { return nil }
+        return 300_000
     }
 }
 
