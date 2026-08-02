@@ -1,7 +1,7 @@
 import Gymnazo
 import MLX
 
-struct ConfiguredEnv: Env {
+nonisolated struct ConfiguredEnv: Env {
     var base: any Env
     var resetSeed: UInt64?
     var resetOptions: EnvOptions

@@ -41,21 +41,12 @@ extension TrainViewModel {
     }
 
     func ppoAlgorithm(for id: String, env: any Env, config: TrainingConfig) async throws -> PPO {
-        let resetOptions = envResetOptions(for: id)
-        let resetSeed = envResetSeed(for: id)
-        let configuredEnv = ConfiguredEnv(
-            base: env,
-            resetSeed: resetSeed,
-            resetOptions: resetOptions
-        )
-
         if let existing = ppoAlgorithms[id] {
-            await existing.setEnv(EnvBox(configuredEnv))
             return existing
         }
 
         var ppoSettings = sanitizedPPOHyperparameters(config.ppo)
-        if !(configuredEnv.actionSpace is Box) {
+        if !(env.actionSpace is Box) {
             ppoSettings.useSDE = false
             ppoSettings.sdeSampleFreq = -1
         }
@@ -101,15 +92,14 @@ extension TrainViewModel {
             warmupInitial: Double(ppoSettings.warmupInitialValue)
         )
 
+        let algorithmEnv = try await makeAlgorithmEnv(for: id)
         let ppo = try PPO(
-            observationSpace: configuredEnv.observationSpace,
-            actionSpace: configuredEnv.actionSpace,
+            env: algorithmEnv,
             learningRate: learningRate,
             policyConfig: policyConfig,
             config: ppoConfig,
             seed: config.seedValue
         )
-        await ppo.setEnv(EnvBox(configuredEnv))
 
         ppoAlgorithms[id] = ppo
         return ppo

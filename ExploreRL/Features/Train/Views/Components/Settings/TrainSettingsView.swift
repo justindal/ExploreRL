@@ -52,7 +52,7 @@ struct TrainSettingsView: View {
         guard let env = vm.env(for: envID) else {
             return AlgorithmType.allCases
         }
-        return vm.availableAlgorithms(for: env)
+        return vm.availableAlgorithms(for: envID, env: env)
     }
 
     private var supportsImageNormalization: Bool {

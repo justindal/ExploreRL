@@ -86,21 +86,26 @@ extension TrainViewModel {
 
         let checkpointDir = SessionStorage.shared.checkpointDirectory(for: session.id)
 
-        guard let env = env(for: id) else {
+        guard env(for: id) != nil else {
             throw TrainError.environmentNotLoaded
         }
 
         switch session.algorithmType {
         case .qLearning, .sarsa:
-            tabularAgents[id] = try TabularAgent.load(from: checkpointDir, env: env)
+            let algorithmEnv = try await makeAlgorithmEnv(for: id)
+            tabularAgents[id] = try TabularAgent.load(from: checkpointDir, env: algorithmEnv)
         case .dqn:
-            dqnAlgorithms[id] = try DQN.load(from: checkpointDir, env: env)
+            let algorithmEnv = try await makeAlgorithmEnv(for: id)
+            dqnAlgorithms[id] = try await DQN.load(from: checkpointDir, env: algorithmEnv)
         case .ppo:
-            ppoAlgorithms[id] = try PPO.load(from: checkpointDir, env: env)
+            let algorithmEnv = try await makeAlgorithmEnv(for: id)
+            ppoAlgorithms[id] = try await PPO.load(from: checkpointDir, env: algorithmEnv)
         case .sac:
-            sacAlgorithms[id] = try SAC.load(from: checkpointDir, env: env)
+            let algorithmEnv = try await makeAlgorithmEnv(for: id)
+            sacAlgorithms[id] = try await SAC.load(from: checkpointDir, env: algorithmEnv)
         case .td3:
-            td3Algorithms[id] = try TD3.load(from: checkpointDir, env: env)
+            let algorithmEnv = try await makeAlgorithmEnv(for: id)
+            td3Algorithms[id] = try await TD3.load(from: checkpointDir, env: algorithmEnv)
         }
 
         var restoredState = session.trainingState

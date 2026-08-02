@@ -3,7 +3,7 @@ import Synchronization
 
 final class TrainingAccumulator: Sendable {
 
-    struct Pending: @unchecked Sendable {
+    struct Pending: Sendable {
         var timestep: Int = 0
         var explorationRate: Double?
         var episodes: [(timestep: Int, reward: Double, length: Int)] = []

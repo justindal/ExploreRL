@@ -11,6 +11,7 @@ import MLX
 final class TrainViewModel {
 
     var envStates: [String: EnvLoadState] = [:]
+    var envValueContracts: [String: EnvValueContract] = [:]
     var envSettings: [String: [String: SettingValue]] = [:]
     var trainingConfigs: [String: TrainingConfig] = [:]
     var trainingStates: [String: TrainingState] = [:]
@@ -70,7 +71,7 @@ final class TrainViewModel {
         var config = trainingConfigs[id] ?? EnvironmentDefaults.config(for: id)
 
         if let env = env(for: id) {
-            let available = availableAlgorithms(for: env)
+            let available = availableAlgorithms(for: id, env: env)
             if !available.contains(config.algorithm), let first = available.first {
                 config.algorithm = first
                 config.totalTimesteps = EnvironmentDefaults.totalTimestepsDefault(
@@ -106,6 +107,40 @@ final class TrainViewModel {
                 return false
             }
             if isTabularOnly && !algo.isTabular {
+                return false
+            }
+            return true
+        }
+    }
+
+    func availableAlgorithms(for id: String, env: any Env) -> [AlgorithmType] {
+        guard let contract = envValueContracts[id] else {
+            return availableAlgorithms(for: env)
+        }
+        let hasDiscreteActions = contract.action.kind.isDiscrete
+        let hasContinuousActions = contract.action.kind.isContinuous
+        let hasDiscreteObservations = contract.observation.kind.isDiscrete
+        let isTabularOnly: Bool = {
+            if case .tuple = contract.observation.kind {
+                return contract.observation.kind.isTabular
+            }
+            return false
+        }()
+
+        return AlgorithmType.allCases.filter { algorithm in
+            if algorithm.requiresDiscreteActions && !hasDiscreteActions {
+                return false
+            }
+            if algorithm.requiresContinuousActions && !hasContinuousActions {
+                return false
+            }
+            if algorithm.requiresDiscreteObservations
+                && !hasDiscreteObservations
+                && !isTabularOnly
+            {
+                return false
+            }
+            if isTabularOnly && !algorithm.isTabular {
                 return false
             }
             return true

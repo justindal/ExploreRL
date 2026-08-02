@@ -23,7 +23,7 @@ extension TrainViewModel {
         }
 
         let config = trainingConfig(for: id)
-        let available = availableAlgorithms(for: env)
+        let available = availableAlgorithms(for: id, env: env)
 
         guard available.contains(config.algorithm) else {
             updateTrainingState(for: id) {
@@ -244,7 +244,7 @@ extension TrainViewModel {
         renderFPS: Int,
         accumulator: TrainingAccumulator
     ) async throws {
-        guard let env = env(for: id) else {
+        guard env(for: id) != nil else {
             throw TrainError.environmentNotLoaded
         }
 
@@ -261,18 +261,15 @@ extension TrainViewModel {
             )
             let updateRule: TabularAgent.UpdateRule =
                 config.algorithm == .sarsa ? .sarsa : .qLearning
-            let info = TabularAgent.stateSpaceInfo(from: env.observationSpace)
+            let algorithmEnv = try await makeAlgorithmEnv(for: id)
             agent = TabularAgent(
+                env: algorithmEnv,
                 updateRule: updateRule,
                 config: tabularConfig,
-                numStates: info.numStates,
-                numActions: (env.actionSpace as! Discrete).n,
-                seed: config.seedValue,
-                stateStrides: info.strides
+                seed: config.seedValue
             )
             tabularAgents[id] = agent
         }
-        await agent.setEnv(EnvBox(env))
 
         let callbacks = makeCallbacks(
             for: id,
@@ -340,25 +337,16 @@ extension TrainViewModel {
     func dqnAlgorithm(for id: String, env: any Env, config: TrainingConfig)
         async throws -> DQN
     {
-        let resetOptions = envResetOptions(for: id)
-        let resetSeed = envResetSeed(for: id)
-        let configuredEnv = ConfiguredEnv(
-            base: env,
-            resetSeed: resetSeed,
-            resetOptions: resetOptions
-        )
-
         if let existing = dqnAlgorithms[id] {
-            await existing.setEnv(EnvBox(configuredEnv))
             return existing
         }
 
-        guard let actionSpace = configuredEnv.actionSpace as? Discrete else {
+        guard env.actionSpace is Discrete else {
             throw TrainError.invalidConfiguration(
                 "DQN requires a discrete action space"
             )
         }
-        let dqnSettings = sanitizedDQNHyperparameters(config.dqn, env: configuredEnv)
+        let dqnSettings = sanitizedDQNHyperparameters(config.dqn, env: env)
 
         let trainFrequency = TrainFrequency(
             frequency: max(1, dqnSettings.trainFrequency),
@@ -417,19 +405,15 @@ extension TrainViewModel {
             warmupInitial: Double(dqnSettings.warmupInitialValue)
         )
 
-        let makeDQN: () throws -> DQN = {
-            try DQN(
-                observationSpace: configuredEnv.observationSpace,
-                actionSpace: actionSpace,
-                learningRate: learningRate,
-                policyConfig: policyConfig,
-                config: dqnConfig,
-                optimizerConfig: optimizerConfig,
-                seed: config.seedValue
-            )
-        }
-        let dqn = try makeDQN()
-        await dqn.setEnv(EnvBox(configuredEnv))
+        let algorithmEnv = try await makeAlgorithmEnv(for: id)
+        let dqn = try DQN(
+            env: algorithmEnv,
+            learningRate: learningRate,
+            policyConfig: policyConfig,
+            config: dqnConfig,
+            optimizerConfig: optimizerConfig,
+            seed: config.seedValue
+        )
 
         dqnAlgorithms[id] = dqn
         return dqn
@@ -481,19 +465,10 @@ extension TrainViewModel {
     func sacAlgorithm(for id: String, env: any Env, config: TrainingConfig)
         async throws -> SAC
     {
-        let resetOptions = envResetOptions(for: id)
-        let resetSeed = envResetSeed(for: id)
-        let configuredEnv = ConfiguredEnv(
-            base: env,
-            resetSeed: resetSeed,
-            resetOptions: resetOptions
-        )
-
         if let existing = sacAlgorithms[id] {
-            await existing.setEnv(EnvBox(configuredEnv))
             return existing
         }
-        let sacSettings = sanitizedSACHyperparameters(config.sac, env: configuredEnv)
+        let sacSettings = sanitizedSACHyperparameters(config.sac, env: env)
 
         let trainFrequency = TrainFrequency(
             frequency: max(1, sacSettings.trainFrequency),
@@ -606,21 +581,17 @@ extension TrainViewModel {
             warmupInitial: Double(sacSettings.warmupInitialValue)
         )
 
-        let makeSAC: () throws -> SAC = {
-            try SAC(
-                observationSpace: configuredEnv.observationSpace,
-                actionSpace: configuredEnv.actionSpace,
-                learningRate: learningRate,
-                networksConfig: networksConfig,
-                config: offPolicyConfig,
-                optimizerConfig: optimizerConfig,
-                entCoef: entCoef,
-                targetEntropy: targetEntropy,
-                seed: config.seedValue
-            )
-        }
-        let sac = try makeSAC()
-        await sac.setEnv(EnvBox(configuredEnv))
+        let algorithmEnv = try await makeAlgorithmEnv(for: id)
+        let sac = try SAC(
+            env: algorithmEnv,
+            learningRate: learningRate,
+            networksConfig: networksConfig,
+            config: offPolicyConfig,
+            optimizerConfig: optimizerConfig,
+            entCoef: entCoef,
+            targetEntropy: targetEntropy,
+            seed: config.seedValue
+        )
 
         sacAlgorithms[id] = sac
         return sac
@@ -631,7 +602,8 @@ extension TrainViewModel {
         env: any Env
     ) -> DQNHyperparameters {
         var output = sanitizedDQNHyperparameters(values)
-        clampReplayHyperparameters(for: env, bufferSize: &output.bufferSize, batchSize: &output.batchSize)
+        clampReplayHyperparameters(
+            for: env, bufferSize: &output.bufferSize, batchSize: &output.batchSize)
         return output
     }
 
@@ -678,7 +650,8 @@ extension TrainViewModel {
         env: any Env
     ) -> SACHyperparameters {
         var output = sanitizedSACHyperparameters(values)
-        clampReplayHyperparameters(for: env, bufferSize: &output.bufferSize, batchSize: &output.batchSize)
+        clampReplayHyperparameters(
+            for: env, bufferSize: &output.bufferSize, batchSize: &output.batchSize)
         return output
     }
 
