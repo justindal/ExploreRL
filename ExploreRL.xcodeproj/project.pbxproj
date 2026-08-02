@@ -9,10 +9,22 @@
 /* Begin PBXBuildFile section */
 		B94D6DA42FF1D7B40038E0D3 /* Box2D in Frameworks */ = {isa = PBXBuildFile; productRef = B94D6DA32FF1D7B40038E0D3 /* Box2D */; };
 		B94D6DA62FF1D7B40038E0D3 /* Gymnazo in Frameworks */ = {isa = PBXBuildFile; productRef = B94D6DA52FF1D7B40038E0D3 /* Gymnazo */; };
+		B9A000012FF2000000000001 /* Gymnazo in Frameworks */ = {isa = PBXBuildFile; productRef = B94D6DA52FF1D7B40038E0D3 /* Gymnazo */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		B9A000022FF2000000000002 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = B954BC922ECA6A9B0081CE3F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B90233BA2F3106DD00378E2A;
+			remoteInfo = ExploreRL;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		B90233BB2F3106DD00378E2A /* ExploreRL.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ExploreRL.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B9A000032FF2000000000003 /* ExploreRLTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ExploreRLTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B9E9EE382F31330C00E12DFF /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.2.sdk/System/Library/Frameworks/Metal.framework; sourceTree = DEVELOPER_DIR; };
 /* End PBXFileReference section */
 
@@ -35,6 +47,11 @@
 			path = ExploreRL;
 			sourceTree = "<group>";
 		};
+		B9A000042FF2000000000004 /* ExploreRLTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = ExploreRLTests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -44,6 +61,14 @@
 			files = (
 				B94D6DA62FF1D7B40038E0D3 /* Gymnazo in Frameworks */,
 				B94D6DA42FF1D7B40038E0D3 /* Box2D in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B9A000052FF2000000000005 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B9A000012FF2000000000001 /* Gymnazo in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -62,6 +87,7 @@
 			isa = PBXGroup;
 			children = (
 				B90233BC2F3106DD00378E2A /* ExploreRL */,
+				B9A000042FF2000000000004 /* ExploreRLTests */,
 				B900B5DC2ED926E6004D94B4 /* Frameworks */,
 				B954BC9B2ECA6A9B0081CE3F /* Products */,
 			);
@@ -71,6 +97,7 @@
 			isa = PBXGroup;
 			children = (
 				B90233BB2F3106DD00378E2A /* ExploreRL.app */,
+				B9A000032FF2000000000003 /* ExploreRLTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -102,6 +129,30 @@
 			productReference = B90233BB2F3106DD00378E2A /* ExploreRL.app */;
 			productType = "com.apple.product-type.application";
 		};
+		B9A000062FF2000000000006 /* ExploreRLTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B9A0000D2FF200000000000D /* Build configuration list for PBXNativeTarget "ExploreRLTests" */;
+			buildPhases = (
+				B9A000072FF2000000000007 /* Sources */,
+				B9A000052FF2000000000005 /* Frameworks */,
+				B9A000082FF2000000000008 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				B9A000092FF2000000000009 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				B9A000042FF2000000000004 /* ExploreRLTests */,
+			);
+			name = ExploreRLTests;
+			packageProductDependencies = (
+				B94D6DA52FF1D7B40038E0D3 /* Gymnazo */,
+			);
+			productName = ExploreRLTests;
+			productReference = B9A000032FF2000000000003 /* ExploreRLTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -114,6 +165,10 @@
 				TargetAttributes = {
 					B90233BA2F3106DD00378E2A = {
 						CreatedOnToolsVersion = 26.2;
+					};
+					B9A000062FF2000000000006 = {
+						CreatedOnToolsVersion = 26.2;
+						TestTargetID = B90233BA2F3106DD00378E2A;
 					};
 				};
 			};
@@ -135,12 +190,20 @@
 			projectRoot = "";
 			targets = (
 				B90233BA2F3106DD00378E2A /* ExploreRL */,
+				B9A000062FF2000000000006 /* ExploreRLTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		B90233B92F3106DD00378E2A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B9A000082FF2000000000008 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -157,7 +220,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B9A000072FF2000000000007 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		B9A000092FF2000000000009 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B90233BA2F3106DD00378E2A /* ExploreRL */;
+			targetProxy = B9A000022FF2000000000002 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		B90233C52F3106DE00378E2A /* Debug */ = {
@@ -280,6 +358,48 @@
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				XROS_DEPLOYMENT_TARGET = 18.0;
+			};
+			name = Release;
+		};
+		B9A0000A2FF200000000000A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = arm64;
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = T7HWJDJCX8;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.justindaludado.ExploreRLTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ExploreRL.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/ExploreRL";
+			};
+			name = Debug;
+		};
+		B9A0000B2FF200000000000B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = arm64;
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = T7HWJDJCX8;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.justindaludado.ExploreRLTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ExploreRL.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/ExploreRL";
 			};
 			name = Release;
 		};
@@ -428,6 +548,15 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		B9A0000D2FF200000000000D /* Build configuration list for PBXNativeTarget "ExploreRLTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B9A0000A2FF200000000000A /* Debug */,
+				B9A0000B2FF200000000000B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
@@ -435,8 +564,8 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/justindal/Gymnazo";
 			requirement = {
-				branch = main;
-				kind = branch;
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.13.0;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */

@@ -28,6 +28,7 @@ extension TrainViewModel {
     func createEnv(id: String) async {
         do {
             let options = envOptions(for: id)
+            let valueContract = try await EnvValueContract.load(id: id, options: options)
             let maxSteps = frozenLakeMaxSteps(for: id)
             var env = try await Gymnazo.make(id, maxEpisodeSteps: maxSteps, options: options)
             env = try wrappedEnv(env, id: id)
@@ -37,11 +38,26 @@ extension TrainViewModel {
             let resetSeed = envResetSeed(for: id)
             let resetPayload = resetOptions.isEmpty ? nil : resetOptions
             _ = try env.reset(seed: resetSeed, options: resetPayload)
+            envValueContracts[id] = valueContract
             envStates[id] = .loaded(env)
             updateTrainingState(for: id) { $0.renderVersion += 1 }
         } catch {
+            envValueContracts[id] = nil
             envStates[id] = .error(error)
         }
+    }
+
+    func makeAlgorithmEnv(for id: String) async throws -> sending any Env {
+        let options = envOptions(for: id)
+        let maxSteps = frozenLakeMaxSteps(for: id)
+        var env = try await Gymnazo.make(id, maxEpisodeSteps: maxSteps, options: options)
+        env = try wrappedEnv(env, id: id)
+        env.renderMode = trainingConfig(for: id).renderDuringTraining ? .human : nil
+        return ConfiguredEnv(
+            base: env,
+            resetSeed: envResetSeed(for: id),
+            resetOptions: envResetOptions(for: id)
+        )
     }
 
     func envOptions(for id: String) -> EnvOptions {
@@ -201,6 +217,7 @@ extension TrainViewModel {
 
     func closeEnv(id: String) {
         envStates[id] = nil
+        envValueContracts[id] = nil
     }
 
     private func wrappedEnv(_ env: any Env, id: String) throws -> any Env {

@@ -22,7 +22,15 @@ extension SessionStorage {
         return try writeArchive(from: source, name: sanitize(session.name))
     }
 
-    nonisolated func exportAllSessions() throws -> URL {
+    @concurrent
+    nonisolated func exportAllSessions() async throws -> URL {
+        try Task.checkCancellation()
+        let result = try makeExportArchive()
+        try Task.checkCancellation()
+        return result
+    }
+
+    private nonisolated func makeExportArchive() throws -> URL {
         let fm = FileManager.default
         try fm.createDirectory(at: sessionsDirectory, withIntermediateDirectories: true)
 

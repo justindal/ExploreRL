@@ -82,9 +82,7 @@ final class SettingsViewModel {
         exportURL = nil
         exportError = nil
         do {
-            let url = try await Task.detached {
-                try await SessionStorage.shared.exportAllSessions()
-            }.value
+            let url = try await storage.exportAllSessions()
             exportURL = url
         } catch {
             exportError = error.localizedDescription

@@ -31,13 +31,16 @@ struct EnvView: View {
                 )
             } else if let snapshot {
                 snapshotView(snapshot)
-            } else if let output {
+            } else if let output, let output = displayOutput(output) {
                 switch output {
                 case .ansi(let text):
                     ansiView(text)
 
                 case .other(let snapshot):
                     snapshotView(snapshot)
+
+                case .collection:
+                    unavailableView(title: "No Frames Available")
 
                 #if canImport(CoreGraphics)
                     case .rgbArray(let image):
@@ -54,6 +57,15 @@ struct EnvView: View {
         .onChange(of: renderVersion, initial: true) { _, _ in
             updateOutput()
         }
+    }
+
+    private func displayOutput(_ output: RenderOutput) -> RenderOutput? {
+        var output = output
+        while case .collection(let outputs) = output {
+            guard let last = outputs.last else { return nil }
+            output = last
+        }
+        return output
     }
 
     @ViewBuilder

@@ -46,20 +46,11 @@ extension TrainViewModel {
     }
 
     func td3Algorithm(for id: String, env: any Env, config: TrainingConfig) async throws -> TD3 {
-        let resetOptions = envResetOptions(for: id)
-        let resetSeed = envResetSeed(for: id)
-        let configuredEnv = ConfiguredEnv(
-            base: env,
-            resetSeed: resetSeed,
-            resetOptions: resetOptions
-        )
-
         if let existing = td3Algorithms[id] {
-            await existing.setEnv(EnvBox(configuredEnv))
             return existing
         }
 
-        let td3Settings = sanitizedTD3Hyperparameters(config.td3, env: configuredEnv)
+        let td3Settings = sanitizedTD3Hyperparameters(config.td3, env: env)
 
         let trainFrequency = TrainFrequency(
             frequency: max(1, td3Settings.trainFrequency),
@@ -126,19 +117,15 @@ extension TrainViewModel {
             warmupInitial: Double(td3Settings.warmupInitialValue)
         )
 
-        let makeTD3: () throws -> TD3 = {
-            try TD3(
-                observationSpace: configuredEnv.observationSpace,
-                actionSpace: configuredEnv.actionSpace,
-                learningRate: learningRate,
-                policyConfig: policyConfig,
-                algorithmConfig: algorithmConfig,
-                config: offPolicyConfig,
-                seed: config.seedValue
-            )
-        }
-        let td3 = try makeTD3()
-        await td3.setEnv(EnvBox(configuredEnv))
+        let algorithmEnv = try await makeAlgorithmEnv(for: id)
+        let td3 = try TD3(
+            env: algorithmEnv,
+            learningRate: learningRate,
+            policyConfig: policyConfig,
+            algorithmConfig: algorithmConfig,
+            config: offPolicyConfig,
+            seed: config.seedValue
+        )
 
         td3Algorithms[id] = td3
         return td3
@@ -149,7 +136,8 @@ extension TrainViewModel {
         env: any Env
     ) -> TD3Hyperparameters {
         var output = sanitizedTD3Hyperparameters(values)
-        clampReplayHyperparameters(for: env, bufferSize: &output.bufferSize, batchSize: &output.batchSize)
+        clampReplayHyperparameters(
+            for: env, bufferSize: &output.bufferSize, batchSize: &output.batchSize)
         return output
     }
 

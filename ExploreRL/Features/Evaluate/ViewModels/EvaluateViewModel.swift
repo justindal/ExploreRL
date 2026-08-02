@@ -14,6 +14,7 @@ final class EvaluateViewModel {
     private var ppoAlgorithm: PPO?
     private var sacAlgorithm: SAC?
     private var td3Algorithm: TD3?
+    private var valueEnv: AnyValueEnvironment?
     private var loadedSession: SavedSession?
     private var evalTask: Task<Void, Never>?
 
@@ -25,49 +26,43 @@ final class EvaluateViewModel {
 
     @MainActor
     func loadSession(_ session: SavedSession) async {
-        clearAlgorithm()
+        await clearAlgorithm()
         state.reset()
         state.status = .loading
         env = nil
         renderSnapshot = nil
 
         do {
-            let envID = session.environmentID
-            let settings = session.envSettings
-            let options = envOptions(for: envID, settings: settings)
-            let maxSteps = frozenLakeMaxSteps(for: envID, settings: settings)
-            var baseEnv = try await Gymnazo.make(
-                envID, maxEpisodeSteps: maxSteps, options: options
+            var previewEnv = try await makeEnv(for: session)
+            _ = try previewEnv.reset(
+                seed: envResetSeed(settings: session.envSettings),
+                options: nil
             )
-            baseEnv.renderMode = .human
-
-            let resetOptions = envResetOptions(for: envID, settings: settings)
-            let resetSeed = envResetSeed(settings: settings)
-            var loadedEnv = ConfiguredEnv(
-                base: baseEnv,
-                resetSeed: resetSeed,
-                resetOptions: resetOptions
-            )
-            _ = try loadedEnv.reset(seed: resetSeed, options: nil)
 
             let checkpointDir = storage.checkpointDirectory(for: session.id)
+            valueEnv = try await makeValueEnv(for: session)
 
-            env = loadedEnv
+            env = previewEnv
 
             switch session.algorithmType {
             case .qLearning, .sarsa:
-                tabularAgent = try TabularAgent.load(from: checkpointDir, env: loadedEnv)
+                let algorithmEnv = try await makeEnv(for: session)
+                tabularAgent = try TabularAgent.load(from: checkpointDir, env: algorithmEnv)
             case .dqn:
-                dqnAlgorithm = try DQN.load(
-                    from: checkpointDir, env: loadedEnv, includeBuffer: false)
+                let algorithmEnv = try await makeEnv(for: session)
+                dqnAlgorithm = try await DQN.load(
+                    from: checkpointDir, env: algorithmEnv, includeBuffer: false)
             case .ppo:
-                ppoAlgorithm = try PPO.load(from: checkpointDir, env: loadedEnv)
+                let algorithmEnv = try await makeEnv(for: session)
+                ppoAlgorithm = try await PPO.load(from: checkpointDir, env: algorithmEnv)
             case .sac:
-                sacAlgorithm = try SAC.load(
-                    from: checkpointDir, env: loadedEnv, includeBuffer: false)
+                let algorithmEnv = try await makeEnv(for: session)
+                sacAlgorithm = try await SAC.load(
+                    from: checkpointDir, env: algorithmEnv, includeBuffer: false)
             case .td3:
-                td3Algorithm = try TD3.load(
-                    from: checkpointDir, env: loadedEnv, includeBuffer: false)
+                let algorithmEnv = try await makeEnv(for: session)
+                td3Algorithm = try await TD3.load(
+                    from: checkpointDir, env: algorithmEnv, includeBuffer: false)
             }
 
             loadedSession = session
@@ -138,29 +133,15 @@ final class EvaluateViewModel {
         }
 
         do {
-            switch session.algorithmType {
-            case .qLearning, .sarsa:
-                try await tabularAgent?.evaluate(
-                    episodes: totalEpisodes,
-                    callbacks: callbacks
+            if !renderEnabled, let valueEnv {
+                try await runValueEvaluation(
+                    session: session,
+                    environment: valueEnv,
+                    episodes: totalEpisodes
                 )
-            case .dqn:
-                try await dqnAlgorithm?.evaluate(
-                    episodes: totalEpisodes,
-                    callbacks: callbacks
-                )
-            case .ppo:
-                try await ppoAlgorithm?.evaluate(
-                    episodes: totalEpisodes,
-                    callbacks: callbacks
-                )
-            case .sac:
-                try await sacAlgorithm?.evaluate(
-                    episodes: totalEpisodes,
-                    callbacks: callbacks
-                )
-            case .td3:
-                try await td3Algorithm?.evaluate(
+            } else {
+                try await runCompatibilityEvaluation(
+                    session: session,
                     episodes: totalEpisodes,
                     callbacks: callbacks
                 )
@@ -176,9 +157,137 @@ final class EvaluateViewModel {
         }
     }
 
-    private func clearAlgorithm() {
+    private func runCompatibilityEvaluation(
+        session: SavedSession,
+        episodes: Int,
+        callbacks: EvaluateCallbacks
+    ) async throws {
+        switch session.algorithmType {
+        case .qLearning, .sarsa:
+            try await tabularAgent?.evaluate(
+                episodes: episodes,
+                callbacks: callbacks
+            )
+        case .dqn:
+            try await dqnAlgorithm?.evaluate(
+                episodes: episodes,
+                callbacks: callbacks
+            )
+        case .ppo:
+            try await ppoAlgorithm?.evaluate(
+                episodes: episodes,
+                callbacks: callbacks
+            )
+        case .sac:
+            try await sacAlgorithm?.evaluate(
+                episodes: episodes,
+                callbacks: callbacks
+            )
+        case .td3:
+            try await td3Algorithm?.evaluate(
+                episodes: episodes,
+                callbacks: callbacks
+            )
+        }
+    }
+
+    private func runValueEvaluation(
+        session: SavedSession,
+        environment: AnyValueEnvironment,
+        episodes: Int
+    ) async throws {
+        let resetSeed = envResetSeed(settings: session.envSettings)
+        let resetOptions = valueResetOptions(
+            for: session.environmentID,
+            settings: session.envSettings
+        )
+        for _ in 0..<episodes {
+            try Task.checkCancellation()
+            var observation = try await environment.reset(
+                seed: resetSeed,
+                options: resetOptions
+            ).observation
+            var reward = 0.0
+            var length = 0
+            var finished = false
+            while !finished {
+                try Task.checkCancellation()
+                let action = try await valueAction(
+                    for: observation,
+                    algorithm: session.algorithmType
+                )
+                let step = try await environment.step(action)
+                observation = step.observation
+                reward += step.reward
+                length += 1
+                state.recordStep()
+                finished = step.terminated || step.truncated
+            }
+            state.recordEpisode(reward: reward, length: length)
+        }
+    }
+
+    private func valueAction(
+        for observation: SpaceValue,
+        algorithm: AlgorithmType
+    ) async throws -> SpaceValue {
+        switch algorithm {
+        case .qLearning, .sarsa:
+            guard let tabularAgent else {
+                throw TrainError.invalidConfiguration("No tabular agent is loaded")
+            }
+            return try await tabularAgent.act(observation: observation).spaceValue
+        case .dqn:
+            guard let dqnAlgorithm else {
+                throw TrainError.invalidConfiguration("No DQN agent is loaded")
+            }
+            return try await dqnAlgorithm.act(
+                observation: tensorObservation(observation)
+            ).spaceValue
+        case .ppo:
+            guard let ppoAlgorithm else {
+                throw TrainError.invalidConfiguration("No PPO agent is loaded")
+            }
+            return try await ppoAlgorithm.act(
+                observation: tensorObservation(observation)
+            ).spaceValue
+        case .sac:
+            guard let sacAlgorithm else {
+                throw TrainError.invalidConfiguration("No SAC agent is loaded")
+            }
+            return try await sacAlgorithm.act(
+                observation: tensorObservation(observation)
+            ).spaceValue
+        case .td3:
+            guard let td3Algorithm else {
+                throw TrainError.invalidConfiguration("No TD3 agent is loaded")
+            }
+            return try await td3Algorithm.act(
+                observation: tensorObservation(observation)
+            ).spaceValue
+        }
+    }
+
+    private func tensorObservation(_ observation: SpaceValue) throws -> TensorValue<Float> {
+        switch observation {
+        case .floatTensor(let value):
+            return value
+        case .continuous(let values, let shape):
+            return try TensorValue(values, shape: shape)
+        default:
+            throw TrainError.invalidConfiguration(
+                "The loaded neural policy requires a float tensor observation"
+            )
+        }
+    }
+
+    private func clearAlgorithm() async {
         evalTask?.cancel()
         evalTask = nil
+        if let valueEnv {
+            await valueEnv.close()
+        }
+        valueEnv = nil
         tabularAgent = nil
         dqnAlgorithm = nil
         ppoAlgorithm = nil
@@ -186,6 +295,39 @@ final class EvaluateViewModel {
         td3Algorithm = nil
         loadedSession = nil
         renderSnapshot = nil
+    }
+
+    private func makeEnv(for session: SavedSession) async throws -> sending ConfiguredEnv {
+        let envID = session.environmentID
+        let settings = session.envSettings
+        let options = envOptions(for: envID, settings: settings)
+        let maxSteps = frozenLakeMaxSteps(for: envID, settings: settings)
+        var env = try await Gymnazo.make(
+            envID,
+            maxEpisodeSteps: maxSteps,
+            options: options
+        )
+        env.renderMode = .human
+        return ConfiguredEnv(
+            base: env,
+            resetSeed: envResetSeed(settings: settings),
+            resetOptions: envResetOptions(for: envID, settings: settings)
+        )
+    }
+
+    private func makeValueEnv(for session: SavedSession) async throws -> AnyValueEnvironment {
+        let maxSteps = frozenLakeMaxSteps(
+            for: session.environmentID,
+            settings: session.envSettings
+        )
+        return try await Gymnazo.makeValue(
+            session.environmentID,
+            maxEpisodeSteps: maxSteps,
+            options: envOptions(
+                for: session.environmentID,
+                settings: session.envSettings
+            )
+        )
     }
 
     private func envOptions(for envID: String, settings: [String: SettingValue]) -> EnvOptions {
@@ -300,5 +442,30 @@ final class EvaluateViewModel {
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         if seedValue.isEmpty { return nil }
         return UInt64(seedValue)
+    }
+
+    private func valueResetOptions(
+        for envID: String,
+        settings: [String: SettingValue]
+    ) -> ValueResetOptions? {
+        let options = envResetOptions(for: envID, settings: settings)
+        var values: ValueResetOptions = [:]
+        for (key, value) in options.storage {
+            switch value {
+            case let value as Bool:
+                values[key] = .bool(value)
+            case let value as Float:
+                values[key] = .double(Double(value))
+            case let value as Double:
+                values[key] = .double(value)
+            case let value as Int:
+                values[key] = .discrete(value)
+            case let value as String:
+                values[key] = .text(value)
+            default:
+                continue
+            }
+        }
+        return values.isEmpty ? nil : values
     }
 }
