@@ -5,45 +5,46 @@ struct EvaluateSessionRow: View {
     let onEvaluate: () -> Void
 
     var body: some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(session.name)
-                    .font(.body.weight(.semibold))
-                    .lineLimit(1)
+        Button(action: onEvaluate) {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(session.name)
+                        .font(.body.weight(.semibold))
+                        .lineLimit(1)
 
-                Text(session.environmentID)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    Text(session.environmentID)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
 
-                HStack(spacing: 8) {
-                    if let reward = session.trainingState.meanReward {
+                    HStack(spacing: 8) {
+                        if let reward = session.trainingState.meanReward {
+                            Label(
+                                reward.formatted(.number.precision(.fractionLength(2))),
+                                systemImage: "star.fill"
+                            )
+                            .font(.caption2)
+                            .foregroundStyle(.orange)
+                        }
+
                         Label(
-                            reward.formatted(.number.precision(.fractionLength(2))),
-                            systemImage: "star.fill"
+                            "\(session.trainingState.currentTimestep.formatted()) steps",
+                            systemImage: "figure.walk"
                         )
                         .font(.caption2)
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(.secondary)
                     }
-
-                    Label(
-                        "\(session.trainingState.currentTimestep.formatted()) steps",
-                        systemImage: "figure.walk"
-                    )
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
                 }
+
+                Spacer()
+
+                AlgorithmBadge(text: session.algorithmType.rawValue)
+                    .font(.caption2)
             }
-
-            Spacer()
-
-            AlgorithmBadge(text: session.algorithmType.rawValue)
-                .font(.caption2)
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
         .padding(.vertical, 4)
-        .contentShape(Rectangle())
-        .onTapGesture {
-            onEvaluate()
-        }
+        .accessibilityHint("Opens evaluation settings")
         .swipeActions(edge: .trailing) {
             Button {
                 onEvaluate()

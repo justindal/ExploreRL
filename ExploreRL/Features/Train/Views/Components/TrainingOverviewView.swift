@@ -11,16 +11,19 @@ struct TrainingOverviewView: View {
     let elapsed: TimeInterval
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: AppLayout.spacing) {
             header
             statsGrid
             progressSection
             Divider().opacity(0.4)
             timingRow
         }
-        .padding()
+        .padding(AppLayout.panelPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .background(
+            .regularMaterial,
+            in: RoundedRectangle(cornerRadius: AppLayout.panelRadius)
+        )
     }
 
     private var header: some View {
@@ -113,11 +116,11 @@ struct TrainingOverviewView: View {
     private func timingCell(label: String, value: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(label)
-                .font(.caption2)
+                .font(.caption)
                 .foregroundStyle(.secondary)
             Text(value)
                 .font(.callout)
-                .fontWeight(.medium)
+                .bold()
                 .monospacedDigit()
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)

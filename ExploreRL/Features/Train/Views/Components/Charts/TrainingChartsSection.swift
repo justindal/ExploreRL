@@ -44,7 +44,7 @@ struct TrainingChartsSection: View {
 
     var body: some View {
         if !availableMetrics.isEmpty {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: AppLayout.spacing) {
                 HStack {
                     Text("Charts")
                         .font(.headline)
@@ -58,8 +58,11 @@ struct TrainingChartsSection: View {
                 chartContent
                     .frame(height: 200)
             }
-            .padding()
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+            .padding(AppLayout.panelPadding)
+            .background(
+                .regularMaterial,
+                in: RoundedRectangle(cornerRadius: AppLayout.panelRadius)
+            )
             .onChange(of: availableMetrics) { _, metrics in
                 if !metrics.contains(selected), let first = metrics.first {
                     selected = first

@@ -6,9 +6,7 @@ struct EvaluationResults: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             Text("Results")
-                .font(.title2)
-                .fontWeight(.semibold)
-                .padding(.bottom, 4)
+                .font(.headline)
 
             summarySection
 
@@ -17,7 +15,8 @@ struct EvaluationResults: View {
 
             episodesSection
         }
-        .padding(.vertical, 8)
+        .padding()
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
     }
 
     @ViewBuilder

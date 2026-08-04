@@ -16,14 +16,14 @@ struct ActionRow: View {
     }
 
     var body: some View {
-        HStack {
+        HStack(spacing: 12) {
             if currentIndex > 0 {
                 backButton
             }
             continueButton
         }
         .padding(.horizontal, 10)
-        .shadow(radius: 2)
+        .shadow(color: .black.opacity(0.12), radius: 2, y: 1)
         .frame(maxWidth: .infinity, alignment: .bottom)
     }
 
@@ -38,16 +38,20 @@ struct ActionRow: View {
             }
         } label: {
             Text("Back")
-                .fontWeight(.medium)
-                .padding(.vertical, 6)
+                .font(.headline)
+                .frame(maxWidth: .infinity, minHeight: 44)
         }
         .modify { view in
             if #available(iOS 26.0, macOS 26.0, *) {
                 view.buttonStyle(.glassProminent)
                     .buttonSizing(.flexible)
+            } else {
+                view
+                    .buttonStyle(.bordered)
+                    .controlSize(.large)
             }
         }
-        .tint(Color(.darkGray))
+        .tint(.secondary)
     }
 
     private var continueButton: some View {
@@ -61,13 +65,17 @@ struct ActionRow: View {
             }
         } label: {
             Text(isLastPage ? "Get Started" : "Continue")
-                .fontWeight(.medium)
-                .padding(.vertical, 6)
+                .font(.headline)
+                .frame(maxWidth: .infinity, minHeight: 44)
         }
         .modify { view in
             if #available(iOS 26.0, macOS 26.0, *) {
                 view.buttonStyle(.glassProminent)
                     .buttonSizing(.flexible)
+            } else {
+                view
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
             }
         }
     }

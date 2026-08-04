@@ -13,13 +13,14 @@ struct TrainingMetricsView: View {
     let algorithm: AlgorithmType
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Metrics")
+        VStack(alignment: .leading, spacing: AppLayout.spacing) {
+            Label("Live metrics", systemImage: "waveform.path.ecg")
                 .font(.headline)
+                .foregroundStyle(.secondary)
 
             LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 120))],
-                spacing: 12
+                columns: [GridItem(.flexible()), GridItem(.flexible())],
+                spacing: AppLayout.compactSpacing
             ) {
                 coreMetrics
 
@@ -35,8 +36,8 @@ struct TrainingMetricsView: View {
                 algorithmSpecificMetrics
             }
         }
-        .padding()
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .padding(AppLayout.panelPadding)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: AppLayout.panelRadius))
     }
 
     @ViewBuilder

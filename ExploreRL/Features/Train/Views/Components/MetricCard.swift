@@ -14,15 +14,16 @@ struct MetricCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
-                .font(.caption)
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
             Text(value)
                 .font(.title3)
-                .fontWeight(.semibold)
+                .bold()
                 .monospacedDigit()
+                .contentTransition(.numericText())
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 8))
+        .padding(.vertical, AppLayout.compactSpacing)
+        .accessibilityElement(children: .combine)
     }
 }

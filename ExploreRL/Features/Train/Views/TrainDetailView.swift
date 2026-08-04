@@ -10,7 +10,9 @@ struct TrainDetailView: View {
     @State private var persistenceError: String?
     @State private var isLoadingSession: Bool = false
     @State private var showResetAlert: Bool = false
-    @Environment(\.horizontalSizeClass) private var sizeClass
+    #if os(iOS)
+        @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    #endif
     let id: String
     @Bindable var vm: TrainViewModel
     var showSettingsInspector: Binding<Bool>? = nil
@@ -108,6 +110,14 @@ struct TrainDetailView: View {
             .task(id: id) {
                 await vm.loadEnv(id: id)
             }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if usesBottomControls,
+                    trainingState.status != .idle,
+                    vm.env(for: id) != nil
+                {
+                    compactControls
+                }
+            }
     }
 
     private var mainContent: some View {
@@ -116,20 +126,26 @@ struct TrainDetailView: View {
             case .idle, .loading:
                 ProgressView("Loading \(id)...")
             case .loaded(let env):
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 20) {
-                        topSection(env: env)
-                        if trainingState.hasHistory {
-                            TrainingChartsSection(state: trainingState)
+                GeometryReader { proxy in
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: AppLayout.sectionSpacing) {
+                            topSection(env: env)
+                            if trainingState.hasHistory {
+                                TrainingChartsSection(state: trainingState)
+                            }
                         }
+                        .frame(
+                            minHeight: minimumContentHeight(for: proxy.size.height),
+                            alignment: renderDisabledContentIsCentered ? .center : .top
+                        )
+                        .frame(maxWidth: AppLayout.contentMaxWidth, alignment: .leading)
+                        .frame(maxWidth: .infinity)
+                        .padding(AppLayout.spacing)
                     }
-                    .frame(maxWidth: 960, alignment: .leading)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                }
-                .overlay {
-                    if vm.reloadingEnvs.contains(id) {
-                        reloadingOverlay
+                    .overlay {
+                        if vm.reloadingEnvs.contains(id) {
+                            reloadingOverlay
+                        }
                     }
                 }
             case .error(let error):
@@ -145,7 +161,7 @@ struct TrainDetailView: View {
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: toolbarPlacement) {
-            Menu {
+            Menu("Session", systemImage: "archivebox") {
                 Button {
                     showSaveSheet = true
                 } label: {
@@ -168,34 +184,29 @@ struct TrainDetailView: View {
                     )
                 }
                 .disabled(trainingState.status == .training)
-            } label: {
-                Image(systemName: "archivebox")
             }
+            .labelStyle(.iconOnly)
             .disabled(trainingState.status == .training)
         }
 
         ToolbarItem(placement: toolbarPlacement) {
-            Button {
+            Button("Environment Info", systemImage: "info.circle") {
                 showInfo.toggle()
-            } label: {
-                Image(systemName: "info.circle")
             }
+            .labelStyle(.iconOnly)
         }
         ToolbarItem(placement: toolbarPlacement) {
-            Button {
+            Button(
+                usesSettingsInspector ? "Toggle Settings" : "Settings",
+                systemImage: usesSettingsInspector ? "sidebar.right" : "gearshape"
+            ) {
                 if let binding = showSettingsInspector {
                     binding.wrappedValue.toggle()
                 } else {
                     showSettings = true
                 }
-            } label: {
-                Image(
-                    systemName: usesSettingsInspector
-                        ? "sidebar.right"
-                        : "gearshape"
-                )
             }
-            .disabled(trainingState.status == .training)
+            .labelStyle(.iconOnly)
         }
     }
 
@@ -210,33 +221,66 @@ struct TrainDetailView: View {
         let showsMetrics =
             trainingState.status != .idle || trainingState.hasHistory
         let showControlsProgress = trainingConfig.renderDuringTraining
-        if sizeClass == .regular {
-            if showsMetrics {
-                HStack(alignment: .top, spacing: 20) {
-                    envSection(env: env)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: 600)
-
-                    TrainingMetricsView(
-                        trainingState: trainingState,
-                        algorithm: trainingConfig.algorithm
+        let showsInlineControls = !usesBottomControls || trainingState.status == .idle
+        let prefersCenteredRenderer = id.hasPrefix("Snake")
+        if showsMetrics {
+            #if os(macOS)
+                if prefersCenteredRenderer {
+                    stackedTrainingWorkspace(
+                        env: env,
+                        showControlsProgress: showControlsProgress,
+                        showsControls: showsInlineControls
                     )
-                    .frame(maxWidth: .infinity, alignment: .top)
+                } else {
+                    wideTrainingWorkspace(
+                        env: env,
+                        showControlsProgress: showControlsProgress,
+                        showsControls: showsInlineControls
+                    )
                 }
+            #elseif os(iOS)
+                if usesBottomControls {
+                    stackedTrainingWorkspace(
+                        env: env,
+                        showControlsProgress: showControlsProgress,
+                        showsControls: showsInlineControls
+                    )
+                } else {
+                    ViewThatFits(in: .horizontal) {
+                        wideTrainingWorkspace(
+                            env: env,
+                            showControlsProgress: showControlsProgress,
+                            showsControls: showsInlineControls
+                        )
 
-                TrainingControlsView(
-                    id: id,
-                    vm: vm,
-                    trainingConfig: trainingConfig,
-                    trainingState: trainingState,
-                    showResetAlert: $showResetAlert,
-                    showDetailedProgress: showControlsProgress
-                )
-            } else {
-                VStack(spacing: 16) {
-                    envSection(env: env)
-                        .fixedSize(horizontal: false, vertical: true)
+                        stackedTrainingWorkspace(
+                            env: env,
+                            showControlsProgress: showControlsProgress,
+                            showsControls: showsInlineControls
+                        )
+                    }
+                }
+            #else
+                ViewThatFits(in: .horizontal) {
+                    wideTrainingWorkspace(
+                        env: env,
+                        showControlsProgress: showControlsProgress,
+                        showsControls: showsInlineControls
+                    )
 
+                    stackedTrainingWorkspace(
+                        env: env,
+                        showControlsProgress: showControlsProgress,
+                        showsControls: showsInlineControls
+                    )
+                }
+            #endif
+        } else {
+            VStack(spacing: 16) {
+                envSection(env: env)
+                    .frame(maxWidth: .infinity, alignment: .center)
+
+                if showsInlineControls {
                     TrainingControlsView(
                         id: id,
                         vm: vm,
@@ -246,32 +290,73 @@ struct TrainDetailView: View {
                         showDetailedProgress: showControlsProgress
                     )
                 }
-                .frame(maxWidth: 600)
-                .frame(maxWidth: .infinity, alignment: .center)
             }
-        } else {
-            envSection(env: env)
-                .frame(maxWidth: .infinity)
-            TrainingControlsView(
-                id: id,
-                vm: vm,
-                trainingConfig: trainingConfig,
-                trainingState: trainingState,
-                showResetAlert: $showResetAlert,
-                showDetailedProgress: showControlsProgress
-            )
-            if showsMetrics {
+            .frame(maxWidth: 720)
+            .frame(maxWidth: .infinity, alignment: .center)
+        }
+    }
+
+    private func wideTrainingWorkspace(
+        env: any Env,
+        showControlsProgress: Bool,
+        showsControls: Bool
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 20) {
+            HStack(alignment: .top, spacing: 20) {
+                envSection(env: env)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .layoutPriority(1)
+
                 TrainingMetricsView(
                     trainingState: trainingState,
                     algorithm: trainingConfig.algorithm
+                )
+                .frame(minWidth: 280, idealWidth: 340, maxWidth: 420)
+            }
+
+            if showsControls {
+                TrainingControlsView(
+                    id: id,
+                    vm: vm,
+                    trainingConfig: trainingConfig,
+                    trainingState: trainingState,
+                    showResetAlert: $showResetAlert,
+                    showDetailedProgress: showControlsProgress
                 )
             }
         }
     }
 
+    private func stackedTrainingWorkspace(
+        env: any Env,
+        showControlsProgress: Bool,
+        showsControls: Bool
+    ) -> some View {
+        VStack(alignment: .center, spacing: 16) {
+            envSection(env: env)
+                .frame(maxWidth: .infinity, alignment: .center)
+
+            if showsControls {
+                TrainingControlsView(
+                    id: id,
+                    vm: vm,
+                    trainingConfig: trainingConfig,
+                    trainingState: trainingState,
+                    showResetAlert: $showResetAlert,
+                    showDetailedProgress: showControlsProgress
+                )
+            }
+
+            TrainingMetricsView(
+                trainingState: trainingState,
+                algorithm: trainingConfig.algorithm
+            )
+        }
+    }
+
     @ViewBuilder
     private func envSection(env: any Env) -> some View {
-        EnvView(
+        let content = EnvView(
             env: env,
             snapshot: vm.renderSnapshots[id],
             renderVersion: trainingState.renderVersion,
@@ -280,11 +365,64 @@ struct TrainDetailView: View {
             trainingConfig: trainingConfig,
             elapsed: vm.activeTrainingElapsed(for: id)
         )
-        .id(id)
+
+        #if os(iOS)
+            if horizontalSizeClass == .compact {
+                content
+                    .frame(maxWidth: 360)
+                    .frame(maxWidth: .infinity)
+                    .id(id)
+            } else {
+                content
+                    .frame(maxWidth: .infinity)
+                    .id(id)
+            }
+        #else
+            content
+                .id(id)
+        #endif
     }
 
     private func performReset() {
         Task { await vm.resetTraining(for: id) }
+    }
+
+    private var usesBottomControls: Bool {
+        #if os(iOS)
+            horizontalSizeClass == .compact
+        #else
+            false
+        #endif
+    }
+
+    private var renderDisabledContentIsCentered: Bool {
+        #if os(iOS)
+            horizontalSizeClass == .compact && !trainingConfig.renderDuringTraining
+        #else
+            false
+        #endif
+    }
+
+    private func minimumContentHeight(for availableHeight: CGFloat) -> CGFloat {
+        guard renderDisabledContentIsCentered else { return 0 }
+        return max(0, availableHeight - (AppLayout.spacing * 2))
+    }
+
+    private var compactControls: some View {
+        TrainingControlsView(
+            id: id,
+            vm: vm,
+            trainingConfig: trainingConfig,
+            trainingState: trainingState,
+            showResetAlert: $showResetAlert,
+            showDetailedProgress: false,
+            compact: true
+        )
+        .padding(.horizontal, AppLayout.compactSpacing)
+        .padding(.top, AppLayout.compactSpacing)
+        .overlay(alignment: .top) {
+            Divider()
+        }
     }
 
     private var loadingOverlay: some View {

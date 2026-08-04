@@ -133,10 +133,18 @@ struct TrainingChart: View {
             plotArea.clipped()
         }
         .chartXAxis {
-            AxisMarks(preset: .automatic)
+            AxisMarks(values: .automatic) {
+                AxisGridLine()
+                AxisTick()
+                AxisValueLabel()
+            }
         }
         .chartYAxis {
-            AxisMarks(preset: .automatic)
+            AxisMarks(values: .automatic) {
+                AxisGridLine()
+                AxisTick()
+                AxisValueLabel()
+            }
         }
         .chartOverlay { proxy in
             GeometryReader { geometry in

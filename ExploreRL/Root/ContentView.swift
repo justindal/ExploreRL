@@ -9,11 +9,12 @@ struct ContentView: View {
 
     #if os(macOS)
         @State private var trainViewModel = TrainViewModel()
-        @State private var showTrainSettingsInspector = true
+        @SceneStorage("trainInspectorVisible") private var showTrainSettingsInspector = true
         @State private var selectedSidebarDestination: RootDestination = .library
         @SceneStorage("sidebarDestination") private var storedSidebarDestination = "library"
         @State private var trainLoadError: String?
         @State private var isLoadingTrainSession = false
+        @State private var environmentSearchText = ""
 
         private func restoreSidebarDestination() {
             if let dest = RootDestination.fromStorageKey(storedSidebarDestination) {
@@ -196,7 +197,6 @@ struct ContentView: View {
                     .inspector(isPresented: $showTrainSettingsInspector) {
                         trainInspectorContent
                     }
-                    .inspectorColumnWidth(min: 320, ideal: 420, max: 520)
             }
             .onChange(of: selectedTrainEnvironmentID) { oldValue, newValue in
                 if newValue == nil {
@@ -228,6 +228,11 @@ struct ContentView: View {
             .listStyle(.sidebar)
             .navigationTitle("ExploreRL")
             .navigationSplitViewColumnWidth(min: 230, ideal: 280, max: 360)
+            .searchable(
+                text: $environmentSearchText,
+                placement: .sidebar,
+                prompt: "Search environments"
+            )
         }
 
         @ViewBuilder
@@ -256,7 +261,9 @@ struct ContentView: View {
 
         private var environmentSections: [(category: EnvCategory, items: [EnvSpec])] {
             EnvCategory.allCases.compactMap { category in
-                let items = envSpecs.filter { $0.category == category }
+                let items = envSpecs.filter {
+                    $0.category == category && $0.matchesSearch(environmentSearchText)
+                }
                 return items.isEmpty ? nil : (category, items)
             }
         }
@@ -290,10 +297,9 @@ struct ContentView: View {
                 Text(spec.displayName ?? spec.name)
                     .lineLimit(1)
                 Spacer()
-                if trainViewModel.trainingState(for: spec.id).status == .training {
-                    ProgressView()
-                        .controlSize(.small)
-                }
+                TrainingStatusIndicator(
+                    status: trainViewModel.trainingState(for: spec.id).status
+                )
             }
         }
 
@@ -313,6 +319,8 @@ struct ContentView: View {
                     vm: trainViewModel,
                     showsDismissButton: false
                 )
+                .id(envID)
+                .inspectorColumnWidth(min: 320, ideal: 360, max: 440)
             } else {
                 EmptyView()
             }

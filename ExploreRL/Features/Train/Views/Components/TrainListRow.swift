@@ -12,7 +12,7 @@ struct TrainListRow: View {
     let name: String
     let description: String
     let algorithms: [String]
-    var isTraining: Bool = false
+    var status: TrainingStatus = .idle
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -41,12 +41,7 @@ struct TrainListRow: View {
 
             Spacer()
 
-            if isTraining {
-                Image(systemName: "circle.fill")
-                    .font(.system(size: 7))
-                    .foregroundStyle(.orange)
-                    .symbolEffect(.pulse, isActive: true)
-            }
+            TrainingStatusIndicator(status: status)
         }
         .padding(.vertical, 2)
     }

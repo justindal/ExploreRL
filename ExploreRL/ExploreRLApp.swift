@@ -21,7 +21,7 @@ struct ExploreRLApp: App {
             ContentView()
         }
         #if os(macOS)
-            .defaultSize(width: 1000, height: 800)
+            .defaultSize(width: 1280, height: 820)
         #endif
 
         #if os(macOS)

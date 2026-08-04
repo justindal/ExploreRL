@@ -13,22 +13,33 @@ struct TrainingControlsView: View {
     let trainingState: TrainingState
     @Binding var showResetAlert: Bool
     var showDetailedProgress: Bool = true
+    var compact = false
+    #if os(iOS)
+        @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    #endif
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: compact ? AppLayout.compactSpacing : 12) {
             trainingContent
         }
-        .padding()
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .padding(compact ? 10 : AppLayout.panelPadding)
+        .background(
+            usesPanelBackground
+                ? AnyShapeStyle(.regularMaterial)
+                : AnyShapeStyle(.clear),
+            in: RoundedRectangle(cornerRadius: AppLayout.panelRadius)
+        )
     }
 
     @ViewBuilder
     private var trainingContent: some View {
-        HStack {
-            Text("Training")
-                .font(.headline)
-            Spacer()
-            AlgorithmBadge(text: trainingConfig.algorithm.rawValue)
+        if !compact {
+            HStack {
+                Text("Training")
+                    .font(.headline)
+                Spacer()
+                AlgorithmBadge(text: trainingConfig.algorithm.rawValue)
+            }
         }
 
         if trainingState.status != .idle && showDetailedProgress {
@@ -37,19 +48,19 @@ struct TrainingControlsView: View {
 
         actionBar
 
-        if case .failed(let error) = trainingState.status {
+        if !compact, case .failed(let error) = trainingState.status {
             Text(error)
                 .font(.caption)
                 .foregroundStyle(.red)
         }
 
-        if let message = trainingState.statusMessage {
+        if !compact, let message = trainingState.statusMessage {
             Text(message)
                 .font(.caption)
                 .foregroundStyle(.orange)
         }
 
-        if trainingState.status != .training, let reason = policy.reason {
+        if !compact, trainingState.status != .training, let reason = policy.reason {
             Text(reason)
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -149,6 +160,8 @@ struct TrainingControlsView: View {
                 .frame(maxWidth: .infinity)
         }
         .disabled(!policy.isAllowed)
+        .keyboardShortcut(.return, modifiers: .command)
+        .help("Start training (Command-Return)")
         .modify { button in
             if #available(iOS 26.0, macOS 26.0, *) {
                 button
@@ -172,6 +185,8 @@ struct TrainingControlsView: View {
                 .frame(maxWidth: .infinity)
         }
         .disabled(!policy.isAllowed)
+        .keyboardShortcut(.return, modifiers: .command)
+        .help("Resume training (Command-Return)")
         .modify { button in
             if #available(iOS 26.0, macOS 26.0, *) {
                 button
@@ -195,6 +210,8 @@ struct TrainingControlsView: View {
             Label("Pause", systemImage: "pause.fill")
                 .frame(maxWidth: .infinity)
         }
+        .keyboardShortcut(.return, modifiers: .command)
+        .help("Pause training (Command-Return)")
         .modify { button in
             if #available(iOS 26.0, macOS 26.0, *) {
                 button
@@ -228,6 +245,8 @@ struct TrainingControlsView: View {
             .frame(maxWidth: .infinity)
         }
         .disabled(isResetting)
+        .keyboardShortcut("r", modifiers: [.command, .shift])
+        .help("Reset training (Shift-Command-R)")
         .modify { button in
             let isTraining = trainingState.status == .training
             if #available(iOS 26.0, macOS 26.0, *) {
@@ -260,5 +279,13 @@ struct TrainingControlsView: View {
 
     private var isResetting: Bool {
         vm.isResetting(id: id)
+    }
+
+    private var usesPanelBackground: Bool {
+        #if os(iOS)
+            !compact && horizontalSizeClass != .compact
+        #else
+            true
+        #endif
     }
 }

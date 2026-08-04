@@ -9,12 +9,12 @@ import SwiftUI
 struct EvaluateDetailView: View {
     let session: SavedSession
     @Bindable var vm: EvaluateViewModel
-    @Environment(\.horizontalSizeClass) private var sizeClass
+    var showsCloseButton = true
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: AppLayout.sectionSpacing) {
                 agentInfoCard
                 evaluationSummaryCard
                 topSection
@@ -22,14 +22,24 @@ struct EvaluateDetailView: View {
                     EvaluationResults(state: vm.state)
                 }
             }
-            .frame(maxWidth: 960, alignment: .leading)
+            .frame(maxWidth: AppLayout.contentMaxWidth, alignment: .leading)
             .frame(maxWidth: .infinity)
-            .padding()
+            .padding(AppLayout.spacing)
         }
         .navigationTitle(session.name)
         #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
         #endif
+        .toolbar {
+            if showsCloseButton {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Close", systemImage: "xmark") {
+                        dismiss()
+                    }
+                    .labelStyle(.iconOnly)
+                }
+            }
+        }
         .task(id: session.id) {
             await vm.loadSession(session)
         }
@@ -46,7 +56,7 @@ struct EvaluateDetailView: View {
             }
 
             LazyVGrid(
-                columns: [GridItem(.flexible()), GridItem(.flexible())],
+                columns: [GridItem(.adaptive(minimum: 200))],
                 alignment: .leading,
                 spacing: 8
             ) {
@@ -59,8 +69,11 @@ struct EvaluateDetailView: View {
             }
             .font(.subheadline)
         }
-        .padding()
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .padding(AppLayout.panelPadding)
+        .background(
+            .regularMaterial,
+            in: RoundedRectangle(cornerRadius: AppLayout.panelRadius)
+        )
     }
 
     @ViewBuilder
@@ -76,7 +89,7 @@ struct EvaluateDetailView: View {
                 }
 
                 LazyVGrid(
-                    columns: [GridItem(.flexible()), GridItem(.flexible())],
+                    columns: [GridItem(.adaptive(minimum: 140))],
                     alignment: .leading,
                     spacing: 12
                 ) {
@@ -99,24 +112,43 @@ struct EvaluateDetailView: View {
                     )
                 }
             }
-            .padding()
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+            .padding(AppLayout.panelPadding)
+            .background(
+                .regularMaterial,
+                in: RoundedRectangle(cornerRadius: AppLayout.panelRadius)
+            )
         }
     }
 
     @ViewBuilder
     private var topSection: some View {
-        if let env = vm.env, sizeClass == .regular {
-            HStack(alignment: .top, spacing: 20) {
-                envSection(env: env)
-                controlsCard
-                    .frame(minWidth: 280, idealWidth: 320, maxWidth: 360)
-            }
+        if let env = vm.env {
+            #if os(macOS)
+                HStack(alignment: .top, spacing: 20) {
+                    envSection(env: env)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .layoutPriority(1)
+                    controlsCard
+                        .frame(minWidth: 300, idealWidth: 320, maxWidth: 360)
+                }
+            #else
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .top, spacing: 20) {
+                        envSection(env: env)
+                            .frame(minWidth: 320, idealWidth: 560, maxWidth: .infinity)
+                            .layoutPriority(1)
+                        controlsCard
+                            .frame(minWidth: 280, idealWidth: 320, maxWidth: 360)
+                    }
+
+                    VStack(alignment: .leading, spacing: 16) {
+                        envSection(env: env)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                        controlsCard
+                    }
+                }
+            #endif
         } else {
-            if let env = vm.env {
-                envSection(env: env)
-                    .frame(maxWidth: .infinity)
-            }
             controlsCard
         }
     }
@@ -166,8 +198,11 @@ struct EvaluateDetailView: View {
             settingsRow
             actionButtons
         }
-        .padding()
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .padding(AppLayout.panelPadding)
+        .background(
+            .regularMaterial,
+            in: RoundedRectangle(cornerRadius: AppLayout.panelRadius)
+        )
     }
 
     @ViewBuilder

@@ -164,6 +164,11 @@ struct TrainSettingsView: View {
                 guard !parametersLocked else { return }
                 applyAlgorithmDefaultsIfNeeded(from: oldValue, to: newValue)
             }
+            .onChange(of: availableAlgorithms, initial: true) { _, algorithms in
+                guard let first = algorithms.first else { return }
+                guard !algorithms.contains(localTrainingConfig.algorithm) else { return }
+                localTrainingConfig.algorithm = first
+            }
             .onChange(of: localEnvSettings) { _, _ in
                 applySettingsIfPossible()
             }
