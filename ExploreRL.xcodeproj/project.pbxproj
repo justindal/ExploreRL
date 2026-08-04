@@ -182,7 +182,7 @@
 			mainGroup = B954BC912ECA6A9B0081CE3F;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				B94D6DA22FF1D7B40038E0D3 /* XCRemoteSwiftPackageReference "Gymnazo" */,
+				B94D6DA22FF1D7B40038E0D3 /* XCLocalSwiftPackageReference "../Gymnazo" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = B954BC9B2ECA6A9B0081CE3F /* Products */;
@@ -361,48 +361,6 @@
 			};
 			name = Release;
 		};
-		B9A0000A2FF200000000000A /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ARCHS = arm64;
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = T7HWJDJCX8;
-				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
-				MACOSX_DEPLOYMENT_TARGET = 15.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.justindaludado.ExploreRLTests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = auto;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_VERSION = 6.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ExploreRL.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/ExploreRL";
-			};
-			name = Debug;
-		};
-		B9A0000B2FF200000000000B /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ARCHS = arm64;
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = T7HWJDJCX8;
-				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
-				MACOSX_DEPLOYMENT_TARGET = 15.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.justindaludado.ExploreRLTests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = auto;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_VERSION = 6.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ExploreRL.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/ExploreRL";
-			};
-			name = Release;
-		};
 		B954BCA32ECA6A9C0081CE3F /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -527,6 +485,48 @@
 			};
 			name = Release;
 		};
+		B9A0000A2FF200000000000A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = arm64;
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = T7HWJDJCX8;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.justindaludado.ExploreRLTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ExploreRL.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/ExploreRL";
+			};
+			name = Debug;
+		};
+		B9A0000B2FF200000000000B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = arm64;
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = T7HWJDJCX8;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.justindaludado.ExploreRLTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ExploreRL.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/ExploreRL";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -559,26 +559,22 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCRemoteSwiftPackageReference section */
-		B94D6DA22FF1D7B40038E0D3 /* XCRemoteSwiftPackageReference "Gymnazo" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/justindal/Gymnazo";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 0.13.0;
-			};
+/* Begin XCLocalSwiftPackageReference section */
+		B94D6DA22FF1D7B40038E0D3 /* XCLocalSwiftPackageReference "../Gymnazo" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../Gymnazo;
 		};
-/* End XCRemoteSwiftPackageReference section */
+/* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
 		B94D6DA32FF1D7B40038E0D3 /* Box2D */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = B94D6DA22FF1D7B40038E0D3 /* XCRemoteSwiftPackageReference "Gymnazo" */;
+			package = B94D6DA22FF1D7B40038E0D3 /* XCLocalSwiftPackageReference "../Gymnazo" */;
 			productName = Box2D;
 		};
 		B94D6DA52FF1D7B40038E0D3 /* Gymnazo */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = B94D6DA22FF1D7B40038E0D3 /* XCRemoteSwiftPackageReference "Gymnazo" */;
+			package = B94D6DA22FF1D7B40038E0D3 /* XCLocalSwiftPackageReference "../Gymnazo" */;
 			productName = Gymnazo;
 		};
 /* End XCSwiftPackageProductDependency section */

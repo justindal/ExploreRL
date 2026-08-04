@@ -27,6 +27,12 @@ enum EnvironmentDefaults {
             return lunarLanderContinuous
         case "CarRacing":
             return carRacing
+        case "FlappyBird":
+            return flappyBird
+        case "Snake":
+            return snake
+        case "2048":
+            return twentyFortyEight
         default:
             return TrainingConfig()
         }
@@ -92,6 +98,21 @@ enum EnvironmentDefaults {
             case .ppo: return 4_000_000
             case .sac, .td3: return 1_000_000
             default: return 1_000_000
+            }
+        case "FlappyBird":
+            switch algorithm {
+            case .ppo: return 500_000
+            default: return 200_000
+            }
+        case "Snake":
+            switch algorithm {
+            case .ppo: return 1_000_000
+            default: return 500_000
+            }
+        case "2048":
+            switch algorithm {
+            case .ppo: return 500_000
+            default: return 300_000
             }
         default:
             return TrainingConfig().totalTimesteps
@@ -216,6 +237,69 @@ extension EnvironmentDefaults {
         c.dqn.gradientStepsMode = .asCollectedSteps
         c.dqn.explorationFraction = 0.2
         c.dqn.explorationFinalEps = 0.05
+        return c
+    }
+
+    private static var flappyBird: TrainingConfig {
+        var c = TrainingConfig()
+        c.algorithm = .dqn
+        c.totalTimesteps = 200_000
+        c.renderFPS = 30
+        c.dqn.learningRate = 1e-3
+        c.dqn.batchSize = 64
+        c.dqn.bufferSize = 50_000
+        c.dqn.learningStarts = 1_000
+        c.dqn.gamma = 0.99
+        c.dqn.targetUpdateInterval = 500
+        c.dqn.trainFrequency = 4
+        c.dqn.gradientSteps = 1
+        c.dqn.explorationFraction = 0.3
+        c.dqn.explorationFinalEps = 0.05
+        c.dqn.netArch = [128, 128]
+        return c
+    }
+
+    private static var snake: TrainingConfig {
+        var c = TrainingConfig()
+        c.algorithm = .dqn
+        c.totalTimesteps = 500_000
+        c.renderFPS = 12
+        c.dqn.learningRate = 1e-4
+        c.dqn.batchSize = 64
+        c.dqn.bufferSize = 100_000
+        c.dqn.learningStarts = 5_000
+        c.dqn.gamma = 0.99
+        c.dqn.targetUpdateInterval = 1_000
+        c.dqn.trainFrequency = 4
+        c.dqn.gradientSteps = 1
+        c.dqn.explorationFraction = 0.4
+        c.dqn.explorationFinalEps = 0.05
+        c.dqn.netArch = [256, 256]
+        return c
+    }
+
+    private static var twentyFortyEight: TrainingConfig {
+        var c = TrainingConfig()
+        c.algorithm = .dqn
+        c.totalTimesteps = 300_000
+        c.renderFPS = 10
+        c.dqn.learningRate = 1e-4
+        c.dqn.batchSize = 64
+        c.dqn.bufferSize = 100_000
+        c.dqn.learningStarts = 5_000
+        c.dqn.gamma = 0.99
+        c.dqn.targetUpdateInterval = 1_000
+        c.dqn.trainFrequency = 4
+        c.dqn.gradientSteps = 1
+        c.dqn.explorationFraction = 0.5
+        c.dqn.explorationFinalEps = 0.05
+        c.dqn.netArch = [256, 256]
+        c.ppo.nSteps = 256
+        c.ppo.batchSize = 256
+        c.ppo.nEpochs = 4
+        c.ppo.gamma = 0.99
+        c.ppo.gaeLambda = 0.95
+        c.ppo.entCoef = 0.01
         return c
     }
 }

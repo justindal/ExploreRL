@@ -10,11 +10,20 @@ struct TypedBoundaryTests {
         let continuous = try await EnvValueContract.load(id: "Pendulum", options: [:])
         let image = try await EnvValueContract.load(id: "CarRacing", options: [:])
         let tuple = try await EnvValueContract.load(id: "Blackjack", options: [:])
+        let flappyBird = try await EnvValueContract.load(id: "FlappyBird", options: [:])
+        let snake = try await EnvValueContract.load(id: "Snake", options: [:])
+        let twentyFortyEight = try await EnvValueContract.load(id: "2048", options: [:])
 
         #expect(discrete.action.kind.isDiscrete)
         #expect(continuous.action.kind.isContinuous)
         #expect(image.observation.flatDimension == 96 * 96 * 3)
         #expect(tuple.observation.kind.isTabular)
+        #expect(flappyBird.observation.flatDimension == 4)
+        #expect(flappyBird.action.kind.isDiscrete)
+        #expect(snake.observation.flatDimension == 148)
+        #expect(snake.action.kind.isDiscrete)
+        #expect(twentyFortyEight.observation.flatDimension == 16)
+        #expect(twentyFortyEight.action.kind.isDiscrete)
     }
 
     @Test

@@ -150,6 +150,21 @@ struct EnvView: View {
                 CarRacingView(snapshot: s)
             }
 
+        case let s as FlappyBirdSnapshot:
+            FixedSizeEnvWrapper(baseSize: CGSize(width: 600, height: 400)) {
+                FlappyBirdView(snapshot: s)
+            }
+
+        case let s as SnakeSnapshot:
+            FixedSizeEnvWrapper(baseSize: CGSize(width: 400, height: 400)) {
+                SnakeView(snapshot: s)
+            }
+
+        case let s as TwentyFortyEightSnapshot:
+            FixedSizeEnvWrapper(baseSize: CGSize(width: 400, height: 400)) {
+                TwentyFortyEightView(snapshot: s)
+            }
+
         default:
             ContentUnavailableView(
                 "Renderer Not Implemented",
