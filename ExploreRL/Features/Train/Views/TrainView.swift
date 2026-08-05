@@ -142,16 +142,7 @@ struct TrainView: View {
         ForEach(sections, id: \.category) { section in
             Section(section.category.rawValue) {
                 ForEach(section.items, id: \.id) { spec in
-                        #if os(macOS)
-                    TrainListRow(
-                        name: spec.displayName ?? spec.name,
-                        description: spec.description ?? "",
-                        algorithms: [],
-                        status: viewModel.trainingState(for: spec.id).status
-                    )
-                    .tag(spec.id)
-                        #else
-                    if usesSplitLayout {
+                    #if os(macOS)
                         TrainListRow(
                             name: spec.displayName ?? spec.name,
                             description: spec.description ?? "",
@@ -159,17 +150,26 @@ struct TrainView: View {
                             status: viewModel.trainingState(for: spec.id).status
                         )
                         .tag(spec.id)
-                    } else {
-                        NavigationLink(value: spec.id) {
+                    #else
+                        if usesSplitLayout {
                             TrainListRow(
                                 name: spec.displayName ?? spec.name,
                                 description: spec.description ?? "",
                                 algorithms: [],
                                 status: viewModel.trainingState(for: spec.id).status
                             )
+                            .tag(spec.id)
+                        } else {
+                            NavigationLink(value: spec.id) {
+                                TrainListRow(
+                                    name: spec.displayName ?? spec.name,
+                                    description: spec.description ?? "",
+                                    algorithms: [],
+                                    status: viewModel.trainingState(for: spec.id).status
+                                )
+                            }
                         }
-                    }
-                        #endif
+                    #endif
                 }
             }
         }
