@@ -5,13 +5,9 @@ struct SavedSessionRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                Text(session.name)
-                    .font(.body.weight(.semibold))
-                    .lineLimit(1)
-                Spacer()
-                AlgorithmBadge(text: session.algorithmType.rawValue)
-            }
+            Text(session.name)
+                .font(.body.weight(.semibold))
+                .lineLimit(1)
 
             Text(metricsText)
                 .font(.caption)
@@ -19,9 +15,10 @@ struct SavedSessionRow: View {
                 .monospacedDigit()
                 .lineLimit(1)
 
-            Text(session.savedAt, style: .date)
-                .font(.caption)
-                .foregroundStyle(.tertiary)
+            HStack(spacing: 6) {
+                EnvironmentBadge(text: session.environmentID)
+                AlgorithmBadge(text: session.algorithmType.rawValue)
+            }
         }
         .padding(.vertical, 2)
     }
