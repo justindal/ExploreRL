@@ -7,9 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		B94D6DA42FF1D7B40038E0D3 /* Box2D in Frameworks */ = {isa = PBXBuildFile; productRef = B94D6DA32FF1D7B40038E0D3 /* Box2D */; };
-		B94D6DA62FF1D7B40038E0D3 /* Gymnazo in Frameworks */ = {isa = PBXBuildFile; productRef = B94D6DA52FF1D7B40038E0D3 /* Gymnazo */; };
-		B9A000012FF2000000000001 /* Gymnazo in Frameworks */ = {isa = PBXBuildFile; productRef = B94D6DA52FF1D7B40038E0D3 /* Gymnazo */; };
+		B9ECD2CD30239FA900B298C8 /* Box2D in Frameworks */ = {isa = PBXBuildFile; productRef = B9ECD2CC30239FA900B298C8 /* Box2D */; };
+		B9ECD2CF30239FA900B298C8 /* Gymnazo in Frameworks */ = {isa = PBXBuildFile; productRef = B9ECD2CE30239FA900B298C8 /* Gymnazo */; };
+		B9ECD2D130239FA900B298C8 /* GymnazoProfiler in Frameworks */ = {isa = PBXBuildFile; productRef = B9ECD2D030239FA900B298C8 /* GymnazoProfiler */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -59,8 +59,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				B94D6DA62FF1D7B40038E0D3 /* Gymnazo in Frameworks */,
-				B94D6DA42FF1D7B40038E0D3 /* Box2D in Frameworks */,
+				B9ECD2D130239FA900B298C8 /* GymnazoProfiler in Frameworks */,
+				B9ECD2CF30239FA900B298C8 /* Gymnazo in Frameworks */,
+				B9ECD2CD30239FA900B298C8 /* Box2D in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -68,7 +69,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				B9A000012FF2000000000001 /* Gymnazo in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -122,8 +122,9 @@
 			);
 			name = ExploreRL;
 			packageProductDependencies = (
-				B94D6DA32FF1D7B40038E0D3 /* Box2D */,
-				B94D6DA52FF1D7B40038E0D3 /* Gymnazo */,
+				B9ECD2CC30239FA900B298C8 /* Box2D */,
+				B9ECD2CE30239FA900B298C8 /* Gymnazo */,
+				B9ECD2D030239FA900B298C8 /* GymnazoProfiler */,
 			);
 			productName = ExploreRL;
 			productReference = B90233BB2F3106DD00378E2A /* ExploreRL.app */;
@@ -147,7 +148,6 @@
 			);
 			name = ExploreRLTests;
 			packageProductDependencies = (
-				B94D6DA52FF1D7B40038E0D3 /* Gymnazo */,
 			);
 			productName = ExploreRLTests;
 			productReference = B9A000032FF2000000000003 /* ExploreRLTests.xctest */;
@@ -182,7 +182,7 @@
 			mainGroup = B954BC912ECA6A9B0081CE3F;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				B94D6DA22FF1D7B40038E0D3 /* XCLocalSwiftPackageReference "../Gymnazo" */,
+				B9ECD2CB30239FA900B298C8 /* XCRemoteSwiftPackageReference "Gymnazo" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = B954BC9B2ECA6A9B0081CE3F /* Products */;
@@ -559,23 +559,32 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCLocalSwiftPackageReference section */
-		B94D6DA22FF1D7B40038E0D3 /* XCLocalSwiftPackageReference "../Gymnazo" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = ../Gymnazo;
+/* Begin XCRemoteSwiftPackageReference section */
+		B9ECD2CB30239FA900B298C8 /* XCRemoteSwiftPackageReference "Gymnazo" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/justindal/Gymnazo";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
 		};
-/* End XCLocalSwiftPackageReference section */
+/* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		B94D6DA32FF1D7B40038E0D3 /* Box2D */ = {
+		B9ECD2CC30239FA900B298C8 /* Box2D */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = B94D6DA22FF1D7B40038E0D3 /* XCLocalSwiftPackageReference "../Gymnazo" */;
+			package = B9ECD2CB30239FA900B298C8 /* XCRemoteSwiftPackageReference "Gymnazo" */;
 			productName = Box2D;
 		};
-		B94D6DA52FF1D7B40038E0D3 /* Gymnazo */ = {
+		B9ECD2CE30239FA900B298C8 /* Gymnazo */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = B94D6DA22FF1D7B40038E0D3 /* XCLocalSwiftPackageReference "../Gymnazo" */;
+			package = B9ECD2CB30239FA900B298C8 /* XCRemoteSwiftPackageReference "Gymnazo" */;
 			productName = Gymnazo;
+		};
+		B9ECD2D030239FA900B298C8 /* GymnazoProfiler */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B9ECD2CB30239FA900B298C8 /* XCRemoteSwiftPackageReference "Gymnazo" */;
+			productName = GymnazoProfiler;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
