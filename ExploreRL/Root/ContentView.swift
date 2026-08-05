@@ -10,15 +10,21 @@ struct ContentView: View {
     #if os(macOS)
         @State private var trainViewModel = TrainViewModel()
         @SceneStorage("trainInspectorVisible") private var showTrainSettingsInspector = true
-        @State private var selectedSidebarDestination: RootDestination = .library
-        @SceneStorage("sidebarDestination") private var storedSidebarDestination = "library"
+        @State private var selectedSidebarDestination: RootDestination = .home
+        @SceneStorage("sidebarDestination") private var storedSidebarDestination = "home"
         @State private var trainLoadError: String?
         @State private var isLoadingTrainSession = false
         @State private var environmentSearchText = ""
 
         private func restoreSidebarDestination() {
             if let dest = RootDestination.fromStorageKey(storedSidebarDestination) {
-                selectedSidebarDestination = dest
+                switch dest {
+                case .library, .evaluate, .explore:
+                    selectedSidebarDestination = .home
+                    storedSidebarDestination = RootDestination.home.storageKey
+                default:
+                    selectedSidebarDestination = dest
+                }
             }
         }
     #else
@@ -62,7 +68,7 @@ struct ContentView: View {
             guard !show else { return }
             #if os(macOS)
                 if selectedSidebarDestination == .explore {
-                    selectedSidebarDestination = .library
+                    selectedSidebarDestination = .home
                     storedSidebarDestination = selectedSidebarDestination.storageKey
                 }
             #else
@@ -237,25 +243,49 @@ struct ContentView: View {
 
         @ViewBuilder
         private var detailContent: some View {
-            switch selectedSidebarDestination {
-            case .library:
-                makeLibraryView(
-                    onLoad: handleLibraryLoad,
-                    onEvaluate: handleLibraryEvaluate
-                )
-            case .trainEnvironment(let envID):
-                TrainDetailView(
-                    id: envID,
-                    vm: trainViewModel,
-                    showSettingsInspector: $showTrainSettingsInspector
-                )
-            case .evaluate:
-                makeEvaluateView {
-                    selectedSidebarDestination = .library
-                    storedSidebarDestination = selectedSidebarDestination.storageKey
+            Group {
+                switch selectedSidebarDestination {
+                case .home:
+                    MacHomeView(
+                        envSpecs: envSpecs,
+                        showExplore: showExploreTab,
+                        onTrainEnvironment: selectTrainingEnvironment,
+                        onOpenLibrary: openLibrary,
+                        onOpenEvaluate: openEvaluate,
+                        onOpenExplore: openExplore,
+                        onOpenSettings: openSettings,
+                        onLoadSession: handleLibraryLoad,
+                        onEvaluateSession: handleLibraryEvaluate
+                    )
+                case .library:
+                    makeLibraryView(
+                        onLoad: handleLibraryLoad,
+                        onEvaluate: handleLibraryEvaluate
+                    )
+                case .trainEnvironment(let envID):
+                    TrainDetailView(
+                        id: envID,
+                        vm: trainViewModel,
+                        showSettingsInspector: $showTrainSettingsInspector
+                    )
+                case .evaluate:
+                    makeEvaluateView(onGoToLibrary: openLibrary)
+                case .explore:
+                    exploreView
+                case .settings:
+                    SettingsView()
                 }
-            case .explore:
-                exploreView
+            }
+            .toolbar {
+                if selectedSidebarDestination != .home {
+                    ToolbarItem(placement: .automatic) {
+                        Button {
+                            goHome()
+                        } label: {
+                            Label("Home", systemImage: "house")
+                        }
+                    }
+                }
             }
         }
 
@@ -282,14 +312,38 @@ struct ContentView: View {
         private var appSidebarItems:
             [(title: String, systemImage: String, destination: RootDestination)]
         {
-            var items: [(title: String, systemImage: String, destination: RootDestination)] = [
-                ("Library", "books.vertical", .library),
-                ("Evaluate", "play.circle", .evaluate),
-            ]
-            if showExploreTab {
-                items.append(("Explore", "graduationcap", .explore))
-            }
-            return items
+            [("Home", "house", .home)]
+        }
+
+        private func selectTrainingEnvironment(_ id: String) {
+            selectedSidebarDestination = .trainEnvironment(id)
+            storedSidebarDestination = selectedSidebarDestination.storageKey
+        }
+
+        private func openLibrary() {
+            selectedSidebarDestination = .library
+            storedSidebarDestination = selectedSidebarDestination.storageKey
+        }
+
+        private func openEvaluate() {
+            selectedSidebarDestination = .evaluate
+            storedSidebarDestination = selectedSidebarDestination.storageKey
+        }
+
+        private func openExplore() {
+            guard showExploreTab else { return }
+            selectedSidebarDestination = .explore
+            storedSidebarDestination = selectedSidebarDestination.storageKey
+        }
+
+        private func openSettings() {
+            selectedSidebarDestination = .settings
+            storedSidebarDestination = selectedSidebarDestination.storageKey
+        }
+
+        private func goHome() {
+            selectedSidebarDestination = .home
+            storedSidebarDestination = selectedSidebarDestination.storageKey
         }
 
         private func trainSidebarLabel(_ spec: EnvSpec) -> some View {
@@ -347,25 +401,31 @@ struct ContentView: View {
         }
 
         private enum RootDestination: Hashable {
+            case home
             case library
             case trainEnvironment(String)
             case evaluate
             case explore
+            case settings
 
             var storageKey: String {
                 switch self {
+                case .home: return "home"
                 case .library: return "library"
                 case .evaluate: return "evaluate"
                 case .explore: return "explore"
+                case .settings: return "settings"
                 case .trainEnvironment(let id): return "train:\(id)"
                 }
             }
 
             static func fromStorageKey(_ key: String) -> RootDestination? {
                 switch key {
+                case "home": return .home
                 case "library": return .library
                 case "evaluate": return .evaluate
                 case "explore": return .explore
+                case "settings": return .settings
                 default:
                     if key.hasPrefix("train:") {
                         return .trainEnvironment(String(key.dropFirst(6)))
