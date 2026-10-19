@@ -260,57 +260,10 @@ struct LibraryDetailView: View {
     @ViewBuilder
     private var actionsSection: some View {
         VStack(spacing: 12) {
-            HStack(spacing: 12) {
-                Button {
-                    onLoad(session)
-                } label: {
-                    Label("Load in Training", systemImage: "play.fill")
-                        .frame(maxWidth: .infinity)
-                }
-                .modify { button in
-                    if #available(iOS 26.0, macOS 26.0, *) {
-                        button
-                            .buttonStyle(.glass(.regular.tint(.blue).interactive()))
-                            .controlSize(.large)
-                            #if os(macOS)
-                                .tint(.blue)
-                            #endif
-                    } else {
-                        button
-                            .buttonStyle(.borderedProminent)
-                            .controlSize(.large)
-                    }
-                }
-
-                Button {
-                    onEvaluate(session)
-                } label: {
-                    Label("Evaluate", systemImage: "checkmark.circle")
-                        .frame(maxWidth: .infinity)
-                }
-                .modify { button in
-                    if #available(iOS 26.0, macOS 26.0, *) {
-                        button
-                            .buttonStyle(.glass(.regular.tint(.green).interactive()))
-                            .controlSize(.large)
-                            #if os(macOS)
-                                .tint(.green)
-                            #endif
-                    } else {
-                        button
-                            .buttonStyle(.borderedProminent)
-                            .controlSize(.large)
-                            .tint(.green)
-                    }
-                }
-            }
-            .modify { content in
-                if #available(iOS 26.0, macOS 26.0, *) {
-                    GlassEffectContainer(spacing: 14) { content }
-                } else {
-                    content
-                }
-            }
+            SessionPrimaryActions(
+                onLoad: { onLoad(session) },
+                onEvaluate: { onEvaluate(session) }
+            )
 
             Button {
                 onExport(session)
