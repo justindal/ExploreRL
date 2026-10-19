@@ -418,8 +418,10 @@ struct TrainDetailView: View {
             showDetailedProgress: false,
             compact: true
         )
-        .padding(.horizontal, AppLayout.compactSpacing)
-        .padding(.top, AppLayout.compactSpacing)
+        .padding(.horizontal, AppLayout.spacing)
+        .padding(.vertical, AppLayout.compactSpacing)
+        .frame(maxWidth: .infinity)
+        .background(.background)
         .overlay(alignment: .top) {
             Divider()
         }

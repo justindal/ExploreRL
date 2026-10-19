@@ -22,7 +22,7 @@ struct TrainingControlsView: View {
         VStack(alignment: .leading, spacing: compact ? AppLayout.compactSpacing : 12) {
             trainingContent
         }
-        .padding(compact ? 10 : AppLayout.panelPadding)
+        .padding(compact ? 0 : AppLayout.panelPadding)
         .background(
             usesPanelBackground
                 ? AnyShapeStyle(.regularMaterial)
@@ -92,15 +92,8 @@ struct TrainingControlsView: View {
             secondary
                 .frame(maxWidth: .infinity)
         }
-        .modify { content in
-            if #available(iOS 26.0, macOS 26.0, *) {
-                GlassEffectContainer(spacing: 14) {
-                    content
-                }
-            } else {
-                content
-            }
-        }
+        .controlSize(.large)
+        .buttonBorderShape(.roundedRectangle(radius: AppLayout.controlRadius))
     }
 
     private var progress: Double {
@@ -162,19 +155,7 @@ struct TrainingControlsView: View {
         .disabled(!policy.isAllowed)
         .keyboardShortcut(.return, modifiers: .command)
         .help("Start training (Command-Return)")
-        .modify { button in
-            if #available(iOS 26.0, macOS 26.0, *) {
-                button
-                    .buttonStyle(.glass(.regular.tint(.blue).interactive()))
-                    .controlSize(.large)
-                    #if os(macOS)
-                        .tint(.blue)
-                    #endif
-            } else {
-                button
-                    .buttonStyle(.borderedProminent)
-            }
-        }
+        .buttonStyle(.borderedProminent)
     }
 
     private var resumeButton: some View {
@@ -187,20 +168,7 @@ struct TrainingControlsView: View {
         .disabled(!policy.isAllowed)
         .keyboardShortcut(.return, modifiers: .command)
         .help("Resume training (Command-Return)")
-        .modify { button in
-            if #available(iOS 26.0, macOS 26.0, *) {
-                button
-                    .buttonStyle(.glass(.regular.tint(.green).interactive()))
-                    .controlSize(.large)
-                    #if os(macOS)
-                        .tint(.green)
-                    #endif
-            } else {
-                button
-                    .buttonStyle(.borderedProminent)
-                    .tint(.green)
-            }
-        }
+        .buttonStyle(.borderedProminent)
     }
 
     private var pauseButton: some View {
@@ -212,19 +180,7 @@ struct TrainingControlsView: View {
         }
         .keyboardShortcut(.return, modifiers: .command)
         .help("Pause training (Command-Return)")
-        .modify { button in
-            if #available(iOS 26.0, macOS 26.0, *) {
-                button
-                    .buttonStyle(.glass(.regular.tint(.orange).interactive()))
-                    .controlSize(.large)
-                    #if os(macOS)
-                        .tint(.orange)
-                    #endif
-            } else {
-                button
-                    .buttonStyle(.bordered)
-            }
-        }
+        .buttonStyle(.borderedProminent)
     }
 
     private var resetButton: some View {
@@ -247,26 +203,7 @@ struct TrainingControlsView: View {
         .disabled(isResetting)
         .keyboardShortcut("r", modifiers: [.command, .shift])
         .help("Reset training (Shift-Command-R)")
-        .modify { button in
-            let isTraining = trainingState.status == .training
-            if #available(iOS 26.0, macOS 26.0, *) {
-                button
-                    .buttonStyle(
-                        isTraining
-                            ? .glass(.regular.tint(.red).interactive())
-                            : .glass(.clear)
-                    )
-                    .controlSize(.large)
-                    #if os(macOS)
-                        .tint(isTraining ? .red : .primary)
-                    #endif
-            } else {
-                button
-                    .buttonStyle(.bordered)
-                    .controlSize(.large)
-                    .tint(isTraining ? .red : .primary)
-            }
-        }
+        .buttonStyle(.bordered)
     }
 
     private var policy: TrainingPolicy {
