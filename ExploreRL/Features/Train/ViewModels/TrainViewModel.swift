@@ -19,6 +19,7 @@ final class TrainViewModel {
     var reloadingEnvs: Set<String> = []
     var resettingEnvs: Set<String> = []
     var trainingTasks: [String: Task<Void, Never>] = [:]
+    var isTrainingActive = true
     var flushTasks: [String: Task<Void, Never>] = [:]
     var accumulators: [String: TrainingAccumulator] = [:]
     var trainingTimings: [String: TrainingTiming] = [:]
@@ -288,11 +289,17 @@ final class TrainViewModel {
     }
 
     func trainingPolicy(for id: String) -> TrainingPolicy {
+        guard isTrainingActive else {
+            return .denied("Return to the app to resume training")
+        }
+        guard !resettingEnvs.contains(id), trainingTasks[id] == nil else {
+            return .denied("Waiting for training to stop")
+        }
         let status = trainingState(for: id).status
         if status == .training {
             return .denied("Already training")
         }
-        let activeIDs = activeTrainingIDs
+        let activeIDs = activeTrainingIDs.union(trainingTasks.keys)
         if activeIDs.contains(id) {
             return .denied("Already training")
         }

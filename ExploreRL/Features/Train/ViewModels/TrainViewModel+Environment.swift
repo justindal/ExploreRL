@@ -48,9 +48,11 @@ extension TrainViewModel {
     }
 
     func makeAlgorithmEnv(for id: String) async throws -> sending any Env {
+        try Task.checkCancellation()
         let options = envOptions(for: id)
         let maxSteps = frozenLakeMaxSteps(for: id)
         var env = try await Gymnazo.make(id, maxEpisodeSteps: maxSteps, options: options)
+        try Task.checkCancellation()
         env = try wrappedEnv(env, id: id)
         env.renderMode = trainingConfig(for: id).renderDuringTraining ? .human : nil
         return ConfiguredEnv(

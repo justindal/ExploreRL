@@ -2,7 +2,7 @@ import Gymnazo
 import SwiftUI
 
 struct TrainView: View {
-    @State private var viewModel = TrainViewModel()
+    @Bindable var viewModel: TrainViewModel
     @State private var loadError: String?
     @State private var isLoadingSession = false
     @State private var searchText = ""

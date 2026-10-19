@@ -37,6 +37,7 @@ extension TrainViewModel {
             }
         )
 
+        try Task.checkCancellation()
         try await td3.learn(
             totalTimesteps: totalTimesteps,
             callbacks: callbacks,

@@ -32,6 +32,7 @@ extension TrainViewModel {
             onFlush: { [weak self] in self?.flushAccumulator(for: id) }
         )
 
+        try Task.checkCancellation()
         try await ppo.learn(
             totalTimesteps: totalTimesteps,
             callbacks: callbacks,

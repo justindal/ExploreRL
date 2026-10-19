@@ -1,14 +1,18 @@
 import Gymnazo
 import SwiftUI
 
+#if os(iOS)
+    import UIKit
+#endif
+
 struct ContentView: View {
+    @State private var trainViewModel = TrainViewModel()
     @State private var envSpecs: [EnvSpec] = []
     @State private var sessionToEvaluate: SavedSession?
     @State private var pendingImportURLs: [URL] = []
     @State private var showOnboarding = false
 
     #if os(macOS)
-        @State private var trainViewModel = TrainViewModel()
         @SceneStorage("trainInspectorVisible") private var showTrainSettingsInspector = true
         @State private var selectedSidebarDestination: RootDestination = .home
         @SceneStorage("sidebarDestination") private var storedSidebarDestination = "home"
@@ -28,6 +32,7 @@ struct ContentView: View {
             }
         }
     #else
+        @Environment(\.scenePhase) private var scenePhase
         @SceneStorage("selectedTab") private var selectedTab = "Train"
         @State private var sessionToLoad: SavedSession?
     #endif
@@ -91,6 +96,15 @@ struct ContentView: View {
             }
         #endif
         #if os(iOS)
+            .onChange(of: scenePhase, initial: true) { _, phase in
+                trainViewModel.setTrainingActive(phase == .active)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
+                trainViewModel.setTrainingActive(false)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+                trainViewModel.setTrainingActive(true)
+            }
             .fullScreenCover(isPresented: $showOnboarding) {
                 OnboardingView(pages: OnboardingItem.pages) {
                     hasSeenOnboarding = true
@@ -152,7 +166,11 @@ struct ContentView: View {
                 }
 
                 Tab("Train", systemImage: "brain", value: "Train") {
-                    TrainView(envSpecs: $envSpecs, sessionToLoad: $sessionToLoad)
+                    TrainView(
+                        viewModel: trainViewModel,
+                        envSpecs: $envSpecs,
+                        sessionToLoad: $sessionToLoad
+                    )
                 }
 
                 Tab("Evaluate", systemImage: "play.circle", value: "Evaluate") {

@@ -5,6 +5,7 @@
 
 import Foundation
 import Gymnazo
+import MLX
 
 extension TrainViewModel {
 
@@ -65,25 +66,21 @@ extension TrainViewModel {
 
     @MainActor
     func pauseTraining(for id: String) async {
-        trainingTasks[id]?.cancel()
-        await tabularAgents[id]?.stop()
-        await dqnAlgorithms[id]?.stop()
-        await ppoAlgorithms[id]?.stop()
-        await sacAlgorithms[id]?.stop()
-        await td3Algorithms[id]?.stop()
-        await trainingTasks[id]?.value
-        trainingTasks[id] = nil
+        guard let task = trainingTasks[id] else { return }
         trainingTimings[id]?.pause(at: .now)
-        flushAccumulator(for: id)
-        stopFlushLoop(for: id)
         updateTrainingState(for: id) { $0.status = .paused }
+        task.cancel()
+        await task.value
     }
 
     func resumeTraining(for id: String) {
         guard trainingState(for: id).status == .paused else { return }
         guard trainingPolicy(for: id).isAllowed else { return }
         guard trainingTasks[id] == nil else { return }
-        updateTrainingState(for: id) { $0.status = .training }
+        updateTrainingState(for: id) {
+            $0.status = .training
+            $0.statusMessage = nil
+        }
 
         if trainingTimings[id] == nil {
             trainingTimings[id] = TrainingTiming(startedAt: .now)
@@ -162,7 +159,12 @@ extension TrainViewModel {
             return
         }
 
+        var didBeginTraining = false
         defer {
+            if didBeginTraining {
+                Stream.gpu.synchronize()
+            }
+            trainingTimings[id]?.pause(at: .now)
             flushAccumulator(for: id)
             stopFlushLoop(for: id)
             trainingTasks[id] = nil
@@ -173,6 +175,8 @@ extension TrainViewModel {
         let renderFPS = config.renderFPS
 
         do {
+            try Task.checkCancellation()
+            didBeginTraining = true
             switch config.algorithm {
             case .qLearning, .sarsa:
                 try await runTabularTraining(
@@ -224,6 +228,9 @@ extension TrainViewModel {
                     accumulator: accumulator
                 )
             }
+        } catch is CancellationError {
+            updateTrainingState(for: id) { $0.status = .paused }
+            return
         } catch {
             updateTrainingState(for: id) {
                 $0.status = .failed(error.localizedDescription)
@@ -280,6 +287,7 @@ extension TrainViewModel {
             onFlush: { [weak self] in self?.flushAccumulator(for: id) }
         )
 
+        try Task.checkCancellation()
         try await agent.learn(
             totalTimesteps: totalTimesteps,
             callbacks: callbacks,
@@ -326,6 +334,7 @@ extension TrainViewModel {
             }
         )
 
+        try Task.checkCancellation()
         try await dqn.learn(
             totalTimesteps: totalTimesteps,
             callbacks: callbacks,
@@ -454,6 +463,7 @@ extension TrainViewModel {
             }
         )
 
+        try Task.checkCancellation()
         try await sac.learn(
             totalTimesteps: totalTimesteps,
             callbacks: callbacks,
