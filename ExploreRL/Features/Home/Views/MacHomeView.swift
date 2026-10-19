@@ -49,7 +49,7 @@
         private var header: some View {
             VStack(alignment: .leading, spacing: 6) {
                 Text("ExploreRL")
-                    .font(.system(size: 32, weight: .bold, design: .rounded))
+                    .font(.largeTitle.weight(.bold))
                 Text("Train, evaluate, and understand reinforcement-learning agents.")
                     .font(.title3)
                     .foregroundStyle(.secondary)
@@ -63,42 +63,33 @@
                     .font(.title2.weight(.semibold))
 
                 LazyVGrid(
-                    columns: [
-                        GridItem(.flexible(minimum: 220), spacing: AppLayout.spacing),
-                        GridItem(.flexible(minimum: 220), spacing: AppLayout.spacing),
-                        GridItem(.flexible(minimum: 220), spacing: AppLayout.spacing),
-                        GridItem(.flexible(minimum: 220), spacing: AppLayout.spacing),
-                    ],
+                    columns: [GridItem(.adaptive(minimum: 220), spacing: AppLayout.spacing)],
                     spacing: AppLayout.spacing
                 ) {
                     MacHomeActionCard(
                         title: "Evaluate",
-                        message: "Run a saved agent and compare its results.",
+                        message: "Run and compare saved agents.",
                         systemImage: "play.circle",
-                        tint: .green,
                         action: onOpenEvaluate
                     )
                     MacHomeActionCard(
-                        title: "View in Library",
-                        message: "Open saved agents, models, and training history.",
+                        title: "Library",
+                        message: "Saved agents and training history.",
                         systemImage: "books.vertical",
-                        tint: .orange,
                         action: onOpenLibrary
                     )
                     if showExplore {
                         MacHomeActionCard(
                             title: "Explore",
-                            message: "Learn the ideas behind each experiment.",
+                            message: "Learn reinforcement-learning concepts.",
                             systemImage: "graduationcap",
-                            tint: .purple,
                             action: onOpenExplore
                         )
                     }
                     MacHomeActionCard(
                         title: "Settings",
-                        message: "Manage preferences and app diagnostics.",
+                        message: "Preferences and diagnostics.",
                         systemImage: "gearshape",
-                        tint: .gray,
                         action: onOpenSettings
                     )
                 }
@@ -132,10 +123,7 @@
                         .thinMaterial, in: RoundedRectangle(cornerRadius: AppLayout.panelRadius))
                 } else {
                     LazyVGrid(
-                        columns: [
-                            GridItem(.flexible(minimum: 260), spacing: AppLayout.spacing),
-                            GridItem(.flexible(minimum: 260), spacing: AppLayout.spacing),
-                        ],
+                        columns: [GridItem(.adaptive(minimum: 260), spacing: AppLayout.spacing)],
                         spacing: AppLayout.spacing
                     ) {
                         ForEach(featuredEnvironments, id: \.id) { spec in
@@ -222,138 +210,4 @@
 
     }
 
-    private struct MacHomeActionCard: View {
-        let title: String
-        let message: String
-        let systemImage: String
-        let tint: Color
-        let action: () -> Void
-
-        var body: some View {
-            Button(action: action) {
-                HStack(alignment: .top, spacing: 12) {
-                    Image(systemName: systemImage)
-                        .font(.title2)
-                        .foregroundStyle(tint)
-                        .frame(width: 28)
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(title)
-                            .font(.headline)
-                            .foregroundStyle(.primary)
-                        Text(message)
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.leading)
-                            .lineLimit(2)
-                    }
-
-                    Spacer(minLength: 0)
-                    Image(systemName: "chevron.right")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.tertiary)
-                }
-                .frame(maxWidth: .infinity, minHeight: 72, alignment: .leading)
-                .padding(AppLayout.panelPadding)
-                .background(
-                    .thinMaterial, in: RoundedRectangle(cornerRadius: AppLayout.panelRadius)
-                )
-                .overlay {
-                    RoundedRectangle(cornerRadius: AppLayout.panelRadius)
-                        .strokeBorder(.quaternary, lineWidth: 1)
-                }
-            }
-            .buttonStyle(.plain)
-            .accessibilityHint("Opens this area in ExploreRL")
-        }
-    }
-
-    private struct MacHomeEnvironmentCard: View {
-        let spec: EnvSpec
-        let action: () -> Void
-
-        private var title: String {
-            spec.displayName ?? spec.name
-        }
-
-        var body: some View {
-            Button(action: action) {
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack(alignment: .top) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(title)
-                                .font(.headline)
-                                .foregroundStyle(.primary)
-                            Text(spec.category?.rawValue ?? "Environment")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Image(systemName: "arrow.up.right")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.tertiary)
-                    }
-
-                    Text(spec.description ?? "Configure this environment and train an agent.")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.leading)
-                        .lineLimit(2)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .frame(maxWidth: .infinity, minHeight: 108, alignment: .topLeading)
-                .padding(AppLayout.panelPadding)
-                .background(
-                    .regularMaterial, in: RoundedRectangle(cornerRadius: AppLayout.panelRadius)
-                )
-                .overlay {
-                    RoundedRectangle(cornerRadius: AppLayout.panelRadius)
-                        .strokeBorder(.quaternary, lineWidth: 1)
-                }
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Train \(title)")
-            .accessibilityHint("Opens training for this environment")
-        }
-    }
-
-    private struct MacHomeSessionActionButton: View {
-        let title: String
-        let systemImage: String
-        let tint: Color
-        let isProminent: Bool
-        let action: () -> Void
-
-        var body: some View {
-            Button(action: action) {
-                Label(title, systemImage: systemImage)
-            }
-            .modify { button in
-                if #available(iOS 26.0, macOS 26.0, *) {
-                    if isProminent {
-                        button
-                            .buttonStyle(.glass(.regular.tint(tint).interactive()))
-                            .controlSize(.small)
-                            #if os(macOS)
-                                .tint(tint)
-                            #endif
-                    } else {
-                        button
-                            .buttonStyle(.glass(.clear))
-                            .controlSize(.small)
-                    }
-                } else if isProminent {
-                    button
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.small)
-                        .tint(tint)
-                } else {
-                    button
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                        .tint(.primary)
-                }
-            }
-        }
-    }
 #endif
