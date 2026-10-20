@@ -47,7 +47,7 @@ extension FAQItem {
         FAQItem(
             question: "Why is training slow?",
             answer:
-                "Training speed depends on the algorithm, environment complexity, and device hardware. Deep learning algorithms (DQN, SAC, PPO, TD3) use MLX for GPU acceleration. Try reducing buffer size or batch size if training is too slow, or run a System Check in Settings to benchmark your device."
+                "Training speed depends on the algorithm, environment complexity, and device hardware. Deep learning algorithms (DQN, SAC, PPO, TD3) use MLX for GPU acceleration. Try reducing buffer size or batch size if training is too slow, or use System Check in Settings to inspect live memory, thermal conditions and GPU computation."
         ),
         FAQItem(
             question: "What is MLX?",

@@ -10,6 +10,15 @@ struct DeviceInfo {
     var currentAllocatedBytes: UInt64?
     var thermalState = "Unknown"
     var lowPowerMode = false
+    var mlxActiveBytes: Int?
+    var mlxCacheBytes: Int?
+    var mlxPeakBytes: Int?
+    var appFootprintBytes: UInt64?
+    var sampledAt: Date?
+
+    func memoryText(_ bytes: Int?) -> String {
+        bytes.map { Int64($0).formatted(.byteCount(style: .memory)) } ?? "Unavailable"
+    }
 
     var physicalMemoryText: String {
         Int64(physicalMemoryBytes).formatted(.byteCount(style: .memory))
@@ -48,7 +57,7 @@ enum ReadinessLevel {
 }
 
 struct ReadinessCheck: Identifiable {
-    let id = UUID()
+    var id: String { title }
     let title: String
     let value: String
     let detail: String

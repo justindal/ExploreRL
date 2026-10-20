@@ -1,5 +1,6 @@
 import Foundation
 import Metal
+import MLX
 
 #if canImport(Darwin)
     import Darwin
@@ -25,6 +26,9 @@ final class SettingsViewModel {
 
     private(set) var deviceInfo = DeviceInfo()
     private(set) var isLoadingDevice = false
+    private(set) var isCheckingCompute = false
+    private(set) var computeResult: String?
+    private let computeCheck = ComputeCheck()
     private(set) var readinessChecks: [ReadinessCheck] = []
     let exploreRLInfoURL = URL(string: "https://www.justindaludado.com/explorerl")
 
@@ -126,6 +130,14 @@ final class SettingsViewModel {
             info.thermalState = "Unknown"
         }
 
+        if info.gpuName != "Unavailable" {
+            let memory = Memory.snapshot()
+            info.mlxActiveBytes = memory.activeMemory
+            info.mlxCacheBytes = memory.cacheMemory
+            info.mlxPeakBytes = memory.peakMemory
+        }
+        info.appFootprintBytes = appFootprint()
+        info.sampledAt = .now
         deviceInfo = info
         refreshReadinessChecks()
     }
@@ -138,8 +150,8 @@ final class SettingsViewModel {
                 title: "Low Power Mode",
                 value: deviceInfo.lowPowerMode ? "On" : "Off",
                 detail: deviceInfo.lowPowerMode
-                    ? "Disable Low Power Mode for stable GPU measurements."
-                    : "Power settings are suitable for benchmark consistency.",
+                    ? "Low Power Mode may reduce training performance."
+                    : "Low Power Mode is off. Training speed also depends on workload and temperature.",
                 level: deviceInfo.lowPowerMode ? .attention : .good
             )
         )
@@ -160,33 +172,50 @@ final class SettingsViewModel {
             ReadinessCheck(
                 title: "Thermal State",
                 value: deviceInfo.thermalState,
-                detail: "Lower thermal load keeps CPU and GPU results more repeatable.",
+                detail: "This is the current thermal condition reported by the operating system.",
                 level: thermalLevel
             )
         )
 
-        if let utilization = deviceInfo.gpuWorkingSetUtilization {
-            let level: ReadinessLevel
-            switch utilization {
-            case ..<0.5:
-                level = .good
-            case ..<0.8:
-                level = .attention
-            default:
-                level = .warning
-            }
-
-            checks.append(
-                ReadinessCheck(
-                    title: "GPU Working Set",
-                    value: deviceInfo.gpuWorkingSetUtilizationText,
-                    detail: "Lower GPU memory pressure usually yields steadier timings.",
-                    level: level
-                )
-            )
-        }
+        checks.append(ReadinessCheck(
+            title: "Metal Device", value: deviceInfo.gpuName == "Unavailable" ? "Unavailable" : "Available",
+            detail: "Availability does not measure training speed. Use the compute check to verify a small MLX operation.",
+            level: deviceInfo.gpuName == "Unavailable" ? .warning : .good
+        ))
 
         readinessChecks = checks
+    }
+
+    func verifyCompute() async {
+        guard !isCheckingCompute else { return }
+        loadDeviceInfo()
+        guard deviceInfo.gpuName != "Unavailable" else {
+            computeResult = "No Metal device is available."
+            return
+        }
+        isCheckingCompute = true
+        computeResult = nil
+        defer { isCheckingCompute = false }
+        do {
+            let passed = try await computeCheck.verify()
+            computeResult = passed ? "Passed: MLX GPU matrix result is correct." : "Failed: MLX returned an unexpected result."
+            loadDeviceInfo()
+        } catch is CancellationError {
+            computeResult = "Check cancelled."
+        } catch {
+            computeResult = error.localizedDescription
+        }
+    }
+
+    private func appFootprint() -> UInt64? {
+        var info = task_vm_info_data_t()
+        var count = mach_msg_type_number_t(MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<integer_t>.size)
+        let result = withUnsafeMutablePointer(to: &info) { pointer in
+            pointer.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
+                task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO), $0, &count)
+            }
+        }
+        return result == KERN_SUCCESS ? info.phys_footprint : nil
     }
 
     private func machineIdentifier() -> String {

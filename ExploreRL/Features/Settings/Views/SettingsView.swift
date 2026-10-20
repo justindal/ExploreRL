@@ -74,7 +74,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Performance")
                 } footer: {
-                    Text("View device info and run performance benchmarks.")
+                    Text("View live device conditions, app memory and a GPU compute check.")
                 }
 
                 librarySection
