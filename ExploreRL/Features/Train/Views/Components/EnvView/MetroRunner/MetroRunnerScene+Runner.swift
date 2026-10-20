@@ -8,10 +8,14 @@ extension MetroRunnerScene {
         let shadow = projection.point(x: snapshot.x, y: snapshot.surface, distance: 0)
         let scale = projection.scale(at: 0)
         let unit = scale / 6
-        context.fill(Path(ellipseIn: CGRect(x: shadow.x - 19 * unit, y: shadow.y - 4 * unit, width: 38 * unit, height: 8 * unit)), with: .color(.black.opacity(0.35)))
-        if snapshot.boardRemaining > 0 {
-            context.fill(Path(ellipseIn: CGRect(x: foot.x - 25 * unit, y: foot.y - 3 * unit, width: 50 * unit, height: 8 * unit)), with: .color(.mint))
+        if snapshot.pogo {
+            let pole = Path { path in
+                path.move(to: CGPoint(x: foot.x, y: foot.y - 10 * unit))
+                path.addLine(to: CGPoint(x: foot.x, y: foot.y + 18 * unit))
+            }
+            context.stroke(pole, with: .color(.mint), style: StrokeStyle(lineWidth: 4 * unit, lineCap: .round))
         }
+        context.fill(Path(ellipseIn: CGRect(x: shadow.x - 19 * unit, y: shadow.y - 4 * unit, width: 38 * unit, height: 8 * unit)), with: .color(.black.opacity(0.35)))
         if snapshot.powers[.jetpack, default: 0] > 0 {
             for side in [-1.0, 1] {
                 let x = foot.x + side * 12 * unit

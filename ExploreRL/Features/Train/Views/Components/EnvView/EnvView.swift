@@ -96,9 +96,7 @@ struct EnvView: View {
     private func snapshotView(_ snapshot: any Sendable) -> some View {
         switch snapshot {
         case let s as MetroRunnerSnapshot:
-            FixedSizeEnvWrapper(baseSize: CGSize(width: 720, height: 500)) {
-                MetroRunnerView(snapshot: s)
-            }
+            MetroRunnerPreview(snapshot: s)
         case let s as FrozenLakeRenderSnapshot:
             FixedSizeEnvWrapper(
                 baseSize: CGSize(
@@ -195,26 +193,5 @@ struct EnvView: View {
         } catch {
             output = nil
         }
-    }
-}
-
-private struct FixedSizeEnvWrapper<Content: View>: View {
-    let baseSize: CGSize
-    @ViewBuilder let content: Content
-
-    var body: some View {
-        GeometryReader { proxy in
-            let scaleX = proxy.size.width / baseSize.width
-            let scaleY = proxy.size.height / baseSize.height
-            let scale = min(scaleX, scaleY, 1.0)
-
-            content
-                .frame(width: baseSize.width, height: baseSize.height)
-                .clipShape(RoundedRectangle(cornerRadius: 12 / scale))
-                .scaleEffect(scale)
-                .frame(width: proxy.size.width, height: proxy.size.height)
-        }
-        .aspectRatio(baseSize.width / baseSize.height, contentMode: .fit)
-        .frame(maxWidth: baseSize.width, maxHeight: min(baseSize.height, 480))
     }
 }

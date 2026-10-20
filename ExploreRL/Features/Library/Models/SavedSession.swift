@@ -14,4 +14,5 @@ struct SavedSession: Identifiable, Equatable, Codable {
     let trainingState: TrainingState
     let envSettings: [String: SettingValue]
     let savedAt: Date
+    var observationVersion: Int? = nil
 }

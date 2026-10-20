@@ -33,6 +33,7 @@ final class EvaluateViewModel {
         renderSnapshot = nil
 
         do {
+            try SessionCompatibility.validate(session)
             var previewEnv = try await makeEnv(for: session)
             _ = try previewEnv.reset(
                 seed: envResetSeed(settings: session.envSettings),

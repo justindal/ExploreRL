@@ -78,6 +78,20 @@ nonisolated struct MetroRunnerScene {
             polygon([(left, entity.y + entity.height, z + run), (right, entity.y + entity.height, z + run),
                      (right, entity.y + entity.height, z + entity.depth), (left, entity.y + entity.height, z + entity.depth)],
                     color: Color(red: 0.76, green: 0.66, blue: 0.45), in: context)
+        case .pillar, .signal, .dumpster, .bush, .powerbox:
+            let color: Color = switch entity.kind {
+            case .bush: Color(red: 0.3, green: 0.48, blue: 0.23)
+            case .dumpster: Color(red: 0.35, green: 0.45, blue: 0.35)
+            case .powerbox: Color(red: 0.48, green: 0.5, blue: 0.46)
+            default: Color(white: 0.46)
+            }
+            box(x: entity.x, y: entity.y, z: z, width: entity.width, height: entity.height,
+                depth: entity.depth, color: color, in: context)
+            if entity.kind == .signal {
+                symbol("light.beacon.max.fill", x: entity.x, y: entity.y + entity.height * 0.8, z: z - 0.2, in: context)
+            } else if entity.kind == .powerbox {
+                symbol("bolt.fill", x: entity.x, y: entity.y + entity.height / 2, z: z - 0.2, in: context)
+            }
         case .jump, .roll, .gate:
             let bottom = entity.kind == .roll ? entity.y + 5 : entity.y
             let height = entity.kind == .roll ? entity.height - 5 : entity.height
@@ -102,6 +116,8 @@ nonisolated struct MetroRunnerScene {
         case .multiplier: "2.circle.fill"
         case .jetpack: "flame.fill"
         case .key: "key.fill"
+        case .pogo: "arrow.up.circle.fill"
+        case .mystery: "shippingbox.fill"
         default: "questionmark"
         }
     }

@@ -203,7 +203,8 @@ extension SessionStorage {
                     trainingConfig: session.trainingConfig,
                     trainingState: session.trainingState,
                     envSettings: session.envSettings,
-                    savedAt: session.savedAt
+                    savedAt: session.savedAt,
+                    observationVersion: session.observationVersion
                 )
                 try save(session: updated)
             }

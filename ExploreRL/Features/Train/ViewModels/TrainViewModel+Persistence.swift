@@ -33,7 +33,8 @@ extension TrainViewModel {
             trainingConfig: config,
             trainingState: state,
             envSettings: settings,
-            savedAt: Date()
+            savedAt: Date(),
+            observationVersion: id == MetroRunnerSettings.id ? MetroRunnerObservation.version : nil
         )
 
         let storage = SessionStorage.shared
@@ -68,6 +69,7 @@ extension TrainViewModel {
 
     @MainActor
     func loadSession(_ session: SavedSession) async throws {
+        try SessionCompatibility.validate(session)
         let id = session.environmentID
 
         trainingTasks[id]?.cancel()

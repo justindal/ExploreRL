@@ -18,8 +18,9 @@ struct MetroRunnerIntegrationTests {
         #expect(vm.availableAlgorithms(for: id, env: env) == [.dqn, .ppo])
         #expect(vm.trainingConfig(for: id).algorithm == .ppo)
         #expect(vm.trainingConfig(for: id).renderFPS == 15)
-        #expect(env.observationSpace.shape == [1504])
-        #expect(vm.envValueContracts[id]?.observation.flatDimension == 1504)
+        #expect(env.observationSpace.shape == [2089])
+        #expect(vm.envValueContracts[id]?.observation.flatDimension == 2089)
+        #expect((env.actionSpace as? Discrete)?.n == 5)
         guard case .other(let snapshot) = try env.render() else {
             Issue.record("Metro Run preview did not return a snapshot")
             return
@@ -37,6 +38,9 @@ struct MetroRunnerIntegrationTests {
         vm.updateSetting(for: id, key: "frame_skip", value: .int(6))
         vm.updateSetting(for: id, key: "max_episode_seconds", value: .int(1))
         vm.updateSetting(for: id, key: "coin_weight", value: .float(0.25))
+        vm.updateSetting(for: id, key: "power_level", value: .int(6))
+        vm.updateSetting(for: id, key: "magnet_unlocked", value: .bool(false))
+        vm.updateSetting(for: id, key: "loot_box_friendly", value: .bool(false))
         let settings = vm.settings(for: id)
         let data = try JSONEncoder().encode(settings)
         let restored = try JSONDecoder().decode([String: SettingValue].self, from: data)
@@ -44,6 +48,9 @@ struct MetroRunnerIntegrationTests {
         let config = try MetroRunnerSettings.config(from: restored)
         #expect(config.curriculum == .barriers && config.frameSkip == 6)
         #expect(config.reward.coinWeight == 0.25)
+        #expect(config.powerLevel == 6)
+        #expect(config.spawnProfile.unlockedFeatures == ["ScoreDoubler"])
+        #expect(!config.spawnProfile.lootBoxFriendly)
         await vm.loadEnv(id: id)
         var env = try #require(vm.env(for: id))
         var result: Step?
@@ -54,6 +61,33 @@ struct MetroRunnerIntegrationTests {
         #expect(throws: TrainError.self) {
             try MetroRunnerSettings.config(from: ["curriculum": .string("unknown")])
         }
+    }
+
+    @Test
+    @MainActor
+    func outdatedMetroAgentsFailBeforeLoadingOrReplacingTraining() async throws {
+        let session = SavedSession(id: UUID(), name: "Earlier Metro agent", environmentID: MetroRunnerSettings.id,
+            algorithmType: .ppo, trainingConfig: TrainingConfig(), trainingState: TrainingState(),
+            envSettings: [:], savedAt: Date())
+        #expect(throws: SessionCompatibilityError.self) { try SessionCompatibility.validate(session) }
+        let train = TrainViewModel()
+        train.envSettings[MetroRunnerSettings.id] = ["curriculum": .string("barriers")]
+        await #expect(throws: SessionCompatibilityError.self) { try await train.loadSession(session) }
+        #expect(train.envSettings[MetroRunnerSettings.id]?["curriculum"] == .string("barriers"))
+        let evaluation = EvaluateViewModel()
+        await evaluation.loadSession(session)
+        #expect(evaluation.env == nil)
+        #expect(evaluation.state.status.errorMessage?.contains("2089") == true)
+
+        var current = session
+        current.observationVersion = MetroRunnerObservation.version
+        try SessionCompatibility.validate(current)
+        let restored = try JSONDecoder().decode(SavedSession.self, from: JSONEncoder().encode(current))
+        #expect(restored.observationVersion == 5)
+        var json = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(current)) as? [String: Any])
+        json.removeValue(forKey: "observationVersion")
+        let legacy = try JSONDecoder().decode(SavedSession.self, from: JSONSerialization.data(withJSONObject: json))
+        #expect(legacy.observationVersion == nil)
     }
 
     @Test
@@ -89,7 +123,8 @@ struct MetroRunnerIntegrationTests {
 
         let session = SavedSession(id: UUID(), name: "Metro Run integration fixture",
             environmentID: id, algorithmType: .ppo, trainingConfig: vm.trainingConfig(for: id),
-            trainingState: vm.trainingState(for: id), envSettings: vm.settings(for: id), savedAt: Date())
+            trainingState: vm.trainingState(for: id), envSettings: vm.settings(for: id), savedAt: Date(),
+            observationVersion: MetroRunnerObservation.version)
         let storage = SessionStorage.shared
         defer { try? storage.delete(sessionID: session.id) }
         try storage.save(session: session)

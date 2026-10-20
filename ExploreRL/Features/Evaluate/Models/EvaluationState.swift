@@ -11,6 +11,10 @@ enum EvaluationStatus: Equatable {
     case running
     case completed
     case failed(String)
+
+    var errorMessage: String? {
+        if case .failed(let message) = self { message } else { nil }
+    }
 }
 
 struct EvaluationState {
