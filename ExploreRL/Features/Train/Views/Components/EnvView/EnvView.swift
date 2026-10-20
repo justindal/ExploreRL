@@ -95,6 +95,10 @@ struct EnvView: View {
     @ViewBuilder
     private func snapshotView(_ snapshot: any Sendable) -> some View {
         switch snapshot {
+        case let s as MetroRunnerSnapshot:
+            FixedSizeEnvWrapper(baseSize: CGSize(width: 720, height: 500)) {
+                MetroRunnerView(snapshot: s)
+            }
         case let s as FrozenLakeRenderSnapshot:
             FixedSizeEnvWrapper(
                 baseSize: CGSize(

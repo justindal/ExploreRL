@@ -119,6 +119,8 @@ struct EnvSettingsConfig {
         )
 
         switch baseName {
+        case "MetroRunner":
+            return [seedSetting] + MetroRunnerSettings.definitions
         case "FrozenLake", "FrozenLake8x8":
             let defaultSize = envID.contains("8x8") ? 8 : 4
             return [

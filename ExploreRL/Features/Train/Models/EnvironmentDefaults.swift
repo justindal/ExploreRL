@@ -9,6 +9,8 @@ enum EnvironmentDefaults {
 
     static func config(for envID: String) -> TrainingConfig {
         switch envID {
+        case "MetroRunner-v0":
+            return metroRunner
         case "CartPole":
             return cartPole
         case "MountainCar":
@@ -43,6 +45,8 @@ enum EnvironmentDefaults {
         algorithm: AlgorithmType
     ) -> Int {
         switch envID {
+        case "MetroRunner-v0":
+            return 100_000
         case "CartPole":
             switch algorithm {
             case .dqn: return 50_000
@@ -121,6 +125,24 @@ enum EnvironmentDefaults {
 }
 
 extension EnvironmentDefaults {
+
+    private static var metroRunner: TrainingConfig {
+        var config = TrainingConfig()
+        config.algorithm = .ppo
+        config.totalTimesteps = 100_000
+        config.renderFPS = 15
+        config.ppo.nSteps = 512
+        config.ppo.batchSize = 256
+        config.ppo.nEpochs = 5
+        config.ppo.gamma = 0.995
+        config.ppo.entCoef = 0.01
+        config.ppo.netArch = [256, 256]
+        config.dqn.bufferSize = 10_000
+        config.dqn.batchSize = 64
+        config.dqn.learningStarts = 1_000
+        config.dqn.netArch = [128, 128]
+        return config
+    }
 
     private static var cartPole: TrainingConfig {
         var c = TrainingConfig()

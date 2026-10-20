@@ -274,6 +274,8 @@ final class EvaluateViewModel {
             return value
         case .continuous(let values, let shape):
             return try TensorValue(values, shape: shape)
+        case .dictionary(let values) where loadedSession?.environmentID == MetroRunnerSettings.id:
+            return try MetroRunnerObservation.flatten(values)
         default:
             throw TrainError.invalidConfiguration(
                 "The loaded neural policy requires a float tensor observation"
@@ -300,7 +302,7 @@ final class EvaluateViewModel {
     private func makeEnv(for session: SavedSession) async throws -> sending ConfiguredEnv {
         let envID = session.environmentID
         let settings = session.envSettings
-        let options = envOptions(for: envID, settings: settings)
+        let options = try envOptions(for: envID, settings: settings)
         let maxSteps = frozenLakeMaxSteps(for: envID, settings: settings)
         var env = try await Gymnazo.make(
             envID,
@@ -323,14 +325,17 @@ final class EvaluateViewModel {
         return try await Gymnazo.makeValue(
             session.environmentID,
             maxEpisodeSteps: maxSteps,
-            options: envOptions(
+            options: try envOptions(
                 for: session.environmentID,
                 settings: session.envSettings
             )
         )
     }
 
-    private func envOptions(for envID: String, settings: [String: SettingValue]) -> EnvOptions {
+    private func envOptions(for envID: String, settings: [String: SettingValue]) throws -> EnvOptions {
+        if envID == MetroRunnerSettings.id {
+            return ["config": try MetroRunnerSettings.config(from: settings)]
+        }
         var options = EnvOptions()
 
         if envID.hasPrefix("FrozenLake") {

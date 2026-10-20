@@ -39,6 +39,15 @@ ExploreRL supports the following environments from Gymnazo:
 - Toy Text: `FrozenLake`, `FrozenLake8x8`, `Blackjack`, `Taxi`, `CliffWalking`
 - Classic Control: `CartPole`, `MountainCar`, `MountainCarContinuous`, `Acrobot`, `Pendulum`
 - Box2D: `LunarLander`, `LunarLanderContinuous`, `CarRacing`, `CarRacingDiscrete`
+- Arcade: `FlappyBird`, `Snake`, `2048`, `MetroRunner-v0`
+
+Metro Run uses the native Gymnazo port of the supplied Metro_Run simulator.
+Select **Arcade → Metro Run** to train with PPO and a perspective viewer.
+Environment settings include curriculum, physics ticks per decision, episode
+duration, seed, and reward weights. These settings travel with saved sessions
+and are restored for training and evaluation, including evaluation with rendering off.
+The 100,000-step preset is a learning pilot, not a trained player or evidence
+of transfer to the original game.
 
 
 ## Session Persistence
@@ -75,10 +84,10 @@ Import/export is supported through archive files with `.xrlsession` extension.
 
 ### Open and Run
 
-1. Open `ExploreRL.xcodeproj` in Xcode.
-2. Select the `ExploreRL` scheme.
-3. Choose an iOS simulator or macOS destination.
-4. Build and run.
+1. Place the Gymnazo checkout beside ExploreRL (`../Gymnazo`). The Xcode project uses this local package so unpublished environment changes are available.
+2. Open `ExploreRL.xcodeproj` in Xcode and select the `ExploreRL` scheme.
+3. Choose macOS on Apple Silicon or a supported physical iOS device for MLX execution.
+4. Build and run. The iOS Simulator does not provide the required MLX Metal runtime.
 
 ### Command-Line Build
 

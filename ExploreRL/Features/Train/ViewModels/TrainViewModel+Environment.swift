@@ -27,7 +27,7 @@ extension TrainViewModel {
     @MainActor
     func createEnv(id: String) async {
         do {
-            let options = envOptions(for: id)
+            let options = try envOptions(for: id)
             let valueContract = try await EnvValueContract.load(id: id, options: options)
             let maxSteps = frozenLakeMaxSteps(for: id)
             var env = try await Gymnazo.make(id, maxEpisodeSteps: maxSteps, options: options)
@@ -49,7 +49,7 @@ extension TrainViewModel {
 
     func makeAlgorithmEnv(for id: String) async throws -> sending any Env {
         try Task.checkCancellation()
-        let options = envOptions(for: id)
+        let options = try envOptions(for: id)
         let maxSteps = frozenLakeMaxSteps(for: id)
         var env = try await Gymnazo.make(id, maxEpisodeSteps: maxSteps, options: options)
         try Task.checkCancellation()
@@ -62,8 +62,11 @@ extension TrainViewModel {
         )
     }
 
-    func envOptions(for id: String) -> EnvOptions {
+    func envOptions(for id: String) throws -> EnvOptions {
         let currentSettings = settings(for: id)
+        if id == MetroRunnerSettings.id {
+            return ["config": try MetroRunnerSettings.config(from: currentSettings)]
+        }
         let baseName = id.split(separator: "-").first.map(String.init) ?? id
         var options = EnvOptions()
 

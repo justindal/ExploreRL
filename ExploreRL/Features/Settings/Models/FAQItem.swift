@@ -42,7 +42,7 @@ extension FAQItem {
         FAQItem(
             question: "What environments are available?",
             answer:
-                "Classic control environments like CartPole, MountainCar, Acrobot, and Pendulum. Toy text environments like FrozenLake, Taxi, CliffWalking, and Blackjack. Box2D environments like LunarLander and CarRacing, including continuous variants. Arcade environments include Flappy Bird, Snake, and 2048."
+                "Classic control environments like CartPole, MountainCar, Acrobot, and Pendulum. Toy text environments like FrozenLake, Taxi, CliffWalking, and Blackjack. Box2D environments like LunarLander and CarRacing, including continuous variants. Arcade environments include Flappy Bird, Snake, 2048, and Metro Run."
         ),
         FAQItem(
             question: "Why is training slow?",
