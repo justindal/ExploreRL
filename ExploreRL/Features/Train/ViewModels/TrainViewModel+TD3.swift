@@ -46,8 +46,8 @@ extension TrainViewModel {
 
     }
 
-    func td3Algorithm(for id: String, env: any Env, config: TrainingConfig) async throws -> TD3 {
-        if let existing = td3Algorithms[id] {
+    func td3Algorithm(for id: String, env: any Env, config: TrainingConfig, restoringFrom checkpoint: URL? = nil) async throws -> TD3 {
+        if checkpoint == nil, let existing = td3Algorithms[id] {
             return existing
         }
 
@@ -119,14 +119,21 @@ extension TrainViewModel {
         )
 
         let algorithmEnv = try await makeAlgorithmEnv(for: id)
-        let td3 = try TD3(
-            env: algorithmEnv,
-            learningRate: learningRate,
-            policyConfig: policyConfig,
-            algorithmConfig: algorithmConfig,
-            config: offPolicyConfig,
-            seed: config.seedValue
-        )
+        let td3: TD3
+        if let checkpoint {
+            td3 = try await TD3.load(
+                from: checkpoint, env: algorithmEnv, config: offPolicyConfig, learningRate: learningRate
+            )
+        } else {
+            td3 = try TD3(
+                env: algorithmEnv,
+                learningRate: learningRate,
+                policyConfig: policyConfig,
+                algorithmConfig: algorithmConfig,
+                config: offPolicyConfig,
+                seed: config.seedValue
+            )
+        }
 
         td3Algorithms[id] = td3
         return td3

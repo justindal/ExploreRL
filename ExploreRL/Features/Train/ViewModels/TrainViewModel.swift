@@ -20,9 +20,13 @@ final class TrainViewModel {
     var resettingEnvs: Set<String> = []
     var trainingTasks: [String: Task<Void, Never>] = [:]
     var isTrainingActive = true
+    var invalidSettingsEnvs: Set<String> = []
+    var unappliedSettingsEnvs: Set<String> = []
     var flushTasks: [String: Task<Void, Never>] = [:]
     var accumulators: [String: TrainingAccumulator] = [:]
     var trainingTimings: [String: TrainingTiming] = [:]
+    var trainingPhases: [String: TrainingPhase] = [:]
+    var snapshottingEnvs: Set<String> = []
     var tabularAgents: [String: TabularAgent] = [:]
     var dqnAlgorithms: [String: DQN] = [:]
     var ppoAlgorithms: [String: PPO] = [:]
@@ -149,6 +153,7 @@ final class TrainViewModel {
     }
 
     func updateTrainingConfig(for id: String, update: (inout TrainingConfig) -> Void) {
+        guard trainingTasks[id] == nil, !snapshottingEnvs.contains(id) else { return }
         let oldConfig = trainingConfigs[id] ?? EnvironmentDefaults.config(for: id)
         var config = oldConfig
         update(&config)
@@ -199,7 +204,10 @@ final class TrainViewModel {
                 || !pending.episodes.isEmpty
                 || !pending.metrics.isEmpty
                 || pending.renderSnapshot != nil
+                || pending.phase != nil
         else { return }
+
+        if let phase = pending.phase { trainingPhases[id] = phase }
 
         updateTrainingState(for: id) { state in
             state.currentTimestep = pending.timestep
@@ -254,6 +262,7 @@ final class TrainViewModel {
         flushTasks.removeAll()
         accumulators.removeAll()
         trainingTimings.removeAll()
+        trainingPhases.removeAll()
         tabularAgents.removeAll()
         dqnAlgorithms.removeAll()
         ppoAlgorithms.removeAll()
@@ -264,6 +273,8 @@ final class TrainViewModel {
         resettingEnvs.removeAll()
         envSettings.removeAll()
         trainingConfigs.removeAll()
+        invalidSettingsEnvs.removeAll()
+        unappliedSettingsEnvs.removeAll()
         renderSnapshots.removeAll()
     }
 
@@ -292,7 +303,13 @@ final class TrainViewModel {
         guard isTrainingActive else {
             return .denied("Return to the app to resume training")
         }
-        guard !resettingEnvs.contains(id), trainingTasks[id] == nil else {
+        guard !invalidSettingsEnvs.contains(id) else {
+            return .denied("Fix invalid settings before starting training")
+        }
+        guard !unappliedSettingsEnvs.contains(id) else {
+            return .denied("Apply or discard settings changes before continuing")
+        }
+        guard !resettingEnvs.contains(id), !snapshottingEnvs.contains(id), trainingTasks[id] == nil else {
             return .denied("Waiting for training to stop")
         }
         let status = trainingState(for: id).status

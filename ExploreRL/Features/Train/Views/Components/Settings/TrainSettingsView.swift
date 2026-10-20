@@ -14,6 +14,7 @@ struct TrainSettingsView: View {
     var showsDismissButton: Bool = true
     @State private var selectedTab: SettingsTab = .environment
     @State private var showResetAlert = false
+    @State private var resetGeneration = 0
 
     @State private var localEnvSettings: [String: SettingValue]
     @State private var localTrainingConfig: TrainingConfig
@@ -21,6 +22,8 @@ struct TrainSettingsView: View {
     @State private var appliedTrainingConfig: TrainingConfig
     @State private var envValidationErrors: Set<String> = []
     @State private var trainingValidationErrors: Set<String> = []
+    @State private var isApplying = false
+    @State private var applyError: String?
     @State private var scheduledResetTask: Task<Void, Never>?
 
     init(
@@ -78,16 +81,13 @@ struct TrainSettingsView: View {
         }
     }
 
+    private var hasProgress: Bool {
+        vm.trainingState(for: envID).currentTimestep > 0
+    }
+
     private var parametersLocked: Bool {
-        let state = vm.trainingState(for: envID)
-        switch state.status {
-        case .training, .paused, .completed:
-            return true
-        case .failed:
-            return state.currentTimestep > 0 || state.hasHistory
-        case .idle:
-            return state.currentTimestep > 0 || state.hasHistory
-        }
+        vm.trainingTasks[envID] != nil || vm.snapshottingEnvs.contains(envID)
+            || vm.isResetting(id: envID) || isApplying
     }
 
     private var canApplyTrainingConfig: Bool {
@@ -96,6 +96,8 @@ struct TrainSettingsView: View {
         )
         let seedIsValid = seedValue.isEmpty || UInt64(seedValue) != nil
         return seedIsValid && trainingValidationErrors.isEmpty
+            && localTrainingConfig.totalTimesteps >= max(1, vm.trainingState(for: envID).currentTimestep)
+            && localTrainingConfig.totalTimesteps <= 1_000_000_000
     }
 
     private var canApplyEnvironmentSettings: Bool {
@@ -159,6 +161,14 @@ struct TrainSettingsView: View {
                     "This will reset \(selectedTab.rawValue.lowercased()) settings to their default values."
                 )
             }
+            .alert("Could Not Apply Settings", isPresented: .init(
+                get: { applyError != nil }, set: { if !$0 { applyError = nil } }
+            )) {} message: { Text(applyError ?? "") }
+            .onChange(of: vm.trainingConfigs[envID]) { _, _ in
+                guard localTrainingConfig == appliedTrainingConfig else { return }
+                localTrainingConfig = vm.trainingConfig(for: envID)
+                appliedTrainingConfig = localTrainingConfig
+            }
             .onChange(of: localTrainingConfig.algorithm) { oldValue, newValue in
                 guard oldValue != newValue else { return }
                 guard !parametersLocked else { return }
@@ -184,6 +194,8 @@ struct TrainSettingsView: View {
             .onDisappear {
                 scheduledResetTask?.cancel()
                 scheduledResetTask = nil
+                vm.invalidSettingsEnvs.remove(envID)
+                vm.unappliedSettingsEnvs.remove(envID)
             }
     }
 
@@ -234,16 +246,35 @@ struct TrainSettingsView: View {
                     settings: $localEnvSettings,
                     validationErrors: $envValidationErrors
                 )
+                .disabled(hasProgress)
             case .training:
+                if envID == MetroRunnerSettings.id, localTrainingConfig.algorithm == .ppo {
+                    SettingsSection {
+                        Menu("Metro PPO Presets") {
+                            ForEach(MetroRunnerTrainingPreset.allCases) { preset in
+                                Button(preset.rawValue) {
+                                    localTrainingConfig = preset.applying(
+                                        to: localTrainingConfig,
+                                        currentStep: vm.trainingState(for: envID).currentTimestep
+                                    )
+                                    resetGeneration += 1
+                                }
+                            }
+                        }
+                    } footer: {
+                        Text("Starting points to compare across seeds. Longer Rollout uses 2,048 steps per update; Fine-Tuning lowers learning rate and exploration. Neither is a measured optimum. Disable rendering for faster training.")
+                    }
+                }
                 TrainingSettingsSection(
                     availableAlgorithms: availableAlgorithms,
                     supportsImageNormalization: supportsImageNormalization,
                     config: $localTrainingConfig,
-                    validationErrors: $trainingValidationErrors
+                    validationErrors: $trainingValidationErrors,
+                    isContinuing: hasProgress
                 )
             }
         }
-        .id(selectedTab)
+        .id("\(selectedTab.rawValue):\(resetGeneration)")
         .disabled(parametersLocked)
 
         SettingsSection {
@@ -251,12 +282,14 @@ struct TrainSettingsView: View {
                 showResetAlert = true
             }
         }
-        .disabled(parametersLocked)
+        .disabled(parametersLocked || hasProgress)
 
-        if parametersLocked {
+        if hasProgress {
+            continuationSection
+        } else if parametersLocked {
             SettingsSection {
                 Text(
-                    "Parameters are locked once a run has started. Reset training to edit settings."
+                    "Pause training to edit the next training segment."
                 )
                 .font(.footnote)
                 .foregroundStyle(.secondary)
@@ -276,10 +309,59 @@ struct TrainSettingsView: View {
         case .training:
             localTrainingConfig = EnvironmentDefaults.config(for: envID)
         }
+        resetGeneration += 1
+    }
+
+    private var continuationSection: some View {
+        SettingsSection {
+            Button(isApplying ? "Applying Changes…" : "Apply Changes") {
+                isApplying = true
+                Task {
+                    defer { isApplying = false }
+                    do {
+                        try await vm.applyContinuationConfig(localTrainingConfig, for: envID)
+                        appliedTrainingConfig = localTrainingConfig
+                        vm.invalidSettingsEnvs.remove(envID)
+                        vm.unappliedSettingsEnvs.remove(envID)
+                    } catch {
+                        applyError = error.localizedDescription
+                    }
+                }
+            }
+            .disabled(parametersLocked || !canApplyTrainingConfig || localTrainingConfig == appliedTrainingConfig)
+            if localTrainingConfig != appliedTrainingConfig {
+                Button("Discard Changes") { localTrainingConfig = appliedTrainingConfig }
+                    .disabled(parametersLocked)
+            }
+            if !canApplyTrainingConfig {
+                Text("Use a valid step target that includes the steps already trained.")
+                    .font(.caption).foregroundStyle(.red)
+            }
+        } footer: {
+            Text("Pause to change the step target, visualization and supported learning settings. Algorithm, seed, network and environment stay fixed. Tuning preserves learned weights and history, and starts a fresh optimizer.")
+        }
     }
 
     private func applySettingsIfPossible() {
         guard !parametersLocked else { return }
+        if hasProgress {
+            if canApplyTrainingConfig {
+                vm.invalidSettingsEnvs.remove(envID)
+            } else {
+                vm.invalidSettingsEnvs.insert(envID)
+            }
+            if localTrainingConfig == appliedTrainingConfig {
+                vm.unappliedSettingsEnvs.remove(envID)
+            } else {
+                vm.unappliedSettingsEnvs.insert(envID)
+            }
+            return
+        }
+        if canApplyEnvironmentSettings && canApplyTrainingConfig {
+            vm.invalidSettingsEnvs.remove(envID)
+        } else {
+            vm.invalidSettingsEnvs.insert(envID)
+        }
         var didApply = false
 
         if canApplyEnvironmentSettings, localEnvSettings != appliedEnvSettings {

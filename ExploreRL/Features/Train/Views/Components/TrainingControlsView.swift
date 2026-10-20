@@ -14,6 +14,8 @@ struct TrainingControlsView: View {
     @Binding var showResetAlert: Bool
     var showDetailedProgress: Bool = true
     var compact = false
+    @State private var showsContinuation = false
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     #if os(iOS)
         @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     #endif
@@ -21,6 +23,10 @@ struct TrainingControlsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: compact ? AppLayout.compactSpacing : 12) {
             trainingContent
+        }
+        .sheet(isPresented: $showsContinuation) {
+            ContinueTrainingSheet(id: id, vm: vm)
+                .presentationDetents([.medium])
         }
         .padding(compact ? 0 : AppLayout.panelPadding)
         .background(
@@ -43,24 +49,34 @@ struct TrainingControlsView: View {
         }
 
         if trainingState.status != .idle && showDetailedProgress {
-            progressBar
+            if compact && dynamicTypeSize.isAccessibilitySize {
+                ProgressView(value: trainingState.progress(totalTimesteps: trainingConfig.totalTimesteps))
+            } else {
+                TrainingProgressView(
+                    id: id, vm: vm, trainingConfig: trainingConfig, trainingState: trainingState
+                )
+            }
+        }
+
+        if trainingState.status == .training, let phase = vm.trainingPhases[id] {
+            TrainingPhaseView(phase: phase)
         }
 
         actionBar
 
-        if !compact, case .failed(let error) = trainingState.status {
+        if case .failed(let error) = trainingState.status {
             Text(error)
                 .font(.caption)
                 .foregroundStyle(.red)
         }
 
-        if !compact, let message = trainingState.statusMessage {
+        if let message = trainingState.statusMessage {
             Text(message)
                 .font(.caption)
                 .foregroundStyle(.orange)
         }
 
-        if !compact, trainingState.status != .training, let reason = policy.reason {
+        if trainingState.status != .training, let reason = policy.reason {
             Text(reason)
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -69,14 +85,41 @@ struct TrainingControlsView: View {
 
     @ViewBuilder
     private var actionBar: some View {
-        switch trainingState.status {
-        case .training:
-            actionRow(primary: pauseButton, secondary: resetButton)
-        case .paused:
-            actionRow(primary: resumeButton, secondary: resetButton)
-        case .idle, .completed, .failed:
-            idleActionRow
+        if needsExtension {
+            actionRow(primary: continueButton, secondary: resetButton)
+        } else {
+            switch trainingState.status {
+            case .training:
+                actionRow(primary: pauseButton, secondary: resetButton)
+            case .paused:
+                actionRow(primary: resumeButton, secondary: resetButton)
+            case .idle, .completed, .failed:
+                idleActionRow
+            }
         }
+    }
+
+    private var needsExtension: Bool {
+        trainingState.status != .training && trainingState.currentTimestep > 0
+            && trainingState.currentTimestep >= trainingConfig.totalTimesteps
+    }
+
+    private var continueButton: some View {
+        Button { showsContinuation = true } label: {
+            Label("Continue", systemImage: "play.fill")
+                .frame(maxWidth: .infinity)
+        }
+            .disabled(!policy.isAllowed || !vm.canSnapshot(id))
+            .modify { button in
+                if #available(iOS 26.0, macOS 26.0, *) {
+                    button.buttonStyle(.glass(.regular.tint(.green).interactive()))
+                        #if os(macOS)
+                        .tint(.green)
+                        #endif
+                } else {
+                    button.buttonStyle(.borderedProminent).tint(.green)
+                }
+            }
     }
 
     private var idleActionRow: some View {
@@ -86,76 +129,48 @@ struct TrainingControlsView: View {
     private func actionRow(primary: some View, secondary: some View)
         -> some View
     {
-        HStack(spacing: 12) {
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(spacing: 8))
+            : AnyLayout(HStackLayout(spacing: 12))
+        return layout {
             primary
                 .frame(maxWidth: .infinity)
             secondary
                 .frame(maxWidth: .infinity)
         }
         .controlSize(.large)
-        .buttonBorderShape(.roundedRectangle(radius: AppLayout.controlRadius))
-    }
-
-    private var progress: Double {
-        trainingState.progress(totalTimesteps: trainingConfig.totalTimesteps)
-    }
-
-    @ViewBuilder
-    private var progressBar: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("\(trainingState.episodeCount) episodes")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
-            HStack {
-                Text("\(trainingState.currentTimestep) / \(trainingConfig.totalTimesteps) steps")
-                    .font(.caption)
-                    .monospacedDigit()
-                Spacer()
-                Text(String(format: "%.1f%%", progress * 100))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .monospacedDigit()
+        .modify { content in
+            if #available(iOS 26.0, macOS 26.0, *) {
+                GlassEffectContainer(spacing: 14) { content }
+            } else {
+                content
             }
-            ProgressView(value: progress)
-            timingRow
         }
-    }
-
-    private var timingRow: some View {
-        let elapsed = vm.activeTrainingElapsed(for: id)
-        let stepsPerMinute = stepsPerMin(timesteps: trainingState.currentTimestep, elapsed: elapsed)
-        let eta = etaSeconds(
-            stepsPerMinute: stepsPerMinute, currentTimestep: trainingState.currentTimestep,
-            totalTimesteps: trainingConfig.totalTimesteps)
-
-        return HStack {
-            Text("Elapsed \(formatTime(elapsed))")
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
-            Spacer()
-            Text("\(Int(stepsPerMinute.rounded())) steps/min")
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
-            Spacer()
-            Text(eta.map { "ETA \(formatTime($0))" } ?? "ETA —")
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
-        }
-        .font(.caption)
     }
 
     private var startButton: some View {
         Button {
             vm.startTraining(for: id)
         } label: {
-            Label("Start", systemImage: "play.fill")
+            Label(trainingState.currentTimestep > 0 ? "Resume" : "Start", systemImage: "play.fill")
                 .frame(maxWidth: .infinity)
         }
         .disabled(!policy.isAllowed)
         .keyboardShortcut(.return, modifiers: .command)
         .help("Start training (Command-Return)")
-        .buttonStyle(.borderedProminent)
+        .modify { button in
+            if #available(iOS 26.0, macOS 26.0, *) {
+                button
+                    .buttonStyle(.glass(.regular.tint(.blue).interactive()))
+                    .controlSize(.large)
+                    #if os(macOS)
+                        .tint(.blue)
+                    #endif
+            } else {
+                button
+                    .buttonStyle(.borderedProminent)
+            }
+        }
     }
 
     private var resumeButton: some View {
@@ -168,7 +183,20 @@ struct TrainingControlsView: View {
         .disabled(!policy.isAllowed)
         .keyboardShortcut(.return, modifiers: .command)
         .help("Resume training (Command-Return)")
-        .buttonStyle(.borderedProminent)
+        .modify { button in
+            if #available(iOS 26.0, macOS 26.0, *) {
+                button
+                    .buttonStyle(.glass(.regular.tint(.green).interactive()))
+                    .controlSize(.large)
+                    #if os(macOS)
+                        .tint(.green)
+                    #endif
+            } else {
+                button
+                    .buttonStyle(.borderedProminent)
+                    .tint(.green)
+            }
+        }
     }
 
     private var pauseButton: some View {
@@ -180,7 +208,19 @@ struct TrainingControlsView: View {
         }
         .keyboardShortcut(.return, modifiers: .command)
         .help("Pause training (Command-Return)")
-        .buttonStyle(.borderedProminent)
+        .modify { button in
+            if #available(iOS 26.0, macOS 26.0, *) {
+                button
+                    .buttonStyle(.glass(.regular.tint(.orange).interactive()))
+                    .controlSize(.large)
+                    #if os(macOS)
+                        .tint(.orange)
+                    #endif
+            } else {
+                button
+                    .buttonStyle(.bordered)
+            }
+        }
     }
 
     private var resetButton: some View {
@@ -203,7 +243,26 @@ struct TrainingControlsView: View {
         .disabled(isResetting)
         .keyboardShortcut("r", modifiers: [.command, .shift])
         .help("Reset training (Shift-Command-R)")
-        .buttonStyle(.bordered)
+        .modify { button in
+            let isTraining = trainingState.status == .training
+            if #available(iOS 26.0, macOS 26.0, *) {
+                button
+                    .buttonStyle(
+                        isTraining
+                            ? .glass(.regular.tint(.red).interactive())
+                            : .glass(.clear)
+                    )
+                    .controlSize(.large)
+                    #if os(macOS)
+                        .tint(isTraining ? .red : .primary)
+                    #endif
+            } else {
+                button
+                    .buttonStyle(.bordered)
+                    .controlSize(.large)
+                    .tint(isTraining ? .red : .primary)
+            }
+        }
     }
 
     private var policy: TrainingPolicy {

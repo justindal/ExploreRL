@@ -11,6 +11,7 @@ import SwiftUI
 struct TrainingMetricsView: View {
     let trainingState: TrainingState
     let algorithm: AlgorithmType
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         VStack(alignment: .leading, spacing: AppLayout.spacing) {
@@ -19,7 +20,9 @@ struct TrainingMetricsView: View {
                 .foregroundStyle(.secondary)
 
             LazyVGrid(
-                columns: [GridItem(.flexible()), GridItem(.flexible())],
+                columns: dynamicTypeSize.isAccessibilitySize
+                    ? [GridItem(.flexible())]
+                    : [GridItem(.flexible()), GridItem(.flexible())],
                 spacing: AppLayout.compactSpacing
             ) {
                 coreMetrics

@@ -122,41 +122,17 @@ struct EnvironmentSettingsSection: View {
     ) -> some View {
         let value = if case .float(let f) = currentValue { f } else { Float(0) }
 
-        if let range = definition.range {
-            VStack(alignment: .leading) {
-                HStack {
-                    Text(definition.label)
-                    Spacer()
-                    Text(String(format: "%.2f", value))
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                }
-
-                Slider(
-                    value: Binding(
-                        get: { Double(value) },
-                        set: { settings[definition.id] = .float(Float($0)) }
-                    ),
-                    in: Double(range.lowerBound)...Double(range.upperBound)
-                )
-            }
-        } else {
-            HStack {
-                Text(definition.label)
-                Spacer()
-                TextField(
-                    "Value",
-                    value: Binding(
-                        get: { value },
-                        set: { settings[definition.id] = .float($0) }
-                    ),
-                    format: .number
-                )
-                .textFieldStyle(.roundedBorder)
-                .frame(width: 80)
-                .multilineTextAlignment(.trailing)
-            }
-        }
+        NumericSettingRow(
+            id: definition.id,
+            title: definition.label,
+            value: Binding(
+                get: { Double(value) },
+                set: { settings[definition.id] = .float(Float($0)) }
+            ),
+            range: definition.range.map { Double($0.lowerBound)...Double($0.upperBound) },
+            usesFloatPrecision: true,
+            validationErrors: $validationErrors
+        )
     }
 
     @ViewBuilder
@@ -252,7 +228,7 @@ struct EnvironmentSettingsSection: View {
     }
 
     private func updateValidationErrors() {
-        var errors = Set<String>()
+        var errors = Set(validationErrors.filter { $0.hasPrefix("numeric:") })
         if let seedValue = settings["seed"]?.stringValue {
             let trimmed = seedValue.trimmingCharacters(
                 in: .whitespacesAndNewlines
@@ -306,43 +282,17 @@ struct EnvironmentSettingsSection: View {
     ) -> some View {
         let value = if case .int(let i) = currentValue { i } else { 0 }
 
-        if let range = definition.range {
-            VStack(alignment: .leading) {
-                HStack {
-                    Text(definition.label)
-                    Spacer()
-                    Text("\(value)")
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                }
-
-                Slider(
-                    value: Binding(
-                        get: { Double(value) },
-                        set: {
-                            settings[definition.id] = .int(Int($0.rounded()))
-                        }
-                    ),
-                    in: Double(range.lowerBound)...Double(range.upperBound),
-                    step: 1
-                )
-            }
-        } else {
-            HStack {
-                Text(definition.label)
-                Spacer()
-                TextField(
-                    "Value",
-                    value: Binding(
-                        get: { value },
-                        set: { settings[definition.id] = .int($0) }
-                    ),
-                    format: .number
-                )
-                .textFieldStyle(.roundedBorder)
-                .frame(width: 80)
-                .multilineTextAlignment(.trailing)
-            }
-        }
+        NumericSettingRow(
+            id: definition.id,
+            title: definition.label,
+            value: Binding(
+                get: { Double(value) },
+                set: { if let integer = Int(exactly: $0) { settings[definition.id] = .int(integer) } }
+            ),
+            range: definition.range.map { Double($0.lowerBound)...Double($0.upperBound) },
+            step: 1,
+            wholeNumbers: true,
+            validationErrors: $validationErrors
+        )
     }
 }

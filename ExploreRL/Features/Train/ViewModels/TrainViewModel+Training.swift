@@ -11,7 +11,7 @@ extension TrainViewModel {
 
     func startTraining(for id: String) {
         guard trainingPolicy(for: id).isAllowed else { return }
-        if trainingState(for: id).status == .paused {
+        if trainingState(for: id).status == .paused || (hasAlgorithm(for: id) && trainingState(for: id).currentTimestep > 0) {
             resumeTraining(for: id)
             return
         }
@@ -51,6 +51,7 @@ extension TrainViewModel {
         }
 
         let accumulator = TrainingAccumulator()
+        trainingPhases[id] = .preparing
         accumulators[id] = accumulator
         startFlushLoop(for: id)
 
@@ -74,7 +75,8 @@ extension TrainViewModel {
     }
 
     func resumeTraining(for id: String) {
-        guard trainingState(for: id).status == .paused else { return }
+        guard trainingState(for: id).status != .training else { return }
+        guard trainingState(for: id).currentTimestep < trainingConfig(for: id).totalTimesteps else { return }
         guard trainingPolicy(for: id).isAllowed else { return }
         guard trainingTasks[id] == nil else { return }
         updateTrainingState(for: id) {
@@ -83,12 +85,13 @@ extension TrainViewModel {
         }
 
         if trainingTimings[id] == nil {
-            trainingTimings[id] = TrainingTiming(startedAt: .now)
+            trainingTimings[id] = TrainingTiming(startedAt: .now, initialTimestep: trainingState(for: id).currentTimestep)
         } else {
             trainingTimings[id]?.resume(at: .now)
         }
 
-        let accumulator = accumulators[id] ?? TrainingAccumulator()
+        let accumulator = accumulators[id] ?? TrainingAccumulator(initialTimestep: trainingState(for: id).currentTimestep)
+        trainingPhases[id] = .preparing
         accumulators[id] = accumulator
         startFlushLoop(for: id)
 
@@ -105,7 +108,7 @@ extension TrainViewModel {
 
     @MainActor
     func resetTraining(for id: String) async {
-        guard !resettingEnvs.contains(id) else { return }
+        guard !resettingEnvs.contains(id), !snapshottingEnvs.contains(id) else { return }
         resettingEnvs.insert(id)
         defer { resettingEnvs.remove(id) }
 
@@ -131,6 +134,7 @@ extension TrainViewModel {
         accumulators[id]?.reset()
         accumulators[id] = nil
         trainingTimings[id] = nil
+        trainingPhases[id] = nil
         tabularAgents[id] = nil
         dqnAlgorithms[id] = nil
         ppoAlgorithms[id] = nil
@@ -168,6 +172,7 @@ extension TrainViewModel {
             flushAccumulator(for: id)
             stopFlushLoop(for: id)
             trainingTasks[id] = nil
+            trainingPhases[id] = nil
         }
 
         let totalTimesteps = config.totalTimesteps
@@ -343,10 +348,10 @@ extension TrainViewModel {
 
     }
 
-    func dqnAlgorithm(for id: String, env: any Env, config: TrainingConfig)
+    func dqnAlgorithm(for id: String, env: any Env, config: TrainingConfig, restoringFrom checkpoint: URL? = nil)
         async throws -> DQN
     {
-        if let existing = dqnAlgorithms[id] {
+        if checkpoint == nil, let existing = dqnAlgorithms[id] {
             return existing
         }
 
@@ -415,14 +420,21 @@ extension TrainViewModel {
         )
 
         let algorithmEnv = try await makeAlgorithmEnv(for: id)
-        let dqn = try DQN(
-            env: algorithmEnv,
-            learningRate: learningRate,
-            policyConfig: policyConfig,
-            config: dqnConfig,
-            optimizerConfig: optimizerConfig,
-            seed: config.seedValue
-        )
+        let dqn: DQN
+        if let checkpoint {
+            dqn = try await DQN.load(
+                from: checkpoint, env: algorithmEnv, config: dqnConfig, learningRate: learningRate
+            )
+        } else {
+            dqn = try DQN(
+                env: algorithmEnv,
+                learningRate: learningRate,
+                policyConfig: policyConfig,
+                config: dqnConfig,
+                optimizerConfig: optimizerConfig,
+                seed: config.seedValue
+            )
+        }
 
         dqnAlgorithms[id] = dqn
         return dqn
@@ -472,10 +484,10 @@ extension TrainViewModel {
 
     }
 
-    func sacAlgorithm(for id: String, env: any Env, config: TrainingConfig)
+    func sacAlgorithm(for id: String, env: any Env, config: TrainingConfig, restoringFrom checkpoint: URL? = nil)
         async throws -> SAC
     {
-        if let existing = sacAlgorithms[id] {
+        if checkpoint == nil, let existing = sacAlgorithms[id] {
             return existing
         }
         let sacSettings = sanitizedSACHyperparameters(config.sac, env: env)
@@ -592,16 +604,23 @@ extension TrainViewModel {
         )
 
         let algorithmEnv = try await makeAlgorithmEnv(for: id)
-        let sac = try SAC(
-            env: algorithmEnv,
-            learningRate: learningRate,
-            networksConfig: networksConfig,
-            config: offPolicyConfig,
-            optimizerConfig: optimizerConfig,
-            entCoef: entCoef,
-            targetEntropy: targetEntropy,
-            seed: config.seedValue
-        )
+        let sac: SAC
+        if let checkpoint {
+            sac = try await SAC.load(
+                from: checkpoint, env: algorithmEnv, config: offPolicyConfig, learningRate: learningRate
+            )
+        } else {
+            sac = try SAC(
+                env: algorithmEnv,
+                learningRate: learningRate,
+                networksConfig: networksConfig,
+                config: offPolicyConfig,
+                optimizerConfig: optimizerConfig,
+                entCoef: entCoef,
+                targetEntropy: targetEntropy,
+                seed: config.seedValue
+            )
+        }
 
         sacAlgorithms[id] = sac
         return sac
@@ -865,7 +884,11 @@ func makeCallbacks(
         onTrain: { @Sendable metrics in
             accumulator.recordMetrics(metrics)
         },
-        onBufferAllocated: onBufferAllocated
+        onBufferAllocated: onBufferAllocated,
+        onPhase: { @Sendable phase in
+            accumulator.recordPhase(phase)
+            await onFlush()
+        }
     )
 }
 

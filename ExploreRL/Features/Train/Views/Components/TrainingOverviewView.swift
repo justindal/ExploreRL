@@ -9,6 +9,8 @@ struct TrainingOverviewView: View {
     let trainingState: TrainingState
     let trainingConfig: TrainingConfig
     let elapsed: TimeInterval
+    var timedSteps: Int? = nil
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         VStack(alignment: .leading, spacing: AppLayout.spacing) {
@@ -85,21 +87,24 @@ struct TrainingOverviewView: View {
     }
 
     private var timingRow: some View {
-        let stepsPerMinute = stepsPerMin(timesteps: trainingState.currentTimestep, elapsed: elapsed)
+        let stepsPerMinute = stepsPerMin(timesteps: timedSteps ?? trainingState.currentTimestep, elapsed: elapsed)
         let eta = etaSeconds(
             stepsPerMinute: stepsPerMinute, currentTimestep: trainingState.currentTimestep,
             totalTimesteps: trainingConfig.totalTimesteps)
-        return HStack(spacing: 0) {
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
+            : AnyLayout(HStackLayout(spacing: 16))
+        return layout {
             timingCell(
                 label: "Elapsed",
                 value: formatTime(elapsed)
             )
-            timingDivider
+            if !dynamicTypeSize.isAccessibilitySize { timingDivider }
             timingCell(
                 label: "Throughput",
                 value: throughputText(stepsPerMinute)
             )
-            timingDivider
+            if !dynamicTypeSize.isAccessibilitySize { timingDivider }
             timingCell(
                 label: "ETA",
                 value: eta.map(formatTime) ?? "—"

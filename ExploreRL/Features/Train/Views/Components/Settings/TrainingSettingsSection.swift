@@ -10,6 +10,7 @@ struct TrainingSettingsSection: View {
     let supportsImageNormalization: Bool
     @Binding var config: TrainingConfig
     @Binding var validationErrors: Set<String>
+    var isContinuing = false
     @State private var hyperparameterErrors: Set<String> = []
 
     var body: some View {
@@ -20,7 +21,8 @@ struct TrainingSettingsSection: View {
             HyperparametersSection(
                 config: $config,
                 supportsImageNormalization: supportsImageNormalization,
-                validationErrors: $hyperparameterErrors
+                validationErrors: $hyperparameterErrors,
+                editableIDs: isContinuing ? TrainingEdits.editableIDs(for: config.algorithm) : nil
             )
         }
         .onAppear {
@@ -42,6 +44,7 @@ struct TrainingSettingsSection: View {
                     Text(algo.rawValue).tag(algo)
                 }
             }
+            .disabled(isContinuing)
         } footer: {
             algorithmDescription
         }
@@ -100,6 +103,7 @@ struct TrainingSettingsSection: View {
                         .textFieldStyle(.roundedBorder)
                         .frame(width: 140)
                         .multilineTextAlignment(.trailing)
+                        .disabled(isContinuing)
                 }
 
                 if !seedIsValid {

@@ -113,7 +113,8 @@ final class LibraryViewModel {
             trainingState: session.trainingState,
             envSettings: session.envSettings,
             savedAt: session.savedAt,
-            observationVersion: session.observationVersion
+            observationVersion: session.observationVersion,
+            activeTrainingSeconds: session.activeTrainingSeconds, timingStartTimestep: session.timingStartTimestep
         )
 
         do {

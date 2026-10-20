@@ -9,6 +9,7 @@ struct HyperparametersSection: View {
     @Binding var config: TrainingConfig
     let supportsImageNormalization: Bool
     @Binding var validationErrors: Set<String>
+    var editableIDs: Set<String>? = nil
     @State private var stringValues: [String: String] = [:]
     @State private var expandedGroups: Set<String> = []
 
@@ -44,6 +45,7 @@ struct HyperparametersSection: View {
                     content: {
                         ForEach(group.items) { def in
                             hyperparameterRow(def)
+                                .disabled(editableIDs.map { !$0.contains(def.id) } ?? false)
                         }
                     },
                     label: {
@@ -96,16 +98,10 @@ struct HyperparametersSection: View {
         let value = accessor.doubleValue(for: def.id)
 
         VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                Text(def.label)
-                Spacer()
-                Text(String(format: "%.3f", value))
-                    .foregroundStyle(.secondary)
-                    .monospacedDigit()
-            }
-
-            if let range = range {
-                let binding = Binding(
+            NumericSettingRow(
+                id: def.id,
+                title: def.label,
+                value: Binding(
                     get: { value },
                     set: { newVal in
                         HyperparameterAccessor.setDouble(
@@ -114,14 +110,12 @@ struct HyperparametersSection: View {
                             on: &config
                         )
                     }
-                )
-
-                if let step {
-                    Slider(value: binding, in: range, step: step)
-                } else {
-                    Slider(value: binding, in: range)
-                }
-            }
+                ),
+                range: range,
+                step: step,
+                validationErrors: $validationErrors
+            )
+            .id("\(config.algorithm.rawValue).\(def.id)")
 
             if let desc = def.description {
                 Text(desc)
@@ -370,7 +364,7 @@ struct HyperparametersSection: View {
     }
 
     private func updateValidationErrors() {
-        var errors: Set<String> = []
+        var errors = Set(validationErrors.filter { $0.hasPrefix("numeric:") })
         for def in definitions {
             guard case .string = def.type else { continue }
             if !isVisible(def) { continue }

@@ -41,8 +41,8 @@ extension TrainViewModel {
 
     }
 
-    func ppoAlgorithm(for id: String, env: any Env, config: TrainingConfig) async throws -> PPO {
-        if let existing = ppoAlgorithms[id] {
+    func ppoAlgorithm(for id: String, env: any Env, config: TrainingConfig, restoringFrom checkpoint: URL? = nil) async throws -> PPO {
+        if checkpoint == nil, let existing = ppoAlgorithms[id] {
             return existing
         }
 
@@ -94,13 +94,20 @@ extension TrainViewModel {
         )
 
         let algorithmEnv = try await makeAlgorithmEnv(for: id)
-        let ppo = try PPO(
-            env: algorithmEnv,
-            learningRate: learningRate,
-            policyConfig: policyConfig,
-            config: ppoConfig,
-            seed: config.seedValue
-        )
+        let ppo: PPO
+        if let checkpoint {
+            ppo = try await PPO.load(
+                from: checkpoint, env: algorithmEnv, config: ppoConfig, learningRate: learningRate
+            )
+        } else {
+            ppo = try PPO(
+                env: algorithmEnv,
+                learningRate: learningRate,
+                policyConfig: policyConfig,
+                config: ppoConfig,
+                seed: config.seedValue
+            )
+        }
 
         ppoAlgorithms[id] = ppo
         return ppo

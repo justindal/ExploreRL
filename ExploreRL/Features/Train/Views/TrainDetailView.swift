@@ -3,6 +3,8 @@ import SwiftUI
 
 struct TrainDetailView: View {
 
+    @State private var showEvaluation = false
+    @State private var timingDate = Date.now
     @State private var showInfo: Bool = false
     @State private var showSettings: Bool = false
     @State private var showSaveSheet: Bool = false
@@ -10,6 +12,7 @@ struct TrainDetailView: View {
     @State private var persistenceError: String?
     @State private var isLoadingSession: Bool = false
     @State private var showResetAlert: Bool = false
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     #if os(iOS)
         @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     #endif
@@ -49,6 +52,9 @@ struct TrainDetailView: View {
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
                 .presentationContentInteraction(.scrolls)
+            }
+            .sheet(isPresented: $showEvaluation) {
+                TrainingEvaluationSheet(id: id, train: vm)
             }
             .sheet(isPresented: $showInfo) {
                 EnvironmentInfo(env: vm.env(for: id))
@@ -107,6 +113,12 @@ struct TrainDetailView: View {
                     "This will clear training progress and reload the environment."
                 )
             }
+            .task(id: trainingState.status == .training) {
+                while trainingState.status == .training && !Task.isCancelled {
+                    timingDate = .now
+                    try? await Task.sleep(for: .seconds(1))
+                }
+            }
             .task(id: id) {
                 await vm.loadEnv(id: id)
             }
@@ -129,7 +141,19 @@ struct TrainDetailView: View {
                 GeometryReader { proxy in
                     ScrollView {
                         VStack(alignment: .leading, spacing: AppLayout.sectionSpacing) {
-                            topSection(env: env)
+                            if usesBottomControls && dynamicTypeSize.isAccessibilitySize,
+                                trainingState.status != .idle,
+                                trainingConfig.renderDuringTraining
+                            {
+                                TrainingProgressView(
+                                    id: id, vm: vm, trainingConfig: trainingConfig,
+                                    trainingState: trainingState
+                                )
+                            }
+                            topSection(
+                                env: env,
+                                availableWidth: max(0, proxy.size.width - AppLayout.spacing * 2)
+                            )
                             if trainingState.hasHistory {
                                 TrainingChartsSection(state: trainingState)
                             }
@@ -149,17 +173,31 @@ struct TrainDetailView: View {
                     }
                 }
             case .error(let error):
-                ContentUnavailableView(
-                    "Failed to load",
-                    systemImage: "exclamationmark.triangle",
-                    description: Text(error.localizedDescription)
-                )
+                ContentUnavailableView {
+                    Label("Failed to load", systemImage: "exclamationmark.triangle")
+                } description: {
+                    Text(error.localizedDescription)
+                } actions: {
+                    Button("Retry", systemImage: "arrow.clockwise") {
+                        Task { await vm.loadEnv(id: id) }
+                    }
+                    .buttonStyle(.bordered)
+                }
             }
         }
     }
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
+        if trainingState.currentTimestep > 0 && trainingState.status != .training {
+            ToolbarItem(placement: toolbarPlacement) {
+                Button("Evaluate This Run", systemImage: "play.circle") { showEvaluation = true }
+                    .labelStyle(.iconOnly)
+                    .disabled(!vm.canSnapshot(id))
+                    .help("Evaluate a snapshot of the current run")
+            }
+        }
+
         ToolbarItem(placement: toolbarPlacement) {
             Menu("Session", systemImage: "archivebox") {
                 Button {
@@ -171,8 +209,7 @@ struct TrainDetailView: View {
                     )
                 }
                 .disabled(
-                    trainingState.status == .training
-                        || trainingState.currentTimestep == 0
+                    !vm.canSnapshot(id)
                 )
 
                 Button {
@@ -217,64 +254,26 @@ struct TrainDetailView: View {
     #endif
 
     @ViewBuilder
-    private func topSection(env: any Env) -> some View {
+    private func topSection(env: any Env, availableWidth: CGFloat) -> some View {
         let showsMetrics =
             trainingState.status != .idle || trainingState.hasHistory
         let showControlsProgress = trainingConfig.renderDuringTraining
         let showsInlineControls = !usesBottomControls || trainingState.status == .idle
         let prefersCenteredRenderer = id.hasPrefix("Snake")
         if showsMetrics {
-            #if os(macOS)
-                if prefersCenteredRenderer {
-                    stackedTrainingWorkspace(
-                        env: env,
-                        showControlsProgress: showControlsProgress,
-                        showsControls: showsInlineControls
-                    )
-                } else {
-                    wideTrainingWorkspace(
-                        env: env,
-                        showControlsProgress: showControlsProgress,
-                        showsControls: showsInlineControls
-                    )
-                }
-            #elseif os(iOS)
-                if usesBottomControls {
-                    stackedTrainingWorkspace(
-                        env: env,
-                        showControlsProgress: showControlsProgress,
-                        showsControls: showsInlineControls
-                    )
-                } else {
-                    ViewThatFits(in: .horizontal) {
-                        wideTrainingWorkspace(
-                            env: env,
-                            showControlsProgress: showControlsProgress,
-                            showsControls: showsInlineControls
-                        )
-
-                        stackedTrainingWorkspace(
-                            env: env,
-                            showControlsProgress: showControlsProgress,
-                            showsControls: showsInlineControls
-                        )
-                    }
-                }
-            #else
-                ViewThatFits(in: .horizontal) {
-                    wideTrainingWorkspace(
-                        env: env,
-                        showControlsProgress: showControlsProgress,
-                        showsControls: showsInlineControls
-                    )
-
-                    stackedTrainingWorkspace(
-                        env: env,
-                        showControlsProgress: showControlsProgress,
-                        showsControls: showsInlineControls
-                    )
-                }
-            #endif
+            if prefersCenteredRenderer || availableWidth < 820 || dynamicTypeSize.isAccessibilitySize {
+                stackedTrainingWorkspace(
+                    env: env,
+                    showControlsProgress: showControlsProgress,
+                    showsControls: showsInlineControls
+                )
+            } else {
+                wideTrainingWorkspace(
+                    env: env,
+                    showControlsProgress: showControlsProgress,
+                    showsControls: showsInlineControls
+                )
+            }
         } else {
             VStack(spacing: 16) {
                 envSection(env: env)
@@ -363,7 +362,8 @@ struct TrainDetailView: View {
             renderDuringTraining: trainingConfig.renderDuringTraining,
             trainingState: trainingState,
             trainingConfig: trainingConfig,
-            elapsed: vm.activeTrainingElapsed(for: id)
+            elapsed: vm.trainingTimings[id]?.activeElapsed(now: timingDate) ?? 0,
+            timedSteps: vm.timedTrainingSteps(for: id)
         )
 
         #if os(iOS)
@@ -415,7 +415,7 @@ struct TrainDetailView: View {
             trainingConfig: trainingConfig,
             trainingState: trainingState,
             showResetAlert: $showResetAlert,
-            showDetailedProgress: false,
+            showDetailedProgress: trainingConfig.renderDuringTraining,
             compact: true
         )
         .padding(.horizontal, AppLayout.spacing)

@@ -1,7 +1,7 @@
 import Foundation
 
 func stepsPerMin(timesteps: Int, elapsed: TimeInterval) -> Double {
-    guard elapsed > 0 else { return 0 }
+    guard elapsed.isFinite, elapsed > 0, timesteps > 0 else { return 0 }
     return Double(timesteps) / (elapsed / 60.0)
 }
 
@@ -10,12 +10,13 @@ func etaSeconds(
     currentTimestep: Int,
     totalTimesteps: Int
 ) -> TimeInterval? {
-    guard stepsPerMinute > 0 else { return nil }
+    guard stepsPerMinute.isFinite, stepsPerMinute > 0 else { return nil }
     let remaining = max(0, totalTimesteps - currentTimestep)
     return (Double(remaining) / stepsPerMinute) * 60.0
 }
 
 func formatTime(_ seconds: TimeInterval) -> String {
+    guard seconds.isFinite, seconds < Double(Int.max) else { return "—" }
     let total = max(0, Int(seconds.rounded()))
     let h = total / 3600
     let m = (total % 3600) / 60

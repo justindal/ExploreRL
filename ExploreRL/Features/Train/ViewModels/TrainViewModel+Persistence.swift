@@ -9,61 +9,56 @@ import Gymnazo
 extension TrainViewModel {
 
     func saveSession(for id: String, name: String) async throws {
+        let snapshot = try await makeSnapshot(for: id)
+        defer { SessionStorage.shared.discard(snapshot) }
+        _ = try SessionStorage.shared.saveSnapshot(snapshot, name: name)
+    }
+
+    func canSnapshot(_ id: String) -> Bool {
+        trainingTasks[id] == nil && !snapshottingEnvs.contains(id) && !resettingEnvs.contains(id)
+            && trainingState(for: id).status != .training && trainingState(for: id).currentTimestep > 0
+            && hasAlgorithm(for: id)
+    }
+
+    func hasAlgorithm(for id: String) -> Bool {
+        switch trainingConfig(for: id).algorithm {
+        case .qLearning, .sarsa: tabularAgents[id] != nil
+        case .dqn: dqnAlgorithms[id] != nil
+        case .ppo: ppoAlgorithms[id] != nil
+        case .sac: sacAlgorithms[id] != nil
+        case .td3: td3Algorithms[id] != nil
+        }
+    }
+
+    func makeSnapshot(for id: String) async throws -> TrainingSnapshot {
+        guard canSnapshot(id), isTrainingActive else {
+            throw TrainError.invalidConfiguration("Wait for training to stop before creating a checkpoint.")
+        }
+        snapshottingEnvs.insert(id)
+        defer { snapshottingEnvs.remove(id) }
+        flushAccumulator(for: id)
         let config = trainingConfig(for: id)
-        let state = trainingState(for: id)
-        let settings = envSettings[id] ?? [:]
-
-        let hasAlgorithm: Bool = {
-            switch config.algorithm {
-            case .qLearning, .sarsa: return tabularAgents[id] != nil
-            case .dqn: return dqnAlgorithms[id] != nil
-            case .ppo: return ppoAlgorithms[id] != nil
-            case .sac: return sacAlgorithms[id] != nil
-            case .td3: return td3Algorithms[id] != nil
-            }
-        }()
-
-        guard hasAlgorithm else { throw TrainError.noAlgorithmToSave }
-
         let session = SavedSession(
-            id: UUID(),
-            name: name,
-            environmentID: id,
-            algorithmType: config.algorithm,
-            trainingConfig: config,
-            trainingState: state,
-            envSettings: settings,
-            savedAt: Date(),
-            observationVersion: id == MetroRunnerSettings.id ? MetroRunnerObservation.version : nil
+            id: UUID(), name: "Current run", environmentID: id, algorithmType: config.algorithm,
+            trainingConfig: config, trainingState: trainingState(for: id), envSettings: settings(for: id),
+            savedAt: .now,
+            observationVersion: id == MetroRunnerSettings.id ? MetroRunnerObservation.version : nil,
+            activeTrainingSeconds: activeTrainingElapsed(for: id), timingStartTimestep: trainingTimings[id]?.initialTimestep
         )
-
-        let storage = SessionStorage.shared
-        try storage.save(session: session)
-        storage.invalidateExportCache()
-
-        let checkpointDir = storage.checkpointDirectory(for: session.id)
-
-        switch config.algorithm {
-        case .qLearning, .sarsa:
-            if let agent = tabularAgents[id] {
-                try await agent.save(to: checkpointDir)
+        let snapshot = TrainingSnapshot(session: session, directory: SessionStorage.shared.snapshotDirectory(for: session.id))
+        do {
+            switch config.algorithm {
+            case .qLearning, .sarsa: try await tabularAgents[id]?.save(to: snapshot.checkpointDirectory)
+            case .dqn: try await dqnAlgorithms[id]?.save(to: snapshot.checkpointDirectory)
+            case .ppo: try await ppoAlgorithms[id]?.save(to: snapshot.checkpointDirectory)
+            case .sac: try await sacAlgorithms[id]?.save(to: snapshot.checkpointDirectory)
+            case .td3: try await td3Algorithms[id]?.save(to: snapshot.checkpointDirectory)
             }
-        case .dqn:
-            if let dqn = dqnAlgorithms[id] {
-                try await dqn.save(to: checkpointDir)
-            }
-        case .ppo:
-            if let ppo = ppoAlgorithms[id] {
-                try await ppo.save(to: checkpointDir)
-            }
-        case .sac:
-            if let sac = sacAlgorithms[id] {
-                try await sac.save(to: checkpointDir)
-            }
-        case .td3:
-            if let td3 = td3Algorithms[id] {
-                try await td3.save(to: checkpointDir)
-            }
+            try Task.checkCancellation()
+            return snapshot
+        } catch {
+            SessionStorage.shared.discard(snapshot)
+            throw error
         }
     }
 
@@ -72,7 +67,18 @@ extension TrainViewModel {
         try SessionCompatibility.validate(session)
         let id = session.environmentID
 
-        trainingTasks[id]?.cancel()
+        guard !snapshottingEnvs.contains(id), !resettingEnvs.contains(id) else {
+            throw TrainError.invalidConfiguration("Wait for the current session operation to finish.")
+        }
+        snapshottingEnvs.insert(id)
+        defer { snapshottingEnvs.remove(id) }
+        let task = trainingTasks[id]
+        task?.cancel()
+        await task?.value
+        stopFlushLoop(for: id)
+        accumulators[id] = nil
+        trainingTimings[id] = nil
+        trainingPhases[id] = nil
         trainingTasks[id] = nil
         tabularAgents[id] = nil
         dqnAlgorithms[id] = nil
@@ -111,7 +117,13 @@ extension TrainViewModel {
         }
 
         var restoredState = session.trainingState
-        restoredState.status = .paused
+        restoredState.status = restoredState.currentTimestep >= session.trainingConfig.totalTimesteps ? .completed : .paused
+        trainingTimings[id] = TrainingTiming(
+            startedAt: .now,
+            initialTimestep: session.timingStartTimestep ?? restoredState.currentTimestep,
+            previousElapsed: session.activeTrainingSeconds ?? 0
+        )
+        trainingTimings[id]?.pause(at: .now)
         trainingStates[id] = restoredState
     }
 }
