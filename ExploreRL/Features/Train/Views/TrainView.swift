@@ -6,9 +6,10 @@ struct TrainView: View {
     @State private var loadError: String?
     @State private var isLoadingSession = false
     @State private var searchText = ""
-    @State private var selectedEnvID: String?
     @Binding var envSpecs: [EnvSpec]
     @Binding var sessionToLoad: SavedSession?
+    @Binding var navigation: TrainNavigation
+    var showSettingsInspector: Binding<Bool>? = nil
 
     private var sections: [(category: EnvCategory, items: [EnvSpec])] {
         EnvCategory.allCases.compactMap { category in
@@ -29,7 +30,7 @@ struct TrainView: View {
             } detail: {
                 if isLoadingSession {
                     ProgressView("Loading session...")
-                } else if let envID = selectedEnvID {
+                } else if let envID = navigation.selectedEnvironmentID {
                     TrainDetailView(id: envID, vm: viewModel)
                 } else {
                     ContentUnavailableView(
@@ -40,7 +41,7 @@ struct TrainView: View {
                     )
                 }
             }
-            .onChange(of: sessionToLoad) { _, newSession in
+            .onChange(of: sessionToLoad, initial: true) { _, newSession in
                 handleSessionLoad(newSession)
             }
             .alert("Load Failed", isPresented: loadFailedBinding) {
@@ -50,55 +51,26 @@ struct TrainView: View {
             }
         }
     #else
-        @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-        @Environment(\.verticalSizeClass) private var verticalSizeClass
-        @State private var path: [String] = []
-        @SceneStorage("ipadTrainInspectorVisible") private var showSettingsInspector = true
-
         var body: some View {
             Group {
-                if usesSplitLayout {
-                    NavigationSplitView {
-                        envList
-                            .listStyle(.sidebar)
-                            .navigationTitle("Train")
-                            .navigationSplitViewColumnWidth(
-                                min: 250,
-                                ideal: 300,
-                                max: 380
-                            )
-                    } detail: {
-                        if isLoadingSession {
-                            ProgressView("Loading session...")
-                        } else if let selectedEnvID {
-                            TrainDetailView(
-                                id: selectedEnvID,
-                                vm: viewModel,
-                                showSettingsInspector: $showSettingsInspector
-                            )
-                        } else {
-                            ContentUnavailableView(
-                                "Select an Environment",
-                                systemImage: "square.grid.2x2",
-                                description: Text(
-                                    "Choose an environment from the sidebar to start training."
-                                )
-                            )
-                        }
-                    }
-                    .inspector(isPresented: $showSettingsInspector) {
-                        if let selectedEnvID {
-                            TrainSettingsView(
-                                envID: selectedEnvID,
-                                vm: viewModel,
-                                showsDismissButton: false
-                            )
-                            .id(selectedEnvID)
-                            .inspectorColumnWidth(min: 300, ideal: 340, max: 420)
-                        }
+                if let showSettingsInspector {
+                    if isLoadingSession {
+                        ProgressView("Loading session...")
+                    } else if let id = navigation.selectedEnvironmentID {
+                        TrainDetailView(
+                            id: id, vm: viewModel,
+                            showSettingsInspector: showSettingsInspector
+                        )
+                    } else {
+                        ContentUnavailableView(
+                            "Select an Environment",
+                            systemImage: "square.grid.2x2",
+                            description: Text("Choose an environment from the sidebar to start training.")
+                        )
+                        .navigationTitle("Train")
                     }
                 } else {
-                    NavigationStack(path: $path) {
+                    NavigationStack(path: $navigation.path) {
                         envList
                             .listStyle(.insetGrouped)
                             .navigationTitle("Train")
@@ -108,7 +80,7 @@ struct TrainView: View {
                     }
                 }
             }
-            .onChange(of: sessionToLoad) { _, newSession in
+            .onChange(of: sessionToLoad, initial: true) { _, newSession in
                 handleSessionLoad(newSession)
             }
             .alert("Load Failed", isPresented: loadFailedBinding) {
@@ -125,7 +97,7 @@ struct TrainView: View {
             if sections.isEmpty && !searchText.isEmpty {
                 ContentUnavailableView.search(text: searchText)
             } else if usesSplitLayout {
-                List(selection: $selectedEnvID) {
+                List(selection: $navigation.selectedEnvironmentID) {
                     environmentRows
                 }
             } else {
@@ -151,23 +123,13 @@ struct TrainView: View {
                         )
                         .tag(spec.id)
                     #else
-                        if usesSplitLayout {
+                        NavigationLink(value: spec.id) {
                             TrainListRow(
                                 name: spec.displayName ?? spec.name,
                                 description: spec.description ?? "",
                                 algorithms: [],
                                 status: viewModel.trainingState(for: spec.id).status
                             )
-                            .tag(spec.id)
-                        } else {
-                            NavigationLink(value: spec.id) {
-                                TrainListRow(
-                                    name: spec.displayName ?? spec.name,
-                                    description: spec.description ?? "",
-                                    algorithms: [],
-                                    status: viewModel.trainingState(for: spec.id).status
-                                )
-                            }
                         }
                     #endif
                 }
@@ -179,7 +141,7 @@ struct TrainView: View {
         #if os(macOS)
             true
         #else
-            horizontalSizeClass == .regular && verticalSizeClass == .regular
+            false
         #endif
     }
 
@@ -197,13 +159,7 @@ struct TrainView: View {
         Task {
             do {
                 try await viewModel.loadSession(session)
-                selectedEnvID = session.environmentID
-                #if os(macOS)
-                #else
-                    if !usesSplitLayout {
-                        path = [session.environmentID]
-                    }
-                #endif
+                navigation.selectedEnvironmentID = session.environmentID
             } catch {
                 loadError = error.localizedDescription
             }

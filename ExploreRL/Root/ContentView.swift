@@ -23,7 +23,7 @@ struct ContentView: View {
         private func restoreSidebarDestination() {
             if let dest = RootDestination.fromStorageKey(storedSidebarDestination) {
                 switch dest {
-                case .library, .evaluate, .explore:
+                case .explore where !showExploreTab:
                     selectedSidebarDestination = .home
                     storedSidebarDestination = RootDestination.home.storageKey
                 default:
@@ -33,7 +33,8 @@ struct ContentView: View {
         }
     #else
         @Environment(\.scenePhase) private var scenePhase
-        @SceneStorage("selectedTab") private var selectedTab = "Train"
+        @SceneStorage("selectedTab") private var selectedTab: AppTab =
+            UIDevice.current.userInterfaceIdiom == .pad ? .home : .train
         @State private var sessionToLoad: SavedSession?
     #endif
 
@@ -45,7 +46,15 @@ struct ContentView: View {
             #if os(macOS)
                 macLayout
             #else
-                iosTabLayout
+                IOSRootView(
+                    trainViewModel: trainViewModel,
+                    envSpecs: $envSpecs,
+                    selectedTab: $selectedTab,
+                    sessionToLoad: $sessionToLoad,
+                    sessionToEvaluate: $sessionToEvaluate,
+                    pendingImportURLs: $pendingImportURLs,
+                    showExploreTab: showExploreTab
+                )
             #endif
         }
         .onOpenURL { url in
@@ -55,7 +64,7 @@ struct ContentView: View {
                 selectedSidebarDestination = .library
                 storedSidebarDestination = selectedSidebarDestination.storageKey
             #else
-                selectedTab = "Library"
+                selectedTab = .library
             #endif
         }
         .task {
@@ -77,8 +86,8 @@ struct ContentView: View {
                     storedSidebarDestination = selectedSidebarDestination.storageKey
                 }
             #else
-                if selectedTab == "Explore" {
-                    selectedTab = "Train"
+                if selectedTab == .explore {
+                    selectedTab = .train
                 }
             #endif
         }
@@ -146,51 +155,6 @@ struct ContentView: View {
             onGoToLibrary: onGoToLibrary
         )
     }
-
-    // MARK: - iOS Layout
-
-    #if os(iOS)
-        private var iosTabLayout: some View {
-            TabView(selection: $selectedTab) {
-                Tab("Library", systemImage: "books.vertical", value: "Library") {
-                    makeLibraryView(
-                        onLoad: { session in
-                            sessionToLoad = session
-                            selectedTab = "Train"
-                        },
-                        onEvaluate: { session in
-                            sessionToEvaluate = session
-                            selectedTab = "Evaluate"
-                        }
-                    )
-                }
-
-                Tab("Train", systemImage: "brain", value: "Train") {
-                    TrainView(
-                        viewModel: trainViewModel,
-                        envSpecs: $envSpecs,
-                        sessionToLoad: $sessionToLoad
-                    )
-                }
-
-                Tab("Evaluate", systemImage: "play.circle", value: "Evaluate") {
-                    makeEvaluateView {
-                        selectedTab = "Library"
-                    }
-                }
-
-                if showExploreTab {
-                    Tab("Explore", systemImage: "graduationcap", value: "Explore") {
-                        exploreView
-                    }
-                }
-
-                Tab("Settings", systemImage: "gear", value: "Settings") {
-                    SettingsView()
-                }
-            }
-        }
-    #endif
 
     // MARK: - macOS Layout
 
@@ -264,7 +228,7 @@ struct ContentView: View {
             Group {
                 switch selectedSidebarDestination {
                 case .home:
-                    MacHomeView(
+                    HomeView(
                         envSpecs: envSpecs,
                         showExplore: showExploreTab,
                         onTrainEnvironment: selectTrainingEnvironment,
@@ -330,7 +294,16 @@ struct ContentView: View {
         private var appSidebarItems:
             [(title: String, systemImage: String, destination: RootDestination)]
         {
-            [("Home", "house", .home)]
+            var items: [(String, String, RootDestination)] = [
+                ("Home", "house", .home),
+                ("Library", "books.vertical", .library),
+                ("Evaluate", "play.circle", .evaluate),
+            ]
+            if showExploreTab {
+                items.append(("Explore", "graduationcap", .explore))
+            }
+            items.append(("Settings", "gearshape", .settings))
+            return items
         }
 
         private func selectTrainingEnvironment(_ id: String) {

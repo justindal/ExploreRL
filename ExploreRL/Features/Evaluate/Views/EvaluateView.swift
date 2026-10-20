@@ -8,18 +8,23 @@ import SwiftUI
 struct EvaluateView: View {
     @Binding var sessionToLoad: SavedSession?
     var onGoToLibrary: (() -> Void)?
+    var usesWorkspaceNavigation: Bool
     @State private var viewModel = EvaluateViewModel()
     @State private var selectedSession: SavedSession?
     @State private var searchText = ""
-    #if os(iOS)
-        @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-        @Environment(\.verticalSizeClass) private var verticalSizeClass
-    #endif
 
-    init(sessionToLoad: Binding<SavedSession?> = .constant(nil), onGoToLibrary: (() -> Void)? = nil)
+    init(
+        sessionToLoad: Binding<SavedSession?> = .constant(nil),
+        onGoToLibrary: (() -> Void)? = nil,
+        usesWorkspaceNavigation: Bool = false
+    )
     {
         _sessionToLoad = sessionToLoad
         self.onGoToLibrary = onGoToLibrary
+        self.usesWorkspaceNavigation = usesWorkspaceNavigation
+        _selectedSession = State(
+            initialValue: usesWorkspaceNavigation ? sessionToLoad.wrappedValue : nil
+        )
     }
 
     var body: some View {
@@ -33,11 +38,16 @@ struct EvaluateView: View {
         .onAppear {
             viewModel.loadSessions()
         }
-        .onChange(of: sessionToLoad) { _, newValue in
+        .onChange(of: sessionToLoad, initial: true) { _, newValue in
             guard let session = newValue else { return }
             sessionToLoad = nil
             viewModel.loadSessions()
-            selectedSession = session
+            selectSession(session)
+        }
+        .onDisappear {
+            if usesWorkspaceNavigation {
+                viewModel.stopEvaluation()
+            }
         }
     }
 
@@ -95,31 +105,24 @@ struct EvaluateView: View {
     #else
         private var mobileLayout: some View {
             Group {
-                if horizontalSizeClass == .regular && verticalSizeClass == .regular {
-                    NavigationSplitView {
-                        browserContent
-                            .navigationTitle("Evaluate")
-                            .searchable(text: $searchText, prompt: "Search agents")
-                            .navigationSplitViewColumnWidth(
-                                min: 280,
-                                ideal: 340,
-                                max: 420
-                            )
-                    } detail: {
+                if usesWorkspaceNavigation {
+                    NavigationStack {
                         if let selectedSession {
                             EvaluateDetailView(
-                                session: selectedSession,
-                                vm: viewModel,
-                                showsCloseButton: false
+                                session: selectedSession, vm: viewModel, showsCloseButton: false
                             )
+                            .toolbar {
+                                ToolbarItem(placement: .topBarLeading) {
+                                    Button("Agents", systemImage: "chevron.backward") {
+                                        viewModel.stopEvaluation()
+                                        self.selectedSession = nil
+                                    }
+                                }
+                            }
                         } else {
-                            ContentUnavailableView(
-                                "Select an Agent",
-                                systemImage: "play.square.stack",
-                                description: Text(
-                                    "Choose a saved agent to configure and run an evaluation."
-                                )
-                            )
+                            browserContent
+                                .navigationTitle("Evaluate")
+                                .searchable(text: $searchText, prompt: "Search agents")
                         }
                     }
                 } else {
@@ -167,13 +170,17 @@ struct EvaluateView: View {
                 Section(group.algorithm) {
                     ForEach(group.sessions) { session in
                         EvaluateSessionRow(session: session) {
-                            selectedSession = session
+                            selectSession(session)
                         }
                     }
                 }
             }
         }
         .listStyle(evaluateListStyle)
+    }
+
+    private func selectSession(_ session: SavedSession) {
+        selectedSession = session
     }
 
     private var groupedSessions: [(algorithm: String, sessions: [SavedSession])] {
