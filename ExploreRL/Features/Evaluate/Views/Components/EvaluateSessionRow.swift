@@ -3,26 +3,34 @@ import SwiftUI
 struct EvaluateSessionRow: View {
     let session: SavedSession
     let onEvaluate: () -> Void
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         Button(action: onEvaluate) {
-            HStack(spacing: 12) {
+            let layout = dynamicTypeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+                : AnyLayout(HStackLayout(spacing: 12))
+            layout {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(session.name)
                         .font(.body.weight(.semibold))
-                        .lineLimit(1)
+                        .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 2)
 
                     Text(session.environmentID)
                         .font(.caption)
                         .foregroundStyle(.secondary)
 
-                    HStack(spacing: 8) {
+                    let metricsLayout = dynamicTypeSize.isAccessibilitySize
+                        ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+                        : AnyLayout(HStackLayout(spacing: 8))
+                    metricsLayout {
                         if let reward = session.trainingState.meanReward {
                             Label(
                                 reward.formatted(.number.precision(.fractionLength(2))),
                                 systemImage: "star.fill"
                             )
-                            .font(.caption2)
+                            .font(.caption)
+                            .fixedSize(horizontal: false, vertical: true)
                             .foregroundStyle(.orange)
                         }
 
@@ -30,12 +38,13 @@ struct EvaluateSessionRow: View {
                             "\(session.trainingState.currentTimestep.formatted()) steps",
                             systemImage: "figure.walk"
                         )
-                        .font(.caption2)
+                        .font(.caption)
+                        .fixedSize(horizontal: false, vertical: true)
                         .foregroundStyle(.secondary)
                     }
                 }
 
-                Spacer()
+                if !dynamicTypeSize.isAccessibilitySize { Spacer() }
 
                 AlgorithmBadge(text: session.algorithmType.rawValue)
                     .font(.caption2)

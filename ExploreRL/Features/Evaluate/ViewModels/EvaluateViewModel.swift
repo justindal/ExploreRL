@@ -8,6 +8,7 @@ final class EvaluateViewModel {
     var state = EvaluationState()
     var env: (any Env)?
     var renderSnapshot: (any Sendable)?
+    var isEvaluationActive = true
 
     private var tabularAgent: TabularAgent?
     private var dqnAlgorithm: DQN?
@@ -17,6 +18,7 @@ final class EvaluateViewModel {
     private var valueEnv: AnyValueEnvironment?
     private var loadedSession: SavedSession?
     private var evalTask: Task<Void, Never>?
+    private var loadRequestID = UUID()
 
     private let storage = SessionStorage.shared
 
@@ -25,57 +27,90 @@ final class EvaluateViewModel {
     }
 
     @MainActor
-    func loadSession(_ session: SavedSession) async {
-        await clearAlgorithm()
+    func loadSession(_ session: SavedSession, checkpointDirectory: URL? = nil) async {
+        let requestID = UUID()
+        loadRequestID = requestID
         state.reset()
         state.status = .loading
         env = nil
         renderSnapshot = nil
+        await clearAlgorithm()
+        guard loadRequestID == requestID else { return }
 
         do {
+            try checkLoad(requestID)
             try SessionCompatibility.validate(session)
             var previewEnv = try await makeEnv(for: session)
+            try checkLoad(requestID)
             _ = try previewEnv.reset(
                 seed: envResetSeed(settings: session.envSettings),
                 options: nil
             )
 
-            let checkpointDir = storage.checkpointDirectory(for: session.id)
-            valueEnv = try await makeValueEnv(for: session)
+            let checkpointDir = checkpointDirectory ?? storage.checkpointDirectory(for: session.id)
+            let nextValueEnv = try await makeValueEnv(for: session)
+            try checkLoad(requestID)
+            valueEnv = nextValueEnv
 
             env = previewEnv
 
             switch session.algorithmType {
             case .qLearning, .sarsa:
                 let algorithmEnv = try await makeEnv(for: session)
+                try checkLoad(requestID)
                 tabularAgent = try TabularAgent.load(from: checkpointDir, env: algorithmEnv)
             case .dqn:
                 let algorithmEnv = try await makeEnv(for: session)
-                dqnAlgorithm = try await DQN.load(
+                try checkLoad(requestID)
+                let algorithm = try await DQN.load(
                     from: checkpointDir, env: algorithmEnv, includeBuffer: false)
+                try checkLoad(requestID)
+                dqnAlgorithm = algorithm
             case .ppo:
                 let algorithmEnv = try await makeEnv(for: session)
-                ppoAlgorithm = try await PPO.load(from: checkpointDir, env: algorithmEnv)
+                try checkLoad(requestID)
+                let algorithm = try await PPO.load(from: checkpointDir, env: algorithmEnv)
+                try checkLoad(requestID)
+                ppoAlgorithm = algorithm
             case .sac:
                 let algorithmEnv = try await makeEnv(for: session)
-                sacAlgorithm = try await SAC.load(
+                try checkLoad(requestID)
+                let algorithm = try await SAC.load(
                     from: checkpointDir, env: algorithmEnv, includeBuffer: false)
+                try checkLoad(requestID)
+                sacAlgorithm = algorithm
             case .td3:
                 let algorithmEnv = try await makeEnv(for: session)
-                td3Algorithm = try await TD3.load(
+                try checkLoad(requestID)
+                let algorithm = try await TD3.load(
                     from: checkpointDir, env: algorithmEnv, includeBuffer: false)
+                try checkLoad(requestID)
+                td3Algorithm = algorithm
             }
 
             loadedSession = session
             state.status = .idle
+        } catch is CancellationError {
+            if loadRequestID == requestID {
+                env = nil
+                state.status = .idle
+            }
         } catch {
+            guard loadRequestID == requestID else { return }
+            env = nil
             state.status = .failed(error.localizedDescription)
         }
     }
 
+    private func checkLoad(_ requestID: UUID) throws {
+        try Task.checkCancellation()
+        guard loadRequestID == requestID else { throw CancellationError() }
+    }
+
     @MainActor
     func startEvaluation() {
-        guard state.status != .running else { return }
+        guard isEvaluationActive else { return }
+        guard state.status != .running, state.status != .loading, evalTask == nil else { return }
         guard env != nil, loadedSession != nil else {
             state.status = .failed("No agent loaded")
             return
@@ -93,14 +128,19 @@ final class EvaluateViewModel {
 
     func stopEvaluation() {
         evalTask?.cancel()
-        evalTask = nil
         if state.status == .running {
             state.status = .idle
         }
     }
 
+    func setEvaluationActive(_ active: Bool) {
+        isEvaluationActive = active
+        if !active { stopEvaluation() }
+    }
+
     @MainActor
     private func runEvaluation() async {
+        defer { evalTask = nil }
         guard let session = loadedSession else { return }
 
         let totalEpisodes = state.totalEpisodes
@@ -284,12 +324,17 @@ final class EvaluateViewModel {
         }
     }
 
+    func finishEvaluation() async {
+        stopEvaluation()
+        await clearAlgorithm()
+    }
+
     private func clearAlgorithm() async {
-        evalTask?.cancel()
+        let previousEnvironment = valueEnv
+        let previousTask = evalTask
+        previousTask?.cancel()
+        await previousTask?.value
         evalTask = nil
-        if let valueEnv {
-            await valueEnv.close()
-        }
         valueEnv = nil
         tabularAgent = nil
         dqnAlgorithm = nil
@@ -298,6 +343,7 @@ final class EvaluateViewModel {
         td3Algorithm = nil
         loadedSession = nil
         renderSnapshot = nil
+        await previousEnvironment?.close()
     }
 
     private func makeEnv(for session: SavedSession) async throws -> sending ConfiguredEnv {

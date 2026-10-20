@@ -15,6 +15,23 @@ enum EvaluationStatus: Equatable {
     var errorMessage: String? {
         if case .failed(let message) = self { message } else { nil }
     }
+
+    var summaryTitle: String {
+        switch self {
+        case .completed: "Evaluation complete"
+        case .running: "Evaluation in progress"
+        default: "Partial results"
+        }
+    }
+
+    var summarySymbol: String {
+        switch self {
+        case .completed: "checkmark.circle.fill"
+        case .running, .loading: "clock"
+        case .failed: "exclamationmark.triangle"
+        case .idle: "pause.circle"
+        }
+    }
 }
 
 struct EvaluationState {

@@ -5,19 +5,43 @@
 
 import Gymnazo
 import SwiftUI
+#if os(iOS)
+import UIKit
+#endif
 
 struct EvaluateDetailView: View {
     let session: SavedSession
     @Bindable var vm: EvaluateViewModel
     var showsCloseButton = true
+    var checkpointDirectory: URL? = nil
+    var startsOnLoad = false
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var reloadID = 0
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    #if os(iOS)
+        @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    #endif
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: AppLayout.sectionSpacing) {
                 agentInfoCard
-                evaluationSummaryCard
+                if let message = vm.state.status.errorMessage {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label("Evaluation failed", systemImage: "exclamationmark.triangle")
+                            .font(.headline)
+                        Text(message)
+                            .font(.subheadline)
+                            .textSelection(.enabled)
+                    }
+                    .foregroundStyle(.red)
+                    .accessibilityElement(children: .combine)
+                }
                 topSection
+                if vm.state.status == .completed || !vm.state.episodeRewards.isEmpty {
+                    EvaluationSummaryCard(state: vm.state)
+                }
                 if !vm.state.episodeRewards.isEmpty {
                     EvaluationResults(state: vm.state)
                 }
@@ -40,9 +64,33 @@ struct EvaluateDetailView: View {
                 }
             }
         }
-        .task(id: session.id) {
-            await vm.loadSession(session)
+        #if os(iOS)
+        .onChange(of: scenePhase, initial: true) { _, phase in
+            vm.setEvaluationActive(phase == .active)
         }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
+            vm.setEvaluationActive(false)
+        }
+        #endif
+        .onDisappear { vm.stopEvaluation() }
+        .task(id: "\(session.id)-\(reloadID)-\(isForeground)") {
+            guard isForeground else { return }
+            await vm.loadSession(session, checkpointDirectory: checkpointDirectory)
+            if startsOnLoad, !Task.isCancelled, vm.env != nil { vm.startEvaluation() }
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if usesBottomControls && vm.state.status == .running {
+                EvaluationRunBar(state: vm.state, onStop: vm.stopEvaluation)
+            }
+        }
+    }
+
+    private var isForeground: Bool {
+        #if os(iOS)
+        scenePhase == .active
+        #else
+        true
+        #endif
     }
 
     @ViewBuilder
@@ -56,7 +104,9 @@ struct EvaluateDetailView: View {
             }
 
             LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 200))],
+                columns: dynamicTypeSize.isAccessibilitySize
+                    ? [GridItem(.flexible())]
+                    : [GridItem(.adaptive(minimum: 240))],
                 alignment: .leading,
                 spacing: 8
             ) {
@@ -68,6 +118,7 @@ struct EvaluateDetailView: View {
                 }
             }
             .font(.subheadline)
+            .labeledContentStyle(AdaptiveLabeledContentStyle())
         }
         .padding(AppLayout.panelPadding)
         .background(
@@ -77,62 +128,10 @@ struct EvaluateDetailView: View {
     }
 
     @ViewBuilder
-    private var evaluationSummaryCard: some View {
-        if vm.state.status == .completed || !vm.state.episodeRewards.isEmpty {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Text("Evaluation Summary")
-                        .font(.headline)
-                    Spacer()
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
-                }
-
-                LazyVGrid(
-                    columns: [GridItem(.adaptive(minimum: 140))],
-                    alignment: .leading,
-                    spacing: 12
-                ) {
-                    MetricCard(
-                        title: "Mean Reward",
-                        value: vm.state.meanReward.map { String(format: "%.2f", $0) } ?? "-"
-                    )
-                    MetricCard(
-                        title: "Best Reward",
-                        value: vm.state.episodeRewards.max().map { String(format: "%.2f", $0) }
-                            ?? "-"
-                    )
-                    MetricCard(
-                        title: "Mean Length",
-                        value: vm.state.meanLength.map { String(format: "%.1f", $0) } ?? "-"
-                    )
-                    MetricCard(
-                        title: "Episodes",
-                        value: "\(vm.state.episodeRewards.count)"
-                    )
-                }
-            }
-            .padding(AppLayout.panelPadding)
-            .background(
-                .regularMaterial,
-                in: RoundedRectangle(cornerRadius: AppLayout.panelRadius)
-            )
-        }
-    }
-
-    @ViewBuilder
     private var topSection: some View {
-        if let env = vm.env {
-            #if os(macOS)
-                HStack(alignment: .top, spacing: 20) {
-                    envSection(env: env)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .layoutPriority(1)
-                    controlsCard
-                        .frame(minWidth: 300, idealWidth: 320, maxWidth: 360)
-                }
-            #else
-                ViewThatFits(in: .horizontal) {
+        if vm.state.renderEnabled, let env = vm.env {
+            ViewThatFits(in: .horizontal) {
+                if !dynamicTypeSize.isAccessibilitySize {
                     HStack(alignment: .top, spacing: 20) {
                         envSection(env: env)
                             .frame(minWidth: 320, idealWidth: 560, maxWidth: .infinity)
@@ -140,14 +139,14 @@ struct EvaluateDetailView: View {
                         controlsCard
                             .frame(minWidth: 280, idealWidth: 320, maxWidth: 360)
                     }
-
-                    VStack(alignment: .leading, spacing: 16) {
-                        envSection(env: env)
-                            .frame(maxWidth: .infinity, alignment: .center)
-                        controlsCard
-                    }
                 }
-            #endif
+
+                VStack(alignment: .leading, spacing: AppLayout.spacing) {
+                    envSection(env: env)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                    controlsCard
+                }
+            }
         } else {
             controlsCard
         }
@@ -196,7 +195,9 @@ struct EvaluateDetailView: View {
             }
 
             settingsRow
-            actionButtons
+            if !usesBottomControls || vm.state.status != .running {
+                actionButtons
+            }
         }
         .padding(AppLayout.panelPadding)
         .background(
@@ -211,7 +212,10 @@ struct EvaluateDetailView: View {
         let isLoading = vm.state.status == .loading
 
         VStack(alignment: .leading, spacing: 12) {
-            HStack {
+            let layout = dynamicTypeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
+                : AnyLayout(HStackLayout())
+            layout {
                 Stepper(
                     "Episodes: \(vm.state.totalEpisodes)",
                     value: $vm.state.totalEpisodes,
@@ -220,11 +224,11 @@ struct EvaluateDetailView: View {
                 .font(.subheadline)
                 .disabled(isRunning || isLoading)
 
-                Spacer()
+                if !dynamicTypeSize.isAccessibilitySize { Spacer() }
 
                 Toggle("Render", isOn: $vm.state.renderEnabled)
                     .font(.subheadline)
-                    .fixedSize()
+                    .fixedSize(horizontal: !dynamicTypeSize.isAccessibilitySize, vertical: true)
                     .disabled(isRunning || isLoading)
             }
 
@@ -285,6 +289,23 @@ struct EvaluateDetailView: View {
                 ProgressView()
                     .frame(maxWidth: .infinity)
 
+            case .failed:
+                Button("Reload Agent", systemImage: "arrow.clockwise") {
+                    reloadID += 1
+                }
+                .modify { button in
+                    if #available(iOS 26.0, macOS 26.0, *) {
+                        button
+                            .buttonStyle(.glass(.regular.tint(.blue).interactive()))
+                            #if os(macOS)
+                                .tint(.blue)
+                            #endif
+                    } else {
+                        button.buttonStyle(.borderedProminent)
+                    }
+                }
+                .controlSize(.large)
+
             default:
                 Button {
                     vm.startEvaluation()
@@ -319,5 +340,13 @@ struct EvaluateDetailView: View {
                 content
             }
         }
+    }
+
+    private var usesBottomControls: Bool {
+        #if os(iOS)
+            horizontalSizeClass == .compact
+        #else
+            false
+        #endif
     }
 }
