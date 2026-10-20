@@ -4,6 +4,8 @@ struct ActionRow: View {
     @Binding var currentIndex: Int
     let pageCount: Int
     let onFinish: () -> Void
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init(
         currentIndex: Binding<Int>,
@@ -16,7 +18,10 @@ struct ActionRow: View {
     }
 
     var body: some View {
-        HStack(spacing: 12) {
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(spacing: 8))
+            : AnyLayout(HStackLayout(spacing: 12))
+        layout {
             if currentIndex > 0 {
                 backButton
             }
@@ -33,7 +38,7 @@ struct ActionRow: View {
 
     private var backButton: some View {
         Button {
-            withAnimation(.indicatorAnimation) {
+            withAnimation(reduceMotion ? nil : .indicatorAnimation) {
                 currentIndex = max(currentIndex - 1, 0)
             }
         } label: {
@@ -59,7 +64,7 @@ struct ActionRow: View {
             if isLastPage {
                 onFinish()
             } else {
-                withAnimation(.indicatorAnimation) {
+                withAnimation(reduceMotion ? nil : .indicatorAnimation) {
                     currentIndex = min(currentIndex + 1, pageCount - 1)
                 }
             }

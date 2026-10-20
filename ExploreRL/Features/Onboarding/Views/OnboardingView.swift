@@ -9,6 +9,7 @@ import SwiftUI
 
 struct OnboardingView: View {
     @State private var currentIndex: Int
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let pages: [OnboardingItem]
     let onFinish: () -> Void
 
@@ -35,33 +36,34 @@ struct OnboardingView: View {
 
     var body: some View {
 
-        VStack(spacing: 0) {
-            if showsImage {
-                OnboardingImage(pages: pages, currentIndex: currentIndex)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .padding(.horizontal, 24)
-                    .padding(.top, 24)
-                    .padding(.bottom, 14)
-
+        ScrollView {
+            VStack(spacing: 24) {
+                if showsImage {
+                    OnboardingImage(pages: pages, currentIndex: currentIndex)
+                        .frame(height: dynamicTypeSize.isAccessibilitySize ? 120 : 300)
+                        .padding(.horizontal, 24)
+                        .accessibilityHidden(true)
+                }
                 OnboardingTexts(pages: pages, currentIndex: currentIndex)
-                    .padding(.bottom, 8)
-            } else {
-                Spacer(minLength: 0)
-                OnboardingTexts(pages: pages, currentIndex: currentIndex)
-                    .padding(.bottom, 28)
-                Spacer(minLength: 0)
             }
-
-            Indicator(currentIndex: currentIndex, count: pages.count)
-                .padding(.bottom, 8)
-            ActionRow(
-                currentIndex: $currentIndex,
-                pageCount: pages.count,
-                onFinish: onFinish
-            )
+            .frame(maxWidth: 600)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 24)
         }
-        .animation(.easeInOut(duration: 0.25), value: showsImage)
-        .padding(.bottom, 8)
+        .id(currentIndex)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            VStack(spacing: 8) {
+                Indicator(currentIndex: currentIndex, count: pages.count)
+                    .accessibilityLabel("Page \(currentIndex + 1) of \(pages.count)")
+                ActionRow(
+                    currentIndex: $currentIndex,
+                    pageCount: pages.count,
+                    onFinish: onFinish
+                )
+            }
+            .padding(.vertical, 8)
+            .background(.bar)
+        }
 
     }
 

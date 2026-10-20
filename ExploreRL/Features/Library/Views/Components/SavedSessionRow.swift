@@ -2,20 +2,24 @@ import SwiftUI
 
 struct SavedSessionRow: View {
     let session: SavedSession
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(session.name)
                 .font(.body.weight(.semibold))
-                .lineLimit(1)
+                .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 2)
 
             Text(metricsText)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
-                .lineLimit(1)
+                .fixedSize(horizontal: false, vertical: true)
 
-            HStack(spacing: 6) {
+            let layout = dynamicTypeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 6))
+                : AnyLayout(HStackLayout(spacing: 6))
+            layout {
                 EnvironmentBadge(text: session.environmentID)
                 AlgorithmBadge(text: session.algorithmType.rawValue)
             }

@@ -15,20 +15,56 @@ struct LibraryDetailView: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var showDeleteAlert = false
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    #if os(iOS)
+        @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    #endif
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 headerSection
+                if !usesBottomActions { primaryActions }
                 metricsSection
                 hyperparamsSection
                 envSettingsSection
                 actionsSection
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: AppLayout.contentMaxWidth, alignment: .leading)
+            .frame(maxWidth: .infinity)
             .padding()
         }
+        .labeledContentStyle(AdaptiveLabeledContentStyle())
         .navigationTitle(session.name)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if usesBottomActions {
+                primaryActions
+                    .padding(AppLayout.spacing)
+                    .background(.bar)
+                    .overlay(alignment: .top) { Divider() }
+            }
+        }
+    }
+
+    private var metadataColumns: [GridItem] {
+        dynamicTypeSize.isAccessibilitySize
+            ? [GridItem(.flexible())]
+            : [GridItem(.adaptive(minimum: 240))]
+    }
+
+    private var primaryActions: some View {
+        SessionPrimaryActions(
+            onLoad: { onLoad(session) },
+            onEvaluate: { onEvaluate(session) }
+        )
+    }
+
+    private var usesBottomActions: Bool {
+        #if os(iOS)
+            horizontalSizeClass == .compact
+        #else
+            false
+        #endif
     }
 
     @ViewBuilder
@@ -42,7 +78,7 @@ struct LibraryDetailView: View {
             }
 
             LazyVGrid(
-                columns: [GridItem(.flexible()), GridItem(.flexible())],
+                columns: metadataColumns,
                 alignment: .leading,
                 spacing: 8
             ) {
@@ -84,7 +120,9 @@ struct LibraryDetailView: View {
             }
 
             LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 120))],
+                columns: dynamicTypeSize.isAccessibilitySize
+                    ? [GridItem(.flexible())]
+                    : [GridItem(.adaptive(minimum: 120))],
                 spacing: 12
             ) {
                 MetricCard(
@@ -162,7 +200,7 @@ struct LibraryDetailView: View {
             let config = session.trainingConfig
 
             LazyVGrid(
-                columns: [GridItem(.flexible()), GridItem(.flexible())],
+                columns: metadataColumns,
                 alignment: .leading,
                 spacing: 8
             ) {
@@ -234,7 +272,7 @@ struct LibraryDetailView: View {
                     .font(.headline)
 
                 LazyVGrid(
-                    columns: [GridItem(.flexible()), GridItem(.flexible())],
+                    columns: metadataColumns,
                     alignment: .leading,
                     spacing: 8
                 ) {
@@ -260,11 +298,6 @@ struct LibraryDetailView: View {
     @ViewBuilder
     private var actionsSection: some View {
         VStack(spacing: 12) {
-            SessionPrimaryActions(
-                onLoad: { onLoad(session) },
-                onEvaluate: { onEvaluate(session) }
-            )
-
             Button {
                 onExport(session)
             } label: {

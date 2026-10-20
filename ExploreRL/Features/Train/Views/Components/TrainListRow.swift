@@ -13,6 +13,7 @@ struct TrainListRow: View {
     let description: String
     let algorithms: [String]
     var status: TrainingStatus = .idle
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -20,13 +21,13 @@ struct TrainListRow: View {
                 Text(name)
                     .font(.body)
                     .bold()
-                    .lineLimit(1)
+                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
 
                 if !description.isEmpty {
                     Text(description)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                        .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
                 }
 
                 if !algorithms.isEmpty {
