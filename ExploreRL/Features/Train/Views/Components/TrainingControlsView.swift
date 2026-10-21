@@ -58,10 +58,6 @@ struct TrainingControlsView: View {
             }
         }
 
-        if trainingState.status == .training, let phase = vm.trainingPhases[id] {
-            TrainingPhaseView(phase: phase)
-        }
-
         actionBar
 
         if case .failed(let error) = trainingState.status {

@@ -5,22 +5,26 @@ struct TrainingPhaseView: View {
     let phase: TrainingPhase
 
     var body: some View {
-        if phase != .collecting {
-            HStack(alignment: .top, spacing: 12) {
-                ProgressView().controlSize(.small)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(title).font(.subheadline.weight(.medium))
-                    Text(detail).font(.caption).foregroundStyle(.secondary)
-                }
-            }
-            .accessibilityElement(children: .combine)
+        HStack(spacing: 8) {
+            ProgressView()
+                .controlSize(.small)
+                .accessibilityHidden(true)
+            Text(title)
+                .font(.caption.weight(.medium))
+                .fixedSize(horizontal: false, vertical: true)
         }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(.regularMaterial, in: Capsule())
+        .help(detail)
+        .accessibilityElement(children: .combine)
+        .accessibilityHint(detail)
     }
 
     private var title: String {
         switch phase {
         case .preparing: "Preparing training"
-        case .compiling: "Preparing the first update"
+        case .compiling: "Compiling training kernels"
         case .updating: "Updating the policy"
         case .collecting: "Collecting experience"
         }

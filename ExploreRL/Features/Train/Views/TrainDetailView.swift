@@ -38,6 +38,16 @@ struct TrainDetailView: View {
 
     var body: some View {
         mainContent
+            .overlay(alignment: .bottomTrailing) {
+                if trainingState.status == .training,
+                    let phase = vm.trainingPhases[id], phase != .collecting
+                {
+                    TrainingPhaseView(phase: phase)
+                        .frame(maxWidth: 420, alignment: .trailing)
+                        .padding(AppLayout.spacing)
+                        .allowsHitTesting(false)
+                }
+            }
             .navigationTitle(navigationTitleText)
             #if os(iOS)
                 .navigationBarTitleDisplayMode(.inline)

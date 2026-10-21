@@ -13,17 +13,23 @@ struct HomeView: View {
     let onEvaluateSession: (SavedSession) -> Void
 
     @State private var libraryViewModel = LibraryViewModel()
+    @State private var featuredEnvironmentIDs: [String] = []
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     private var recentSessions: [SavedSession] {
         Array(libraryViewModel.sortedAndFilteredSessions(matching: "").prefix(4))
     }
 
     private var featuredEnvironments: [EnvSpec] {
-        EnvCategory.allCases.reduce(into: [EnvSpec]()) { result, category in
-            result.append(contentsOf: envSpecs.filter { $0.category == category }.prefix(1))
+        featuredEnvironmentIDs.compactMap { id in
+            envSpecs.first { $0.id == id }
         }
-        .prefix(8)
-        .map { $0 }
+    }
+
+    private func shuffleEnvironments() {
+        featuredEnvironmentIDs = EnvCategory.allCases.compactMap { category in
+            envSpecs.filter { $0.category == category }.randomElement()?.id
+        }
+        .shuffled()
     }
 
     var body: some View {
@@ -45,6 +51,10 @@ struct HomeView: View {
         #endif
         .onAppear {
             libraryViewModel.loadSessions()
+            shuffleEnvironments()
+        }
+        .onChange(of: envSpecs.map(\.id)) { _, _ in
+            shuffleEnvironments()
         }
     }
 

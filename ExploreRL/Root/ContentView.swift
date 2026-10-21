@@ -33,9 +33,13 @@ struct ContentView: View {
         }
     #else
         @Environment(\.scenePhase) private var scenePhase
-        @SceneStorage("selectedTab") private var selectedTab: AppTab =
-            UIDevice.current.userInterfaceIdiom == .pad ? .home : .train
+        @SceneStorage("selectedTab") private var selectedTab: AppTab = .train
+        @State private var selectedIPadTab: AppTab = .home
         @State private var sessionToLoad: SavedSession?
+
+        private var mobileTab: Binding<AppTab> {
+            UIDevice.current.userInterfaceIdiom == .pad ? $selectedIPadTab : $selectedTab
+        }
     #endif
 
     @AppStorage(AppPreferenceKeys.showExploreTab) private var showExploreTab = true
@@ -49,7 +53,7 @@ struct ContentView: View {
                 IOSRootView(
                     trainViewModel: trainViewModel,
                     envSpecs: $envSpecs,
-                    selectedTab: $selectedTab,
+                    selectedTab: mobileTab,
                     sessionToLoad: $sessionToLoad,
                     sessionToEvaluate: $sessionToEvaluate,
                     pendingImportURLs: $pendingImportURLs,
@@ -64,7 +68,7 @@ struct ContentView: View {
                 selectedSidebarDestination = .library
                 storedSidebarDestination = selectedSidebarDestination.storageKey
             #else
-                selectedTab = .library
+                mobileTab.wrappedValue = .library
             #endif
         }
         .task {
@@ -86,8 +90,8 @@ struct ContentView: View {
                     storedSidebarDestination = selectedSidebarDestination.storageKey
                 }
             #else
-                if selectedTab == .explore {
-                    selectedTab = .train
+                if mobileTab.wrappedValue == .explore {
+                    mobileTab.wrappedValue = .train
                 }
             #endif
         }
