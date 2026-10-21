@@ -17,6 +17,7 @@ struct EnvView: View {
     var trainingConfig: TrainingConfig? = nil
     var elapsed: TimeInterval = 0
     var timedSteps: Int? = nil
+    var trainingPhase: TrainingPhase? = nil
     @State private var output: RenderOutput?
 
     var body: some View {
@@ -29,7 +30,8 @@ struct EnvView: View {
                     trainingState: trainingState,
                     trainingConfig: trainingConfig,
                     elapsed: elapsed,
-                    timedSteps: timedSteps
+                    timedSteps: timedSteps,
+                    trainingPhase: trainingPhase
                 )
             } else if let snapshot {
                 snapshotView(snapshot)

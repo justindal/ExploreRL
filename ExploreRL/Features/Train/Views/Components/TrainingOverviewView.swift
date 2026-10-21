@@ -3,6 +3,7 @@
 //  ExploreRL
 //
 
+import Gymnazo
 import SwiftUI
 
 struct TrainingOverviewView: View {
@@ -10,6 +11,8 @@ struct TrainingOverviewView: View {
     let trainingConfig: TrainingConfig
     let elapsed: TimeInterval
     var timedSteps: Int? = nil
+    var trainingPhase: TrainingPhase? = nil
+    @State private var displayedPhase: TrainingPhase?
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
@@ -26,6 +29,9 @@ struct TrainingOverviewView: View {
             .regularMaterial,
             in: RoundedRectangle(cornerRadius: AppLayout.panelRadius)
         )
+        .task(id: activePhase) {
+            await updateDisplayedPhase()
+        }
     }
 
     private var header: some View {
@@ -41,13 +47,47 @@ struct TrainingOverviewView: View {
     }
 
     private var statusLabel: some View {
-        HStack(spacing: 6) {
-            Circle()
-                .fill(statusColor)
-                .frame(width: 6, height: 6)
-            Text(statusText)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+        ZStack(alignment: .leading) {
+            TrainingPhaseView(phase: .compiling)
+                .hidden()
+                .accessibilityHidden(true)
+
+            if trainingState.status == .training,
+                let displayedPhase
+            {
+                TrainingPhaseView(phase: displayedPhase)
+            } else {
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(statusColor)
+                        .frame(width: 6, height: 6)
+                    Text(statusText)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
+    private var activePhase: TrainingPhase? {
+        trainingState.status == .training ? trainingPhase : nil
+    }
+
+    private func updateDisplayedPhase() async {
+        let phase = activePhase
+        do {
+            switch phase {
+            case .updating where displayedPhase != .updating:
+                try await Task.sleep(for: .milliseconds(400))
+            case .collecting where displayedPhase == .updating:
+                try await Task.sleep(for: .milliseconds(600))
+            default:
+                break
+            }
+            try Task.checkCancellation()
+            displayedPhase = phase == .collecting ? nil : phase
+        } catch {
+            return
         }
     }
 

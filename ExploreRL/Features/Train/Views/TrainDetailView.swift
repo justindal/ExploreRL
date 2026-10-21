@@ -38,16 +38,6 @@ struct TrainDetailView: View {
 
     var body: some View {
         mainContent
-            .overlay(alignment: .bottomTrailing) {
-                if trainingState.status == .training,
-                    let phase = vm.trainingPhases[id], phase != .collecting
-                {
-                    TrainingPhaseView(phase: phase)
-                        .frame(maxWidth: 420, alignment: .trailing)
-                        .padding(AppLayout.spacing)
-                        .allowsHitTesting(false)
-                }
-            }
             .navigationTitle(navigationTitleText)
             #if os(iOS)
                 .navigationBarTitleDisplayMode(.inline)
@@ -373,7 +363,8 @@ struct TrainDetailView: View {
             trainingState: trainingState,
             trainingConfig: trainingConfig,
             elapsed: vm.trainingTimings[id]?.activeElapsed(now: timingDate) ?? 0,
-            timedSteps: vm.timedTrainingSteps(for: id)
+            timedSteps: vm.timedTrainingSteps(for: id),
+            trainingPhase: vm.trainingPhases[id]
         )
 
         #if os(iOS)
