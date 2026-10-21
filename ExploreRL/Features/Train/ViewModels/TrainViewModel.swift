@@ -307,7 +307,10 @@ final class TrainViewModel {
             return .denied("Fix invalid settings before starting training")
         }
         guard !unappliedSettingsEnvs.contains(id) else {
-            return .denied("Apply or discard settings changes before continuing")
+            let message = trainingState(for: id).currentTimestep > 0
+                ? "Apply or discard settings changes before continuing"
+                : "Finish editing settings before starting training"
+            return .denied(message)
         }
         guard !resettingEnvs.contains(id), !snapshottingEnvs.contains(id), trainingTasks[id] == nil else {
             return .denied("Waiting for training to stop")

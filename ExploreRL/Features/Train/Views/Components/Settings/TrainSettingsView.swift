@@ -25,6 +25,8 @@ struct TrainSettingsView: View {
     @State private var isApplying = false
     @State private var applyError: String?
     @State private var scheduledResetTask: Task<Void, Never>?
+    @State private var needsReset = false
+    @FocusedValue(\.settingsEnvironmentID) private var focusedEnvironmentID
 
     init(
         envID: String,
@@ -133,6 +135,7 @@ struct TrainSettingsView: View {
 
     private var settingsForm: some View {
         settingsContainer
+            .focusedValue(\.settingsEnvironmentID, envID)
             #if os(macOS)
                 .modify(if: showsDismissButton) { content in
                     content
@@ -191,11 +194,23 @@ struct TrainSettingsView: View {
             .onChange(of: trainingValidationErrors) { _, _ in
                 applySettingsIfPossible()
             }
+            .onChange(of: focusedEnvironmentID) { _, focusedID in
+                if focusedID == envID {
+                    scheduledResetTask?.cancel()
+                    scheduledResetTask = nil
+                } else if needsReset {
+                    scheduleReset()
+                }
+            }
             .onDisappear {
                 scheduledResetTask?.cancel()
                 scheduledResetTask = nil
                 vm.invalidSettingsEnvs.remove(envID)
-                vm.unappliedSettingsEnvs.remove(envID)
+                if needsReset {
+                    Task { await resetIfIdle() }
+                } else {
+                    vm.unappliedSettingsEnvs.remove(envID)
+                }
             }
     }
 
@@ -386,13 +401,31 @@ struct TrainSettingsView: View {
     }
 
     private func scheduleReset() {
+        needsReset = true
+        vm.unappliedSettingsEnvs.insert(envID)
         scheduledResetTask?.cancel()
-        let id = envID
+        scheduledResetTask = nil
+        guard focusedEnvironmentID != envID else { return }
         scheduledResetTask = Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(250))
-            guard !Task.isCancelled else { return }
-            await vm.resetTraining(for: id)
+            do {
+                try await Task.sleep(for: .milliseconds(250))
+                try Task.checkCancellation()
+            } catch {
+                return
+            }
+            await resetIfIdle()
         }
+    }
+
+    private func resetIfIdle() async {
+        guard vm.trainingTasks[envID] == nil,
+            !vm.snapshottingEnvs.contains(envID),
+            !vm.isResetting(id: envID),
+            !hasProgress
+        else { return }
+        await vm.resetTraining(for: envID)
+        needsReset = false
+        vm.unappliedSettingsEnvs.remove(envID)
     }
 
     private func validateCustomMap(_ value: String) -> String? {
