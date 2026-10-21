@@ -22,7 +22,12 @@ nonisolated struct ConfiguredEnv: Env {
     var unwrapped: any Env { base.unwrapped }
 
     mutating func step(_ action: MLXArray) throws -> Step {
-        try base.step(action)
+        if actionSpace is Box, let shape = actionSpace.shape,
+            action.shape == [1] + shape
+        {
+            return try base.step(action.reshaped(shape))
+        }
+        return try base.step(action)
     }
 
     mutating func reset(seed: UInt64?, options: EnvOptions?) throws -> Reset {
